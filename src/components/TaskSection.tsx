@@ -180,7 +180,7 @@ export default function TaskSection({
               return (
                 <div
                   key={category.id}
-                  className={`rounded-2xl border transition-all duration-200 flex flex-col h-fit ${getCategoryGradient(index)}`}
+                  className={`rounded-2xl border transition-all duration-200 flex flex-col h-fit bg-white/40 backdrop-blur-sm ${getCategoryGradient(index)}`}
                 >
                   {/* Category Header */}
                   <div className="p-4 flex items-start justify-between gap-3">
