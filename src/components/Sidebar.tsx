@@ -44,8 +44,8 @@ export default function Sidebar({
     <button
       onClick={() => onSelectClient(client)}
       className={`w-full text-left px-4 py-3.5 rounded-2xl transition-all duration-200 group relative overflow-hidden ${selectedClientId === client.id
-          ? 'bg-white shadow-sm ring-1 ring-black/5'
-          : 'hover:bg-white/60 hover:shadow-sm'
+        ? 'bg-white shadow-sm ring-1 ring-black/5'
+        : 'hover:bg-white/60 hover:shadow-sm'
         }`}
     >
       <div className="flex items-center justify-between z-10 relative">
@@ -61,7 +61,7 @@ export default function Sidebar({
   );
 
   return (
-    <div className="w-80 h-screen bg-[#f8fafc] border-r border-gray-200/60 flex flex-col">
+    <div className="w-80 shrink-0 h-screen bg-[#f8fafc] border-r border-gray-200/60 flex flex-col">
       {/* Header */}
       <div className="p-6 pb-2">
         <div className="flex items-center gap-3 mb-8">
