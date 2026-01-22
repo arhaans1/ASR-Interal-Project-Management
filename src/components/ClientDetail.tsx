@@ -55,7 +55,7 @@ export default function ClientDetail({
 }: ClientDetailProps) {
   return (
     <div className="flex-1 h-screen overflow-y-auto bg-[#f8fafc]">
-      <div className="max-w-7xl mx-auto p-8 relative">
+      <div className="w-full h-full p-4 md:p-6 lg:p-8 relative">
         {/* Header */}
         <div className="mb-8 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div>
