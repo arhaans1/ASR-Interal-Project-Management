@@ -81,9 +81,9 @@ export default function Sidebar({
 
         <button
           onClick={onAddNew}
-          className="w-full py-3 px-4 bg-[#5b21b6] hover:bg-[#4c1d95] text-white rounded-full transition-all shadow-[0_0_20px_rgba(91,33,182,0.3)] hover:shadow-[0_0_25px_rgba(91,33,182,0.5)] flex items-center justify-center gap-2 font-semibold tracking-wide"
+          className="w-full py-2 px-4 bg-[#5b21b6] hover:bg-[#4c1d95] text-white rounded-full transition-all shadow-[0_0_20px_rgba(91,33,182,0.3)] hover:shadow-[0_0_25px_rgba(91,33,182,0.5)] flex items-center justify-center gap-2 text-sm font-semibold tracking-wide"
         >
-          <Plus className="w-5 h-5" />
+          <Plus className="w-4 h-4" />
           Add New Client
         </button>
       </div>

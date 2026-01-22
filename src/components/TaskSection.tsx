@@ -101,14 +101,14 @@ export default function TaskSection({
   };
 
   return (
-    <div className="glass-panel rounded-3xl p-6 h-full flex flex-col relative overflow-hidden">
+    <div className="glass-panel rounded-3xl h-full flex flex-col relative overflow-hidden ring-1 ring-white/60 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.1)]">
       {/* Soft overlay gradient */}
       <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50/50 rounded-full blur-3xl -z-10 -translate-y-1/2 translate-x-1/2 pointer-events-none" />
 
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      {/* Styled Header */}
+      <div className="bg-gradient-to-r from-indigo-50/80 to-blue-50/80 px-6 py-4 border-b border-indigo-100/50 flex items-center justify-between backdrop-blur-sm">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-[#5b21b6] text-white rounded-2xl shadow-[0_0_15px_rgba(91,33,182,0.3)]">
+          <div className="p-2 bg-[#5b21b6] text-white rounded-2xl shadow-[0_0_15px_rgba(91,33,182,0.3)]">
             <ListTodo className="w-5 h-5" />
           </div>
           <div>
@@ -119,7 +119,7 @@ export default function TaskSection({
 
         <button
           onClick={() => setIsCreatingCategory(true)}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700 font-semibold text-sm transition-all border border-indigo-100"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/60 text-indigo-700 hover:bg-white hover:text-indigo-800 font-semibold text-sm transition-all border border-indigo-100/50 shadow-sm"
         >
           <Plus className="w-4 h-4" />
           New Category
@@ -127,7 +127,7 @@ export default function TaskSection({
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto pr-1">
+      <div className="flex-1 overflow-y-auto p-6 pr-2">
         {/* New Category Input */}
         {isCreatingCategory && (
           <div className="flex items-center gap-2 p-4 mb-4 bg-gray-50 rounded-2xl border border-gray-200 animate-in fade-in slide-in-from-top-2 duration-200">

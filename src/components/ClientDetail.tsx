@@ -118,7 +118,7 @@ export default function ClientDetail({
           {/* Right Side - Info Cards - Takes 4 columns (1/3) */}
           <div className="lg:col-span-4 space-y-6">
             {/* Important Links - Blue/Cyan Gradient */}
-            <div className="glass-panel rounded-3xl shadow-sm overflow-hidden">
+            <div className="glass-panel rounded-3xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.1)] ring-1 ring-white/60 overflow-hidden">
               <div className="bg-gradient-to-r from-cyan-50/80 to-blue-50/80 px-6 py-4 border-b border-cyan-100/50 flex items-center gap-2 text-cyan-800 font-semibold backdrop-blur-sm">
                 <div className="p-1.5 bg-white/60 rounded-lg shadow-sm">
                   <LinkIcon className="w-4 h-4 text-cyan-500" />
@@ -136,7 +136,7 @@ export default function ClientDetail({
             </div>
 
             {/* Notes - Purple/Pink Gradient */}
-            <div className="glass-panel rounded-3xl shadow-sm overflow-hidden">
+            <div className="glass-panel rounded-3xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.1)] ring-1 ring-white/60 overflow-hidden">
               <div className="bg-gradient-to-r from-purple-50/80 to-fuchsia-50/80 px-6 py-4 border-b border-purple-100/50 flex items-center gap-2 text-purple-800 font-semibold backdrop-blur-sm">
                 <div className="p-1.5 bg-white/60 rounded-lg shadow-sm">
                   <FileText className="w-4 h-4 text-purple-500" />
