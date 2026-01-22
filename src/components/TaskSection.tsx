@@ -101,7 +101,7 @@ export default function TaskSection({
   };
 
   return (
-    <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 h-full flex flex-col relative overflow-hidden">
+    <div className="glass-panel rounded-3xl p-6 h-full flex flex-col relative overflow-hidden">
       {/* Soft overlay gradient */}
       <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50/50 rounded-full blur-3xl -z-10 -translate-y-1/2 translate-x-1/2 pointer-events-none" />
 
