@@ -108,7 +108,7 @@ export default function TaskSection({
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-200">
+          <div className="p-2.5 bg-[#5b21b6] text-white rounded-2xl shadow-[0_0_15px_rgba(91,33,182,0.3)]">
             <ListTodo className="w-5 h-5" />
           </div>
           <div>

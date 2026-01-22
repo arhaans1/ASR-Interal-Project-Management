@@ -43,13 +43,13 @@ export default function Sidebar({
   const ClientItem = ({ client }: { client: Client }) => (
     <button
       onClick={() => onSelectClient(client)}
-      className={`w-full text-left px-3 py-3 rounded-2xl transition-all duration-300 group relative overflow-hidden flex items-center gap-3 ${selectedClientId === client.id
-        ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20 scale-[1.02]'
+      className={`w-full text-left px-3 py-3 rounded-full transition-all duration-300 group relative overflow-hidden flex items-center gap-3 ${selectedClientId === client.id
+        ? 'bg-[#5b21b6] text-white shadow-[0_0_20px_rgba(91,33,182,0.3)] scale-[1.02]'
         : 'hover:bg-white/40 hover:shadow-sm'
         }`}
     >
-      <div className={`p-2 rounded-xl transition-colors duration-300 shrink-0 ${selectedClientId === client.id
-        ? 'bg-white text-slate-900'
+      <div className={`p-2 rounded-full transition-colors duration-300 shrink-0 ${selectedClientId === client.id
+        ? 'bg-white text-[#5b21b6]'
         : 'bg-white/50 text-gray-400 group-hover:bg-white group-hover:text-gray-600'
         }`}>
         <Users className="w-5 h-5" />
@@ -60,7 +60,7 @@ export default function Sidebar({
           }`}>
           {client.name}
         </span>
-        <div className={`w-2 h-2 rounded-full ${getStatusDotColor(client.status)} ${selectedClientId === client.id ? 'ring-2 ring-slate-900' : ''}`} />
+        <div className={`w-2 h-2 rounded-full ${getStatusDotColor(client.status)} ${selectedClientId === client.id ? 'ring-2 ring-[#5b21b6]' : ''}`} />
       </div>
     </button>
   );
@@ -70,7 +70,7 @@ export default function Sidebar({
       {/* Header */}
       <div className="p-6 pb-2">
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200">
+          <div className="w-10 h-10 bg-[#5b21b6] rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(91,33,182,0.5)]">
             <span className="text-white font-bold text-xl">A</span>
           </div>
           <div>
@@ -81,7 +81,7 @@ export default function Sidebar({
 
         <button
           onClick={onAddNew}
-          className="w-full py-3 px-4 bg-gradient-to-r from-purple-600 to-fuchsia-500 hover:from-purple-700 hover:to-fuchsia-600 text-white rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 font-semibold tracking-wide"
+          className="w-full py-3 px-4 bg-[#5b21b6] hover:bg-[#4c1d95] text-white rounded-full transition-all shadow-[0_0_20px_rgba(91,33,182,0.3)] hover:shadow-[0_0_25px_rgba(91,33,182,0.5)] flex items-center justify-center gap-2 font-semibold tracking-wide"
         >
           <Plus className="w-5 h-5" />
           Add New Client

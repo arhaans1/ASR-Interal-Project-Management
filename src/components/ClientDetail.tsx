@@ -91,7 +91,7 @@ export default function ClientDetail({
             </button>
             <button
               onClick={onUpdateStatus}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all font-medium text-sm shadow-md hover:shadow-lg shadow-indigo-200"
+              className="flex items-center gap-2 px-6 py-2 bg-[#5b21b6] text-white rounded-full hover:bg-[#4c1d95] transition-all font-medium text-sm shadow-[0_0_15px_rgba(91,33,182,0.3)] hover:shadow-[0_0_20px_rgba(91,33,182,0.5)]"
             >
               <Settings className="w-4 h-4" />
               <span>Status</span>
