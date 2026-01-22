@@ -43,19 +43,24 @@ export default function Sidebar({
   const ClientItem = ({ client }: { client: Client }) => (
     <button
       onClick={() => onSelectClient(client)}
-      className={`w-full text-left px-4 py-3.5 rounded-2xl transition-all duration-200 group relative overflow-hidden ${selectedClientId === client.id
-        ? 'bg-white/80 shadow-sm ring-1 ring-black/5 backdrop-blur-sm'
+      className={`w-full text-left px-3 py-3 rounded-2xl transition-all duration-300 group relative overflow-hidden flex items-center gap-3 ${selectedClientId === client.id
+        ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20 scale-[1.02]'
         : 'hover:bg-white/40 hover:shadow-sm'
         }`}
     >
-      <div className="flex items-center justify-between z-10 relative">
-        <span className={`font-medium truncate flex-1 transition-colors ${selectedClientId === client.id ? 'text-gray-900' : 'text-gray-600 group-hover:text-gray-900'
+      <div className={`p-2 rounded-xl transition-colors duration-300 shrink-0 ${selectedClientId === client.id
+        ? 'bg-white text-slate-900'
+        : 'bg-white/50 text-gray-400 group-hover:bg-white group-hover:text-gray-600'
+        }`}>
+        <Users className="w-5 h-5" />
+      </div>
+
+      <div className="flex items-center justify-between z-10 relative flex-1 min-w-0">
+        <span className={`font-semibold truncate transition-colors ${selectedClientId === client.id ? 'text-white' : 'text-gray-600 group-hover:text-gray-900'
           }`}>
           {client.name}
         </span>
-        {selectedClientId === client.id && (
-          <div className={`w-2 h-2 rounded-full ${getStatusDotColor(client.status)}`} />
-        )}
+        <div className={`w-2 h-2 rounded-full ${getStatusDotColor(client.status)} ${selectedClientId === client.id ? 'ring-2 ring-slate-900' : ''}`} />
       </div>
     </button>
   );
