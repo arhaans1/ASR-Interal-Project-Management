@@ -118,9 +118,9 @@ export default function ClientDetail({
           {/* Right Side - Info Cards - Takes 4 columns (1/3) */}
           <div className="lg:col-span-4 space-y-6">
             {/* Important Links - Blue/Cyan Gradient */}
-            <div className="bg-white rounded-3xl shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] border border-gray-100 overflow-hidden">
-              <div className="bg-gradient-to-r from-cyan-50 to-blue-50 px-6 py-4 border-b border-cyan-100 flex items-center gap-2 text-cyan-800 font-semibold">
-                <div className="p-1.5 bg-white rounded-lg shadow-sm">
+            <div className="glass-panel rounded-3xl shadow-sm overflow-hidden">
+              <div className="bg-gradient-to-r from-cyan-50/80 to-blue-50/80 px-6 py-4 border-b border-cyan-100/50 flex items-center gap-2 text-cyan-800 font-semibold backdrop-blur-sm">
+                <div className="p-1.5 bg-white/60 rounded-lg shadow-sm">
                   <LinkIcon className="w-4 h-4 text-cyan-500" />
                 </div>
                 <h3>Important Links</h3>
@@ -136,9 +136,9 @@ export default function ClientDetail({
             </div>
 
             {/* Notes - Purple/Pink Gradient */}
-            <div className="bg-white rounded-3xl shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] border border-gray-100 overflow-hidden">
-              <div className="bg-gradient-to-r from-purple-50 to-fuchsia-50 px-6 py-4 border-b border-purple-100 flex items-center gap-2 text-purple-800 font-semibold">
-                <div className="p-1.5 bg-white rounded-lg shadow-sm">
+            <div className="glass-panel rounded-3xl shadow-sm overflow-hidden">
+              <div className="bg-gradient-to-r from-purple-50/80 to-fuchsia-50/80 px-6 py-4 border-b border-purple-100/50 flex items-center gap-2 text-purple-800 font-semibold backdrop-blur-sm">
+                <div className="p-1.5 bg-white/60 rounded-lg shadow-sm">
                   <FileText className="w-4 h-4 text-purple-500" />
                 </div>
                 <h3>Notes</h3>
