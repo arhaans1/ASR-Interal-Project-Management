@@ -65,18 +65,21 @@ export default function Sidebar({
       {/* Header */}
       <div className="p-6 pb-2">
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center">
-            <Users className="w-5 h-5 text-indigo-500" />
+          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200">
+            <span className="text-white font-bold text-xl">A</span>
           </div>
-          <span className="font-bold text-xl text-gray-800 tracking-tight">ASR Media</span>
+          <div>
+            <h1 className="font-bold text-xl text-gray-900 tracking-tight leading-tight">ASR Media Pro</h1>
+            <p className="text-xs text-gray-400 font-medium">Project Manager</p>
+          </div>
         </div>
 
         <button
           onClick={onAddNew}
-          className="w-full flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-700 px-4 py-3.5 rounded-2xl hover:border-indigo-300 hover:text-indigo-600 transition-all duration-200 shadow-sm group"
+          className="w-full py-3 px-4 bg-gradient-to-r from-purple-600 to-fuchsia-500 hover:from-purple-700 hover:to-fuchsia-600 text-white rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 font-semibold tracking-wide"
         >
-          <Plus className="w-5 h-5 text-gray-400 group-hover:text-indigo-500 transition-colors" />
-          <span className="font-semibold text-sm">New Client</span>
+          <Plus className="w-5 h-5" />
+          Add New Client
         </button>
       </div>
 

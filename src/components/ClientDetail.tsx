@@ -117,32 +117,40 @@ export default function ClientDetail({
 
           {/* Right Side - Info Cards - Takes 4 columns (1/3) */}
           <div className="lg:col-span-4 space-y-6">
-            <div className="bg-white rounded-3xl p-6 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] border border-gray-100">
-              <div className="flex items-center gap-2 mb-4 text-gray-800 font-semibold">
-                <LinkIcon className="w-4 h-4 text-indigo-500" />
+            {/* Important Links - Blue/Cyan Gradient */}
+            <div className="bg-white rounded-3xl shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] border border-gray-100 overflow-hidden">
+              <div className="bg-gradient-to-r from-cyan-50 to-blue-50 px-6 py-4 border-b border-cyan-100 flex items-center gap-2 text-cyan-800 font-semibold">
+                <div className="p-1.5 bg-white rounded-lg shadow-sm">
+                  <LinkIcon className="w-4 h-4 text-cyan-500" />
+                </div>
                 <h3>Important Links</h3>
               </div>
-              <TextBox
-                title=""
-                value={client.important_links}
-                onChange={(value) => onUpdateClient({ important_links: value })}
-                placeholder="Paste links here..."
-                className="bg-gray-50 border-gray-200 focus:bg-white min-h-[120px]"
-              />
+              <div className="p-6 pt-2">
+                <TextBox
+                  value={client.important_links}
+                  onChange={(value) => onUpdateClient({ important_links: value })}
+                  placeholder="Paste links here..."
+                  className="bg-transparent border-0 focus:bg-transparent min-h-[120px]"
+                />
+              </div>
             </div>
 
-            <div className="bg-white rounded-3xl p-6 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] border border-gray-100">
-              <div className="flex items-center gap-2 mb-4 text-gray-800 font-semibold">
-                <FileText className="w-4 h-4 text-orange-500" />
+            {/* Notes - Purple/Pink Gradient */}
+            <div className="bg-white rounded-3xl shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] border border-gray-100 overflow-hidden">
+              <div className="bg-gradient-to-r from-purple-50 to-fuchsia-50 px-6 py-4 border-b border-purple-100 flex items-center gap-2 text-purple-800 font-semibold">
+                <div className="p-1.5 bg-white rounded-lg shadow-sm">
+                  <FileText className="w-4 h-4 text-purple-500" />
+                </div>
                 <h3>Notes</h3>
               </div>
-              <TextBox
-                title=""
-                value={client.notes}
-                onChange={(value) => onUpdateClient({ notes: value })}
-                placeholder="Add client notes..."
-                className="bg-gray-50 border-gray-200 focus:bg-white min-h-[200px]"
-              />
+              <div className="p-6 pt-2">
+                <TextBox
+                  value={client.notes}
+                  onChange={(value) => onUpdateClient({ notes: value })}
+                  placeholder="Add client notes..."
+                  className="bg-transparent border-0 focus:bg-transparent min-h-[200px]"
+                />
+              </div>
             </div>
           </div>
         </div>
