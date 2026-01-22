@@ -1,13 +1,54 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f9fafb;
-  --foreground: #111827;
+  /* Core Backgrounds */
+  --background: #f8fafc; /* Slate-50 - softer than pure white */
+  --foreground: #334155; /* Slate-700 - softer than black */
+  --card-bg: #ffffff;
+  
+  /* Primary Brand */
+  --primary: #818cf8; /* Indigo-400 - softer primary */
+  --primary-foreground: #ffffff;
+  
+  /* Status Pastels (Backgrounds) */
+  --status-onboarding-bg: #e0f2fe; /* Sky-100 */
+  --status-onboarding-text: #0369a1; /* Sky-700 */
+  
+  --status-process-bg: #ffedd5; /* Orange-100 */
+  --status-process-text: #c2410c; /* Orange-700 */
+  
+  --status-hold-bg: #f3f4f6; /* Gray-100 */
+  --status-hold-text: #4b5563; /* Gray-600 */
+  
+  --status-ads-bg: #dcfce7; /* Green-100 */
+  --status-ads-text: #15803d; /* Green-700 */
+  
+  --status-closed-bg: #fee2e2; /* Red-100 */
+  --status-closed-text: #b91c1c; /* Red-700 */
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card-bg);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  
+  /* Status Colors */
+  --color-status-onboarding: var(--status-onboarding-bg);
+  --color-status-onboarding-fg: var(--status-onboarding-text);
+  
+  --color-status-process: var(--status-process-bg);
+  --color-status-process-fg: var(--status-process-text);
+
+  --color-status-hold: var(--status-hold-bg);
+  --color-status-hold-fg: var(--status-hold-text);
+  
+  --color-status-ads: var(--status-ads-bg);
+  --color-status-ads-fg: var(--status-ads-text);
+  
+  --color-status-closed: var(--status-closed-bg);
+  --color-status-closed-fg: var(--status-closed-text);
 }
 
 * {
@@ -19,48 +60,62 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   overflow: hidden;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Custom scrollbar */
+/* Utilities */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.soft-card {
+  background: var(--card-bg);
+  border-radius: 1.5rem; /* rounded-3xl */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(226, 232, 240, 0.6); /* Slate-200 with opacity */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.soft-card:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+  transform: translateY(-2px);
+}
+
+/* Custom scrollbar - thinner and softer */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
+  background: #cbd5e1; /* Slate-300 */
+  border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a1a1a1;
-}
-
-/* Smooth transitions */
-* {
-  transition-property: background-color, border-color, color, fill, stroke;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
-}
-
-/* Focus styles */
-button:focus-visible,
-input:focus-visible,
-textarea:focus-visible,
-select:focus-visible {
-  outline: 2px solid #6366f1;
-  outline-offset: 2px;
+  background: #94a3b8; /* Slate-400 */
 }
 
 /* Selection color */
 ::selection {
-  background-color: #c7d2fe;
+  background-color: #c7d2fe; /* Indigo-200 */
   color: #312e81;
+}
+
+/* Focus alignment */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }

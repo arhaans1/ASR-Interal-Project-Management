@@ -4,10 +4,11 @@ import { useState, useEffect, useRef } from 'react';
 import { Save } from 'lucide-react';
 
 interface TextBoxProps {
-  title: string;
+  title?: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  className?: string;
 }
 
 // Function to detect and linkify URLs in text
@@ -34,10 +35,10 @@ function linkifyText(text: string): React.ReactNode[] {
 }
 
 export default function TextBox({
-  title,
   value,
   onChange,
   placeholder = 'Start typing...',
+  className = '',
 }: TextBoxProps) {
   const [localValue, setLocalValue] = useState(value);
   const [isEditing, setIsEditing] = useState(false);
@@ -71,23 +72,19 @@ export default function TextBox({
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden h-full flex flex-col">
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-gray-50 to-white">
-        <h3 className="font-semibold text-gray-800">{title}</h3>
-        {hasChanges && (
-          <button
-            onClick={handleSave}
-            className="flex items-center gap-1 text-xs text-green-600 hover:text-green-700 font-medium"
-          >
-            <Save className="w-3 h-3" />
-            Save
-          </button>
-        )}
-      </div>
+    <div className={`relative group/textbox ${className}`}>
+      {/* Save Indicator - Floating absolute */}
+      {hasChanges && (
+        <button
+          onClick={handleSave}
+          className="absolute top-0 right-0 z-10 flex items-center gap-1 text-xs bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full font-bold shadow-sm opacity-100 transition-opacity transform -translate-y-1/2 translate-x-1/2"
+        >
+          <Save className="w-3 h-3" />
+          Save
+        </button>
+      )}
 
-      {/* Content */}
-      <div className="flex-1 p-3 min-h-[150px]">
+      <div className="h-full">
         {isEditing ? (
           <textarea
             ref={textareaRef}
@@ -95,21 +92,26 @@ export default function TextBox({
             onChange={handleChange}
             onBlur={handleBlur}
             placeholder={placeholder}
-            className="w-full h-full min-h-[130px] resize-none border-0 focus:ring-0 outline-none text-sm text-gray-700 placeholder-gray-400"
+            className="w-full h-full resize-none bg-transparent border-0 focus:ring-0 outline-none text-sm text-gray-700 placeholder-gray-400 p-0 font-medium leading-relaxed"
             autoFocus
           />
         ) : (
           <div
             onClick={() => setIsEditing(true)}
-            className="w-full h-full min-h-[130px] cursor-text text-sm text-gray-700 whitespace-pre-wrap"
+            className="w-full h-full cursor-text text-sm text-gray-700 whitespace-pre-wrap p-0 font-medium leading-relaxed min-h-[60px]"
           >
             {localValue ? (
-              <div className="whitespace-pre-wrap">
+              <div className="whitespace-pre-wrap break-words">
                 {linkifyText(localValue)}
               </div>
             ) : (
-              <span className="text-gray-400">{placeholder}</span>
+              <span className="text-gray-400 italic">{placeholder}</span>
             )}
+
+            {/* Edit hint on hover */}
+            <div className="absolute bottom-0 right-0 opacity-0 group-hover/textbox:opacity-100 transition-opacity pointer-events-none">
+              <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Click to edit</span>
+            </div>
           </div>
         )}
       </div>

@@ -4,7 +4,7 @@ import { Client } from '@/types/database';
 import { CategoryWithTasks } from '@/hooks/useCategories';
 import TaskSection from './TaskSection';
 import TextBox from './TextBox';
-import { Copy, Settings, Building2 } from 'lucide-react';
+import { Copy, Settings, Building2, Calendar, Link as LinkIcon, FileText } from 'lucide-react';
 
 interface ClientDetailProps {
   client: Client;
@@ -21,20 +21,21 @@ interface ClientDetailProps {
   onToggleTask: (categoryId: string, taskId: string, completed: boolean) => Promise<void>;
 }
 
-const getStatusColor = (status: string) => {
+// Helper for mapped status colors (text only for tags usually, or full badges)
+const getStatusBadgeStyles = (status: string) => {
   switch (status) {
     case 'Onboarding':
-      return 'bg-blue-100 text-blue-700 border-blue-200';
+      return 'bg-[var(--status-onboarding-bg)] text-[var(--status-onboarding-text)]';
     case 'In-Process':
-      return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+      return 'bg-[var(--status-process-bg)] text-[var(--status-process-text)]';
     case 'On-Hold':
-      return 'bg-orange-100 text-orange-700 border-orange-200';
+      return 'bg-[var(--status-hold-bg)] text-[var(--status-hold-text)]';
     case 'Ads Launched':
-      return 'bg-green-100 text-green-700 border-green-200';
+      return 'bg-[var(--status-ads-bg)] text-[var(--status-ads-text)]';
     case 'Closed':
-      return 'bg-gray-100 text-gray-700 border-gray-200';
+      return 'bg-[var(--status-closed-bg)] text-[var(--status-closed-text)]';
     default:
-      return 'bg-gray-100 text-gray-700 border-gray-200';
+      return 'bg-gray-100 text-gray-700';
   }
 };
 
@@ -53,32 +54,55 @@ export default function ClientDetail({
   onToggleTask,
 }: ClientDetailProps) {
   return (
-    <div className="flex-1 h-screen overflow-y-auto bg-gray-50">
-      <div className="max-w-6xl mx-auto p-6">
+    <div className="flex-1 h-screen overflow-y-auto bg-[#f8fafc]">
+      <div className="max-w-7xl mx-auto p-8 relative">
         {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">{client.name}</h1>
-              <div className="flex items-center gap-2 mt-2">
-                <Building2 className="w-4 h-4 text-gray-400" />
-                <span className="text-gray-600">{client.business_name}</span>
+        <div className="mb-8 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3 mb-1">
+              <h1 className="text-3xl font-bold text-gray-900 tracking-tight">{client.name}</h1>
+              <span
+                className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${getStatusBadgeStyles(
+                  client.status
+                )}`}
+              >
+                {client.status}
+              </span>
+            </div>
+            <div className="flex items-center gap-4 text-gray-500 text-sm font-medium">
+              <div className="flex items-center gap-1.5">
+                <Building2 className="w-4 h-4" />
+                <span>{client.business_name}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Calendar className="w-4 h-4" />
+                <span>Started {new Date(client.created_at).toLocaleDateString()}</span>
               </div>
             </div>
-            <span
-              className={`px-4 py-1.5 rounded-full text-sm font-medium border ${getStatusColor(
-                client.status
-              )}`}
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onClone}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all font-medium text-sm shadow-sm"
             >
-              {client.status}
-            </span>
+              <Copy className="w-4 h-4" />
+              <span>Clone</span>
+            </button>
+            <button
+              onClick={onUpdateStatus}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all font-medium text-sm shadow-md hover:shadow-lg shadow-indigo-200"
+            >
+              <Settings className="w-4 h-4" />
+              <span>Status</span>
+            </button>
           </div>
         </div>
 
         {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Tasks Section - Takes 2 columns */}
-          <div className="lg:col-span-2">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Tasks Section - Takes 8 columns (2/3) */}
+          <div className="lg:col-span-8">
             <TaskSection
               categories={categories}
               onCreateCategory={onCreateCategory}
@@ -91,43 +115,35 @@ export default function ClientDetail({
             />
           </div>
 
-          {/* Right Side - Important Links & Notes */}
-          <div className="space-y-6">
-            <TextBox
-              title="Important Links"
-              value={client.important_links}
-              onChange={(value) => onUpdateClient({ important_links: value })}
-              placeholder="Add important links here..."
-            />
-            <TextBox
-              title="Notes"
-              value={client.notes}
-              onChange={(value) => onUpdateClient({ notes: value })}
-              placeholder="Add notes here..."
-            />
-          </div>
-        </div>
+          {/* Right Side - Info Cards - Takes 4 columns (1/3) */}
+          <div className="lg:col-span-4 space-y-6">
+            <div className="bg-white rounded-3xl p-6 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] border border-gray-100">
+              <div className="flex items-center gap-2 mb-4 text-gray-800 font-semibold">
+                <LinkIcon className="w-4 h-4 text-indigo-500" />
+                <h3>Important Links</h3>
+              </div>
+              <TextBox
+                title=""
+                value={client.important_links}
+                onChange={(value) => onUpdateClient({ important_links: value })}
+                placeholder="Paste links here..."
+                className="bg-gray-50 border-gray-200 focus:bg-white min-h-[120px]"
+              />
+            </div>
 
-        {/* Actions Section */}
-        <div className="mt-8 pt-6 border-t border-gray-200">
-          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">
-            Actions
-          </h3>
-          <div className="flex gap-3">
-            <button
-              onClick={onClone}
-              className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all font-medium shadow-sm"
-            >
-              <Copy className="w-4 h-4" />
-              Clone Client
-            </button>
-            <button
-              onClick={onUpdateStatus}
-              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl hover:from-indigo-600 hover:to-purple-700 transition-all font-medium shadow-md hover:shadow-lg"
-            >
-              <Settings className="w-4 h-4" />
-              Update Status
-            </button>
+            <div className="bg-white rounded-3xl p-6 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] border border-gray-100">
+              <div className="flex items-center gap-2 mb-4 text-gray-800 font-semibold">
+                <FileText className="w-4 h-4 text-orange-500" />
+                <h3>Notes</h3>
+              </div>
+              <TextBox
+                title=""
+                value={client.notes}
+                onChange={(value) => onUpdateClient({ notes: value })}
+                placeholder="Add client notes..."
+                className="bg-gray-50 border-gray-200 focus:bg-white min-h-[200px]"
+              />
+            </div>
           </div>
         </div>
       </div>
