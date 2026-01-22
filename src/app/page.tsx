@@ -7,7 +7,7 @@ import { Client, ClientStatus } from '@/types/database';
 import Sidebar from '@/components/Sidebar';
 import ClientDetail from '@/components/ClientDetail';
 import ClientModal from '@/components/ClientModal';
-import { Users } from 'lucide-react';
+import { Briefcase, Plus, Sparkles } from 'lucide-react';
 
 export default function Home() {
   const {
@@ -25,7 +25,6 @@ export default function Home() {
 
   const {
     categories,
-    loading: categoriesLoading,
     createCategory,
     updateCategory,
     deleteCategory,
@@ -33,7 +32,6 @@ export default function Home() {
     updateTask,
     deleteTask,
     toggleTask,
-    refreshCategories,
   } = useCategories(selectedClient?.id || null);
 
   // Update selected client when clients change
@@ -134,17 +132,19 @@ export default function Home() {
 
   if (clientsLoading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gray-50">
+      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-6 animate-pulse shadow-lg shadow-indigo-200">
+            <Sparkles className="w-8 h-8 text-white" />
+          </div>
+          <p className="text-slate-500 font-medium">Loading your workspace...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen">
       {/* Sidebar */}
       <Sidebar
         activeClients={activeClients}
@@ -171,22 +171,23 @@ export default function Home() {
           onToggleTask={handleToggleTask}
         />
       ) : (
-        <div className="flex-1 flex items-center justify-center bg-gray-50">
-          <div className="text-center">
-            <div className="w-20 h-20 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Users className="w-10 h-10 text-indigo-500" />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center max-w-md mx-auto px-8">
+            <div className="w-24 h-24 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-indigo-200">
+              <Briefcase className="w-12 h-12 text-white" />
             </div>
-            <h2 className="text-xl font-semibold text-gray-700 mb-2">
-              No Client Selected
+            <h2 className="text-3xl font-bold text-slate-800 mb-3">
+              Welcome to ASR Media Pro
             </h2>
-            <p className="text-gray-500 mb-4">
-              Select a client from the sidebar or create a new one
+            <p className="text-slate-500 mb-8 leading-relaxed">
+              Select a client from the sidebar to view their details, or create a new client to get started with your project management.
             </p>
             <button
               onClick={handleAddNew}
-              className="px-6 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all font-medium shadow-md hover:shadow-lg"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-2xl hover:from-indigo-600 hover:to-purple-600 transition-all font-semibold shadow-xl shadow-indigo-200 hover:shadow-2xl hover:shadow-indigo-300 hover:-translate-y-1"
             >
-              Add New Client
+              <Plus className="w-5 h-5" />
+              Add Your First Client
             </button>
           </div>
         </div>
