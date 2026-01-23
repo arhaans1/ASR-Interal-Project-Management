@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Client } from '@/types/database';
 import { ChevronRight, Plus, Users, Layout, Rocket, Archive } from 'lucide-react';
-import DataMigrationBtn from './DataMigrationBtn';
 
 interface SidebarProps {
   clients: Client[];
@@ -198,7 +197,6 @@ export default function Sidebar({
       </div>
 
       {/* Footer */}
-      <DataMigrationBtn />
       <div className="p-4 border-t border-gray-200/60">
         <div className="text-xs text-center text-gray-400 font-medium">
           v0.2.1 • ASR Internal
