@@ -27,13 +27,8 @@ interface TaskSectionProps {
 
 // Helper to get alternating gradients for cards
 const getCategoryGradient = (index: number) => {
-  const gradients = [
-    'bg-white border-emerald-100/50 shadow-sm hover:shadow-md hover:border-emerald-200', // Green-ish accent
-    'bg-white border-orange-100/50 shadow-sm hover:shadow-md hover:border-orange-200', // Orange-ish accent
-    'bg-white border-rose-100/50 shadow-sm hover:shadow-md hover:border-rose-200',     // Red-ish accent
-    'bg-white border-blue-100/50 shadow-sm hover:shadow-md hover:border-blue-200',    // Blue-ish accent
-  ];
-  return gradients[index % gradients.length];
+  // Consistent Monochrome Hover with Strong "Glow" (Deep Shadow)
+  return 'bg-white border-gray-200/60 shadow-sm hover:border-slate-900 hover:shadow-[0_0_25px_rgba(0,0,0,0.15)] hover:-translate-y-0.5';
 };
 
 export default function TaskSection({
