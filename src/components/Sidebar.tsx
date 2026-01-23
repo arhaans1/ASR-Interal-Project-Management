@@ -51,10 +51,15 @@ export default function Sidebar({
   };
 
   // Filter clients into groups
-  const activeClients = clients.filter(c => c.status === 'Active');
-  const launchedClients = clients.filter(c => c.status === 'Launched');
+  const activeClients = clients.filter(c => ['Active', 'Onboarding', 'In-Process'].includes(c.status));
+  const launchedClients = clients.filter(c => ['Launched', 'Ads Launched'].includes(c.status));
   const teamClients = clients.filter(c => c.status === 'Team Members');
-  const archivedClients = clients.filter(c => c.status === 'Archived');
+  const archivedClients = clients.filter(c => ['Archived', 'On-Hold', 'Closed'].includes(c.status));
+
+  // Find any clients that don't fit into the above categories
+  const uncategorizedClients = clients.filter(c =>
+    !['Active', 'Onboarding', 'In-Process', 'Launched', 'Ads Launched', 'Team Members', 'Archived', 'On-Hold', 'Closed'].includes(c.status)
+  );
 
   const ClientItem = ({ client }: { client: Client }) => (
     <button
@@ -180,6 +185,19 @@ export default function Sidebar({
             {archivedClients.map(client => <ClientItem key={client.id} client={client} />)}
           </div>
         </div>
+
+        {/* Uncategorized Section (Hidden if empty) */}
+        {uncategorizedClients.length > 0 && (
+          <div>
+            <div className="flex items-center gap-2 px-3 py-2 text-xs font-bold uppercase tracking-wider text-amber-600">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+              <span>Needs Attention</span>
+            </div>
+            <div className="space-y-1 mt-1">
+              {uncategorizedClients.map(client => <ClientItem key={client.id} client={client} />)}
+            </div>
+          </div>
+        )}
 
       </div>
 
