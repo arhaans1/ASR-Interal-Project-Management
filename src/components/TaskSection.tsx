@@ -9,7 +9,6 @@ import {
   Trash2,
   ListTodo,
   CheckCircle2,
-  CheckCircle2,
   Circle,
   GripVertical,
 } from 'lucide-react';
