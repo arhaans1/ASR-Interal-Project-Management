@@ -15,6 +15,8 @@ export default function Sidebar({
   onSelectClient,
   onAddNew,
 }: SidebarProps) {
+  console.log('Sidebar received clients:', clients); // Debug log
+
   // State for expanded sections
   const [expandedSections, setExpandedSections] = useState({
     active: true,
