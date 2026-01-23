@@ -118,7 +118,7 @@ export default function ClientDetail({
           {/* Right Side - Info Cards - Takes 4 columns (1/3) */}
           <div className="lg:col-span-4 space-y-6">
             {/* Important Links - Monochrome */}
-            <div className="glass-panel rounded-3xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] ring-1 ring-black/5 overflow-hidden">
+            <div className="glass-panel rounded-3xl shadow-[0_15px_30px_-8px_rgba(0,0,0,0.35)] ring-1 ring-black/5 overflow-hidden">
               <div className="bg-slate-900 px-6 py-4 border-b border-slate-800 flex items-center gap-2 text-white font-semibold backdrop-blur-sm">
                 <div className="p-1.5 bg-white/10 rounded-lg shadow-sm ring-1 ring-white/10">
                   <LinkIcon className="w-4 h-4 text-white" />
@@ -136,7 +136,7 @@ export default function ClientDetail({
             </div>
 
             {/* Notes - Monochrome */}
-            <div className="glass-panel rounded-3xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] ring-1 ring-black/5 overflow-hidden">
+            <div className="glass-panel rounded-3xl shadow-[0_15px_30px_-8px_rgba(0,0,0,0.35)] ring-1 ring-black/5 overflow-hidden">
               <div className="bg-slate-900 px-6 py-4 border-b border-slate-800 flex items-center gap-2 text-white font-semibold backdrop-blur-sm">
                 <div className="p-1.5 bg-white/10 rounded-lg shadow-sm ring-1 ring-white/10">
                   <FileText className="w-4 h-4 text-white" />
