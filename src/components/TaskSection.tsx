@@ -179,31 +179,33 @@ export default function TaskSection({
                 <div
                   key={category.id}
                   className={`break-inside-avoid rounded-2xl border transition-all duration-200 flex flex-col h-fit bg-white/40 backdrop-blur-sm ${getCategoryGradient(index)}`}
+                  draggable
+                  onDragStart={(e) => {
+                    // Only allow drag if the handle was clicked
+                    const target = e.target as HTMLElement;
+                    const handle = target.closest('.drag-handle');
+                    if (!handle) {
+                      e.preventDefault();
+                      return;
+                    }
+                    e.dataTransfer.setData('categoryId', category.id);
+                    e.dataTransfer.effectAllowed = 'move';
+                  }}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => {
                     e.preventDefault();
                     const draggedId = e.dataTransfer.getData('categoryId');
                     if (draggedId && draggedId !== category.id) {
                       const draggedIndex = categories.findIndex(c => c.id === draggedId);
-                      const targetIndex = index; // The index of the card we dropped on
-                      // Basic swap logic: we are dropping 'dragged' ONTO 'target'.
-                      // We'll just update order_index of dragged to be target's order_index
-                      // (Wait, this is naive for a list. Ideally we insert. But let's try swapping or shifting).
-                      // For now, let's just trigger the callback with the target's index.
+                      const targetIndex = index;
                       onReorderCategory(draggedId, categories[targetIndex].order_index);
-                      // Note: Real robustness requires updating ALL impacted indices, but this is a start.
                     }
                   }}
                 >
                   {/* Category Header */}
                   <div className="p-4 flex items-start justify-between gap-3">
                     <div
-                      className="mt-1 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500"
-                      draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData('categoryId', category.id);
-                        e.dataTransfer.effectAllowed = 'move';
-                      }}
+                      className="drag-handle mt-1 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500"
                     >
                       <GripVertical className="w-4 h-4" />
                     </div>
