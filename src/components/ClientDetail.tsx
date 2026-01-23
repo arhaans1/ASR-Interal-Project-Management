@@ -131,7 +131,6 @@ export default function ClientDetail({
               onCreateTask={onCreateTask}
               onUpdateTask={onUpdateTask}
               onDeleteTask={onDeleteTask}
-              onDeleteTask={onDeleteTask}
               onToggleTask={onToggleTask}
               onReorderCategory={onReorderCategory}
             />
