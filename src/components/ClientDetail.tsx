@@ -91,7 +91,7 @@ export default function ClientDetail({
             </button>
             <button
               onClick={onUpdateStatus}
-              className="flex items-center gap-2 px-6 py-2 bg-[#5b21b6] text-white rounded-full hover:bg-[#4c1d95] transition-all font-medium text-sm shadow-[0_0_15px_rgba(91,33,182,0.3)] hover:shadow-[0_0_20px_rgba(91,33,182,0.5)]"
+              className="flex items-center gap-2 px-6 py-2 bg-slate-900 text-white rounded-full hover:bg-slate-800 transition-all font-medium text-sm shadow-lg ring-1 ring-white/20"
             >
               <Settings className="w-4 h-4" />
               <span>Status</span>
@@ -117,11 +117,11 @@ export default function ClientDetail({
 
           {/* Right Side - Info Cards - Takes 4 columns (1/3) */}
           <div className="lg:col-span-4 space-y-6">
-            {/* Important Links - Blue/Cyan Gradient */}
-            <div className="glass-panel rounded-3xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.1)] ring-1 ring-white/60 overflow-hidden">
-              <div className="bg-gradient-to-r from-cyan-50/80 to-blue-50/80 px-6 py-4 border-b border-cyan-100/50 flex items-center gap-2 text-cyan-800 font-semibold backdrop-blur-sm">
-                <div className="p-1.5 bg-white/60 rounded-lg shadow-sm">
-                  <LinkIcon className="w-4 h-4 text-cyan-500" />
+            {/* Important Links - Monochrome */}
+            <div className="glass-panel rounded-3xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] ring-1 ring-black/5 overflow-hidden">
+              <div className="bg-gradient-to-r from-gray-50/80 to-white/80 px-6 py-4 border-b border-gray-100 flex items-center gap-2 text-gray-800 font-semibold backdrop-blur-sm">
+                <div className="p-1.5 bg-white rounded-lg shadow-sm border border-gray-100">
+                  <LinkIcon className="w-4 h-4 text-slate-700" />
                 </div>
                 <h3>Important Links</h3>
               </div>
@@ -135,11 +135,11 @@ export default function ClientDetail({
               </div>
             </div>
 
-            {/* Notes - Purple/Pink Gradient */}
-            <div className="glass-panel rounded-3xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.1)] ring-1 ring-white/60 overflow-hidden">
-              <div className="bg-gradient-to-r from-purple-50/80 to-fuchsia-50/80 px-6 py-4 border-b border-purple-100/50 flex items-center gap-2 text-purple-800 font-semibold backdrop-blur-sm">
-                <div className="p-1.5 bg-white/60 rounded-lg shadow-sm">
-                  <FileText className="w-4 h-4 text-purple-500" />
+            {/* Notes - Monochrome */}
+            <div className="glass-panel rounded-3xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] ring-1 ring-black/5 overflow-hidden">
+              <div className="bg-gradient-to-r from-gray-50/80 to-white/80 px-6 py-4 border-b border-gray-100 flex items-center gap-2 text-gray-800 font-semibold backdrop-blur-sm">
+                <div className="p-1.5 bg-white rounded-lg shadow-sm border border-gray-100">
+                  <FileText className="w-4 h-4 text-slate-700" />
                 </div>
                 <h3>Notes</h3>
               </div>

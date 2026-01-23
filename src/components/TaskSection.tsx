@@ -28,10 +28,10 @@ interface TaskSectionProps {
 // Helper to get alternating gradients for cards
 const getCategoryGradient = (index: number) => {
   const gradients = [
-    'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-100', // Green-ish
-    'bg-gradient-to-r from-orange-50 to-amber-50 border-orange-100', // Orange-ish
-    'bg-gradient-to-r from-rose-50 to-pink-50 border-rose-100',     // Red-ish
-    'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-100',    // Blue-ish
+    'bg-white border-emerald-100/50 shadow-sm hover:shadow-md hover:border-emerald-200', // Green-ish accent
+    'bg-white border-orange-100/50 shadow-sm hover:shadow-md hover:border-orange-200', // Orange-ish accent
+    'bg-white border-rose-100/50 shadow-sm hover:shadow-md hover:border-rose-200',     // Red-ish accent
+    'bg-white border-blue-100/50 shadow-sm hover:shadow-md hover:border-blue-200',    // Blue-ish accent
   ];
   return gradients[index % gradients.length];
 };
@@ -102,13 +102,13 @@ export default function TaskSection({
 
   return (
     <div className="glass-panel rounded-3xl h-full flex flex-col relative overflow-hidden ring-1 ring-white/60 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.1)]">
-      {/* Soft overlay gradient */}
-      <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50/50 rounded-full blur-3xl -z-10 -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+      {/* Soft overlay gradient - Monochrome */}
+      <div className="absolute top-0 right-0 w-64 h-64 bg-gray-50/50 rounded-full blur-3xl -z-10 -translate-y-1/2 translate-x-1/2 pointer-events-none" />
 
       {/* Styled Header */}
-      <div className="bg-gradient-to-r from-indigo-50/80 to-blue-50/80 px-6 py-4 border-b border-indigo-100/50 flex items-center justify-between backdrop-blur-sm">
+      <div className="bg-white/80 px-6 py-4 border-b border-gray-100 flex items-center justify-between backdrop-blur-sm">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-[#5b21b6] text-white rounded-2xl shadow-[0_0_15px_rgba(91,33,182,0.3)]">
+          <div className="p-2 bg-slate-900 text-white rounded-2xl shadow-lg ring-1 ring-black/5">
             <ListTodo className="w-5 h-5" />
           </div>
           <div>
@@ -119,7 +119,7 @@ export default function TaskSection({
 
         <button
           onClick={() => setIsCreatingCategory(true)}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/60 text-indigo-700 hover:bg-white hover:text-indigo-800 font-semibold text-sm transition-all border border-indigo-100/50 shadow-sm"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-gray-900 font-semibold text-sm transition-all shadow-sm"
         >
           <Plus className="w-4 h-4" />
           New Category

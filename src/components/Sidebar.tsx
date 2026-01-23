@@ -44,23 +44,23 @@ export default function Sidebar({
     <button
       onClick={() => onSelectClient(client)}
       className={`w-full text-left px-3 py-2 rounded-full transition-all duration-300 group relative overflow-hidden flex items-center gap-3 ${selectedClientId === client.id
-        ? 'bg-[#5b21b6] text-white shadow-[0_0_20px_rgba(91,33,182,0.3)] scale-[1.02]'
-        : 'hover:bg-white/40 hover:shadow-sm'
+        ? 'bg-slate-900 text-white shadow-lg scale-[1.02] ring-1 ring-black/5'
+        : 'hover:bg-white/60 hover:shadow-sm hover:text-gray-900'
         }`}
     >
       <div className={`p-1.5 rounded-full transition-colors duration-300 shrink-0 ${selectedClientId === client.id
-        ? 'bg-white text-[#5b21b6]'
-        : 'bg-white/50 text-gray-400 group-hover:bg-white group-hover:text-gray-600'
+        ? 'bg-white text-slate-900'
+        : 'bg-white/50 text-gray-400 group-hover:bg-white group-hover:text-slate-900'
         }`}>
         <Users className="w-4 h-4" />
       </div>
 
       <div className="flex items-center justify-between z-10 relative flex-1 min-w-0">
-        <span className={`font-semibold truncate text-sm transition-colors ${selectedClientId === client.id ? 'text-white' : 'text-gray-600 group-hover:text-gray-900'
+        <span className={`font-semibold truncate text-sm transition-colors ${selectedClientId === client.id ? 'text-white' : 'text-gray-600 group-hover:text-slate-900'
           }`}>
           {client.name}
         </span>
-        <div className={`w-1.5 h-1.5 rounded-full ${getStatusDotColor(client.status)} ${selectedClientId === client.id ? 'ring-2 ring-[#5b21b6]' : ''}`} />
+        <div className={`w-1.5 h-1.5 rounded-full ${getStatusDotColor(client.status)} ${selectedClientId === client.id ? 'ring-2 ring-slate-900' : ''}`} />
       </div>
     </button>
   );
@@ -70,18 +70,18 @@ export default function Sidebar({
       {/* Header */}
       <div className="p-6 pb-2">
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 bg-[#5b21b6] rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(91,33,182,0.5)]">
+          <div className="w-10 h-10 bg-slate-900 rounded-full flex items-center justify-center shadow-lg ring-1 ring-white/20">
             <span className="text-white font-bold text-xl">A</span>
           </div>
           <div>
-            <h1 className="font-bold text-xl text-gray-900 tracking-tight leading-tight">ASR Media Pro</h1>
-            <p className="text-xs text-gray-400 font-medium">Project Manager</p>
+            <h1 className="font-bold text-xl text-slate-900 tracking-tight leading-tight">ASR Media Pro</h1>
+            <p className="text-xs text-gray-500 font-medium">Project Manager</p>
           </div>
         </div>
 
         <button
           onClick={onAddNew}
-          className="w-full py-2 px-4 bg-[#5b21b6] hover:bg-[#4c1d95] text-white rounded-full transition-all shadow-[0_0_20px_rgba(91,33,182,0.3)] hover:shadow-[0_0_25px_rgba(91,33,182,0.5)] flex items-center justify-center gap-2 text-sm font-semibold tracking-wide"
+          className="w-full py-2 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-full transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 text-sm font-semibold tracking-wide border border-slate-800"
         >
           <Plus className="w-4 h-4" />
           Add New Client
@@ -94,7 +94,7 @@ export default function Sidebar({
         <div>
           <button
             onClick={() => setActiveExpanded(!activeExpanded)}
-            className="w-full flex items-center justify-between px-3 py-2 mb-1 text-sm font-extrabold text-gray-500 uppercase tracking-wider hover:text-gray-700 transition-colors"
+            className="w-full flex items-center justify-between px-3 py-2 mb-1 text-sm font-extrabold text-gray-500 uppercase tracking-wider hover:text-gray-800 transition-colors"
           >
             <span>Active Projects</span>
             <span className="bg-white border border-gray-200 text-gray-600 text-[10px] px-2 py-0.5 rounded-full shadow-sm font-bold">
@@ -117,7 +117,7 @@ export default function Sidebar({
         <div>
           <button
             onClick={() => setInactiveExpanded(!inactiveExpanded)}
-            className="w-full flex items-center justify-between px-3 py-2 mb-1 text-sm font-extrabold text-gray-500 uppercase tracking-wider hover:text-gray-700 transition-colors"
+            className="w-full flex items-center justify-between px-3 py-2 mb-1 text-sm font-extrabold text-gray-500 uppercase tracking-wider hover:text-gray-800 transition-colors"
           >
             <span>Archived</span>
             <span className="bg-white border border-gray-200 text-gray-600 text-[10px] px-2 py-0.5 rounded-full shadow-sm font-bold">
