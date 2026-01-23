@@ -201,7 +201,9 @@ export default function TaskSection({
                     if (draggedId && draggedId !== category.id) {
                       const draggedIndex = categories.findIndex(c => c.id === draggedId);
                       const targetIndex = index;
-                      onReorderCategory(draggedId, categories[targetIndex].order_index);
+                      if (draggedIndex !== targetIndex) {
+                        onReorderCategory(draggedId, targetIndex);
+                      }
                     }
                   }}
                 >

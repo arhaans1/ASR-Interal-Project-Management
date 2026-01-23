@@ -128,25 +128,62 @@ export function useCategories(clientId: string | null) {
     }
   };
 
-  const reorderCategory = async (categoryId: string, newOrderIndex: number): Promise<boolean> => {
+  const reorderCategory = async (categoryId: string, newIndex: number): Promise<boolean> => {
     try {
-      const { error } = await supabase
-        .from('categories')
-        .update({ order_index: newOrderIndex })
-        .eq('id', categoryId);
-
-      if (error) throw error;
-
+      // Optimistic update
       setCategories((prev) => {
-        const updated = prev.map(cat =>
-          cat.id === categoryId ? { ...cat, order_index: newOrderIndex } : cat
-        );
-        return updated.sort((a, b) => a.order_index - b.order_index);
+        const oldIndex = prev.findIndex((c) => c.id === categoryId);
+        if (oldIndex === -1) return prev;
+
+        const newCategories = [...prev];
+        const [removed] = newCategories.splice(oldIndex, 1);
+        newCategories.splice(newIndex, 0, removed);
+
+        // Update order_index for all items locally
+        return newCategories.map((c, idx) => ({
+          ...c,
+          order_index: idx,
+        }));
       });
+
+      // Prepare updates for DB
+      // We need to calculate the new order based on the current state (which we just updated optimistically?)
+      // Actually, we can just calculate it from the 'categories' state, but 'categories' inside this function 
+      // refers to the closure value. We should re-calculate locally.
+
+      const oldIndex = categories.findIndex((c) => c.id === categoryId);
+      if (oldIndex === -1) return false;
+
+      const newItems = [...categories];
+      const [removed] = newItems.splice(oldIndex, 1);
+      newItems.splice(newIndex, 0, removed);
+
+      // Create batch updates
+      const updates = newItems.map((c, idx) => ({
+        id: c.id,
+        order_index: idx,
+        // We must include other required fields if using UPSERT, or just update using ID?
+        // Supabase `upsert` needs primary key.
+        // But `upsert` replaces the row. We only want to update `order_index`.
+        // Supabase client doesn't support bulk update with different values easily.
+        // We have to loop.
+      }));
+
+      // For a small number of categories, Promise.all is acceptable.
+      await Promise.all(
+        updates.map((update) =>
+          supabase
+            .from('categories')
+            .update({ order_index: update.order_index })
+            .eq('id', update.id)
+        )
+      );
 
       return true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to reorder category');
+      // Revert is hard without saving previous state, but we can just refetch
+      console.error('Reorder failed', err);
+      fetchCategories();
       return false;
     }
   };
