@@ -119,9 +119,9 @@ export default function ClientDetail({
           <div className="lg:col-span-4 space-y-6">
             {/* Important Links - Monochrome */}
             <div className="glass-panel rounded-3xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] ring-1 ring-black/5 overflow-hidden">
-              <div className="bg-gradient-to-r from-gray-50/80 to-white/80 px-6 py-4 border-b border-gray-100 flex items-center gap-2 text-gray-800 font-semibold backdrop-blur-sm">
-                <div className="p-1.5 bg-white rounded-lg shadow-sm border border-gray-100">
-                  <LinkIcon className="w-4 h-4 text-slate-700" />
+              <div className="bg-slate-900 px-6 py-4 border-b border-slate-800 flex items-center gap-2 text-white font-semibold backdrop-blur-sm">
+                <div className="p-1.5 bg-white/10 rounded-lg shadow-sm ring-1 ring-white/10">
+                  <LinkIcon className="w-4 h-4 text-white" />
                 </div>
                 <h3>Important Links</h3>
               </div>
@@ -137,9 +137,9 @@ export default function ClientDetail({
 
             {/* Notes - Monochrome */}
             <div className="glass-panel rounded-3xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] ring-1 ring-black/5 overflow-hidden">
-              <div className="bg-gradient-to-r from-gray-50/80 to-white/80 px-6 py-4 border-b border-gray-100 flex items-center gap-2 text-gray-800 font-semibold backdrop-blur-sm">
-                <div className="p-1.5 bg-white rounded-lg shadow-sm border border-gray-100">
-                  <FileText className="w-4 h-4 text-slate-700" />
+              <div className="bg-slate-900 px-6 py-4 border-b border-slate-800 flex items-center gap-2 text-white font-semibold backdrop-blur-sm">
+                <div className="p-1.5 bg-white/10 rounded-lg shadow-sm ring-1 ring-white/10">
+                  <FileText className="w-4 h-4 text-white" />
                 </div>
                 <h3>Notes</h3>
               </div>

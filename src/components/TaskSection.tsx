@@ -106,14 +106,14 @@ export default function TaskSection({
       <div className="absolute top-0 right-0 w-64 h-64 bg-gray-50/50 rounded-full blur-3xl -z-10 -translate-y-1/2 translate-x-1/2 pointer-events-none" />
 
       {/* Styled Header */}
-      <div className="bg-white/80 px-6 py-4 border-b border-gray-100 flex items-center justify-between backdrop-blur-sm">
+      <div className="bg-slate-900 px-6 py-4 border-b border-slate-800 flex items-center justify-between backdrop-blur-sm">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-slate-900 text-white rounded-2xl shadow-lg ring-1 ring-black/5">
+          <div className="p-2 bg-white/10 text-white rounded-2xl ring-1 ring-white/10">
             <ListTodo className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-gray-800 tracking-tight">Tasks</h2>
-            <p className="text-xs text-gray-400 font-medium">{categories.length} categories</p>
+            <h2 className="text-xl font-bold text-white tracking-tight">Tasks</h2>
+            <p className="text-xs text-slate-400 font-medium">{categories.length} categories</p>
           </div>
         </div>
 

@@ -136,8 +136,8 @@ export default function Home() {
     return (
       <div className="h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <div className="w-12 h-12 border-4 border-slate-900 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-500 font-medium">Loading workspace...</p>
         </div>
       </div>
     );
@@ -172,19 +172,19 @@ export default function Home() {
         />
       ) : (
         <div className="flex-1 flex items-center justify-center bg-gray-50">
-          <div className="text-center">
-            <div className="w-20 h-20 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Users className="w-10 h-10 text-indigo-500" />
+          <div className="text-center bg-white p-12 rounded-3xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] ring-1 ring-black/5 max-w-md w-full mx-4">
+            <div className="w-20 h-20 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-inner">
+              <Users className="w-10 h-10 text-slate-400" />
             </div>
-            <h2 className="text-xl font-semibold text-gray-700 mb-2">
+            <h2 className="text-2xl font-bold text-slate-900 mb-3 tracking-tight">
               No Client Selected
             </h2>
-            <p className="text-gray-500 mb-4">
-              Select a client from the sidebar or create a new one
+            <p className="text-gray-500 mb-8 leading-relaxed">
+              Select a client from the sidebar to manage their tasks, or create a new client to get started.
             </p>
             <button
               onClick={handleAddNew}
-              className="px-6 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all font-medium shadow-md hover:shadow-lg"
+              className="px-8 py-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all font-semibold shadow-lg hover:shadow-xl ring-1 ring-white/20"
             >
               Add New Client
             </button>
