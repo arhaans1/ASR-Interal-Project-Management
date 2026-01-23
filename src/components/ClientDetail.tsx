@@ -21,6 +21,7 @@ interface ClientDetailProps {
   onUpdateTask: (categoryId: string, taskId: string, name: string) => Promise<void>;
   onDeleteTask: (categoryId: string, taskId: string) => Promise<void>;
   onToggleTask: (categoryId: string, taskId: string, completed: boolean) => Promise<void>;
+  onReorderCategory: (categoryId: string, newOrderIndex: number) => Promise<boolean>;
   onDelete: (id: string) => Promise<void>; // New prop
 }
 
