@@ -34,17 +34,12 @@ export default function Sidebar({
   const getStatusDotColor = (status: string) => {
     switch (status) {
       case 'Active':
-      case 'Onboarding':
-      case 'In-Process':
-        return 'bg-emerald-500';
+        return 'bg-amber-500'; // Now Orange
       case 'Launched':
-      case 'Ads Launched':
-        return 'bg-purple-500';
+        return 'bg-emerald-500'; // Now Green
       case 'Team Members':
         return 'bg-blue-500';
       case 'Archived':
-      case 'On-Hold':
-      case 'Closed':
         return 'bg-gray-400';
       default:
         return 'bg-amber-500'; // Default for mismatch/uncategorized
@@ -52,14 +47,14 @@ export default function Sidebar({
   };
 
   // Filter clients into groups
-  const activeClients = clients.filter(c => ['Active', 'Onboarding', 'In-Process'].includes(c.status));
-  const launchedClients = clients.filter(c => ['Launched', 'Ads Launched'].includes(c.status));
+  const activeClients = clients.filter(c => c.status === 'Active');
+  const launchedClients = clients.filter(c => c.status === 'Launched');
   const teamClients = clients.filter(c => c.status === 'Team Members');
-  const archivedClients = clients.filter(c => ['Archived', 'On-Hold', 'Closed'].includes(c.status));
+  const archivedClients = clients.filter(c => c.status === 'Archived');
 
   // Find any clients that don't fit into the above categories
   const uncategorizedClients = clients.filter(c =>
-    !['Active', 'Onboarding', 'In-Process', 'Launched', 'Ads Launched', 'Team Members', 'Archived', 'On-Hold', 'Closed'].includes(c.status)
+    !['Active', 'Launched', 'Team Members', 'Archived'].includes(c.status)
   );
 
   const ClientItem = ({ client }: { client: Client }) => (
