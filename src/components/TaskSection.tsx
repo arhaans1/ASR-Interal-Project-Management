@@ -229,12 +229,28 @@ export default function TaskSection({
                             if (e.key === 'Enter') handleUpdateCategory(category.id);
                             if (e.key === 'Escape') setEditingCategoryId(null);
                           }}
+                          onBlur={() => handleUpdateCategory(category.id)}
                         />
-                        <button onClick={() => handleUpdateCategory(category.id)} className="text-green-600 hover:text-green-700 p-1"><Check className="w-4 h-4" /></button>
-                        <button onClick={() => setEditingCategoryId(null)} className="text-gray-400 hover:text-gray-600 p-1"><X className="w-4 h-4" /></button>
+                        <button
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => handleUpdateCategory(category.id)}
+                          className="text-green-600 hover:text-green-700 p-1"
+                        >
+                          <Check className="w-4 h-4" />
+                        </button>
+                        <button
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => setEditingCategoryId(null)}
+                          className="text-gray-400 hover:text-gray-600 p-1"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
                       </div>
                     ) : (
-                      <div className="flex-1">
+                      <div
+                        className="flex-1"
+                        onDoubleClick={() => startEditingCategory(category)}
+                      >
                         <h3 className="font-bold text-gray-900 text-lg tracking-tight leading-none mb-1">
                           {category.name}
                         </h3>
@@ -304,9 +320,22 @@ export default function TaskSection({
                                 if (e.key === 'Enter') handleUpdateTask(category.id, task.id);
                                 if (e.key === 'Escape') setEditingTaskId(null);
                               }}
+                              onBlur={() => handleUpdateTask(category.id, task.id)}
                             />
-                            <button onClick={() => handleUpdateTask(category.id, task.id)} className="text-green-600 hover:text-green-700 p-1"><Check className="w-4 h-4" /></button>
-                            <button onClick={() => setEditingTaskId(null)} className="text-gray-400 hover:text-gray-600 p-1"><X className="w-4 h-4" /></button>
+                            <button
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => handleUpdateTask(category.id, task.id)}
+                              className="text-green-600 hover:text-green-700 p-1"
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                            <button
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => setEditingTaskId(null)}
+                              className="text-gray-400 hover:text-gray-600 p-1"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
                           </div>
                         ) : (
                           <>
