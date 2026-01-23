@@ -181,10 +181,62 @@ export default function TaskSection({
                   className={`break-inside-avoid rounded-2xl border transition-all duration-200 flex flex-col h-fit bg-white/40 backdrop-blur-sm ${getCategoryGradient(index)}`}
                   draggable
                   onDragStart={(e) => {
-                    // Only allow drag if the handle was clicked
+                    // Check if the drag actually started from the handle
+                    // We can verify this by checking if the handle is the target or an ancestor of the target
                     const target = e.target as HTMLElement;
-                    const handle = target.closest('.drag-handle');
-                    if (!handle) {
+                    // In some browsers, e.target for dragstart is the draggable element itself (the card)
+                    // So we can't easily rely on target being the handle.
+
+                    // Instead, let's rely on a simpler check:
+                    // If we are here, draggable is true.
+                    // But we want to enforce handle-only dragging.
+
+                    // Standard pattern: set draggable ONLY when hovering the handle?
+                    // But that requires state per item which is complex in a map.
+
+                    // Let's go back to target checking, but be very robust.
+                    // We need to know where the MOUSE was pressed.
+                    // But dragstart doesn't give mouse coordinates easily relative to elements in all cases.
+
+                    // Actually, a very reliable way without state is:
+                    // The handle itself has draggable="true"
+                    // And we drag the handle? No, we want to drag the card.
+
+                    // Let's try the `onMouseDown` approach to set a transient global or ref?
+                    // Or let's just inspect the ACTIVE ELEMENT or similar?
+
+                    // Actually, let's look at the previous failed code:
+                    // const handle = target.closest('.drag-handle');
+
+                    // If I click 'GripVertical', target is likely the <svg>.
+                    // <svg> parent is the div.drag-handle.
+
+                    // The issue might be that when draggable=true on the parent, 
+                    // Chrome might report the parent as the target immediately?
+
+                    // Let's try a different trick: 
+                    // make the handle the ONLY thing that is draggable=true?
+                    // And in onDragStart, we set the drag image to be the card?
+
+                    // e.dataTransfer.setDragImage(cardRef, 0, 0);
+                    // But we need refs for every item.
+
+                    // Alternate:
+                    // Use a dataset attribute on the handle and check e.nativeEvent or similar?
+
+                    // Simplest fix that usually works:
+                    // CSS: .drag-handle { cursor: grab; }
+                    // React:
+                    // onMouseDown on handle sets a ref `dragAllowed.current = true`
+                    // onMouseUp sets it false
+                    // onDragStart checks `if (!dragAllowed.current) e.preventDefault()`
+
+                    // This requires a ref in the parent component, but that's fine.
+                  }}
+                  onDragStart={(e) => {
+                    // We will implement the ref check logic using a module-level variable or a ref if possible
+                    // safely assuming single-threaded JS UI
+                    if ((window as any).__isDragHandleDown !== true) {
                       e.preventDefault();
                       return;
                     }
@@ -194,6 +246,9 @@ export default function TaskSection({
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => {
                     e.preventDefault();
+                    // Reset
+                    (window as any).__isDragHandleDown = false;
+
                     const draggedId = e.dataTransfer.getData('categoryId');
                     if (draggedId && draggedId !== category.id) {
                       const draggedIndex = categories.findIndex(c => c.id === draggedId);
@@ -206,6 +261,9 @@ export default function TaskSection({
                   <div className="p-4 flex items-start justify-between gap-3">
                     <div
                       className="drag-handle mt-1 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500"
+                      onMouseDown={() => { (window as any).__isDragHandleDown = true; }}
+                      onMouseUp={() => { (window as any).__isDragHandleDown = false; }}
+                      onMouseLeave={() => { (window as any).__isDragHandleDown = false; }}
                     >
                       <GripVertical className="w-4 h-4" />
                     </div>
