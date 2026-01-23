@@ -53,6 +53,7 @@ export default function ClientDetail({
   onUpdateTask,
   onDeleteTask,
   onToggleTask,
+  onReorderCategory,
   onDelete, // New prop
 }: ClientDetailProps) {
   const [isDeleting, setIsDeleting] = useState(false);
