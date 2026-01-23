@@ -279,6 +279,7 @@ export default function TaskSection({
                       <div
                         key={task.id}
                         className="group/task relative flex items-center gap-3 px-3 py-2 bg-white/60 hover:bg-white rounded-xl border border-transparent hover:border-gray-100 shadow-sm hover:shadow-md transition-all duration-200"
+                        onDoubleClick={() => startEditingTask(task)}
                       >
                         <button
                           onClick={() => onToggleTask(category.id, task.id, !task.completed)}
