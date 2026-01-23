@@ -128,6 +128,29 @@ export function useCategories(clientId: string | null) {
     }
   };
 
+  const reorderCategory = async (categoryId: string, newOrderIndex: number): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('categories')
+        .update({ order_index: newOrderIndex })
+        .eq('id', categoryId);
+
+      if (error) throw error;
+
+      setCategories((prev) => {
+        const updated = prev.map(cat =>
+          cat.id === categoryId ? { ...cat, order_index: newOrderIndex } : cat
+        );
+        return updated.sort((a, b) => a.order_index - b.order_index);
+      });
+
+      return true;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to reorder category');
+      return false;
+    }
+  };
+
   const createTask = async (
     categoryId: string,
     name: string
@@ -183,11 +206,11 @@ export function useCategories(clientId: string | null) {
         prev.map((cat) =>
           cat.id === categoryId
             ? {
-                ...cat,
-                tasks: cat.tasks.map((task) =>
-                  task.id === taskId ? { ...task, ...updates } : task
-                ),
-              }
+              ...cat,
+              tasks: cat.tasks.map((task) =>
+                task.id === taskId ? { ...task, ...updates } : task
+              ),
+            }
             : cat
         )
       );
@@ -236,6 +259,7 @@ export function useCategories(clientId: string | null) {
     createCategory,
     updateCategory,
     deleteCategory,
+    reorderCategory,
     createTask,
     updateTask,
     deleteTask,
