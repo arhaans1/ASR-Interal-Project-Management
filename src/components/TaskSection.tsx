@@ -166,7 +166,7 @@ export default function TaskSection({
             <p className="text-sm text-gray-400 mt-1">Add a category to get started</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 pb-4">
+          <div className="columns-1 xl:columns-2 gap-4 pb-4 space-y-4">
             {categories.map((category, index) => {
               const completedCount = category.tasks.filter(t => t.completed).length;
               const totalCount = category.tasks.length;
@@ -175,7 +175,7 @@ export default function TaskSection({
               return (
                 <div
                   key={category.id}
-                  className={`rounded-2xl border transition-all duration-200 flex flex-col h-fit bg-white/40 backdrop-blur-sm ${getCategoryGradient(index)}`}
+                  className={`break-inside-avoid rounded-2xl border transition-all duration-200 flex flex-col h-fit bg-white/40 backdrop-blur-sm ${getCategoryGradient(index)}`}
                 >
                   {/* Category Header */}
                   <div className="p-4 flex items-start justify-between gap-3">
@@ -340,6 +340,6 @@ export default function TaskSection({
           </div>
         )}
       </div>
-    </div>
+    </div >
   );
 }
