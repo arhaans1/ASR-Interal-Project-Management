@@ -31,15 +31,20 @@ export default function Sidebar({
   const getStatusDotColor = (status: string) => {
     switch (status) {
       case 'Active':
+      case 'Onboarding':
+      case 'In-Process':
         return 'bg-emerald-500';
       case 'Launched':
+      case 'Ads Launched':
         return 'bg-purple-500';
       case 'Team Members':
         return 'bg-blue-500';
       case 'Archived':
+      case 'On-Hold':
+      case 'Closed':
         return 'bg-gray-400';
       default:
-        return 'bg-gray-500';
+        return 'bg-amber-500'; // Default for mismatch/uncategorized
     }
   };
 
