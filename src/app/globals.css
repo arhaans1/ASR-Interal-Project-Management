@@ -2,8 +2,10 @@
 
 :root {
   /* Core Backgrounds */
-  --background: #f8fafc; /* Slate 50 */
-  --foreground: #0f172a; /* Slate 900 */
+  --background: #f8fafc;
+  /* Slate 50 */
+  --foreground: #0f172a;
+  /* Slate 900 */
   --card-bg: #ffffff;
 
   /* Primary Brand */
@@ -51,7 +53,7 @@
 
   --color-status-closed: var(--status-closed-bg);
   --color-status-closed-fg: var(--status-closed-text);
-  
+
   --font-jakarta: var(--font-jakarta);
 }
 
@@ -70,7 +72,8 @@ body {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05); /* Soft shadow for light mode */
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+  /* Soft shadow for light mode */
 }
 
 .soft-card {
@@ -78,4 +81,11 @@ body {
   border-radius: 1.5rem;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.03), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
   border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.prominent-shadow {
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  /* Very strong shadow */
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  /* Defines the edge clearly */
 }
