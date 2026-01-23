@@ -1,4 +1,4 @@
-export type ClientStatus = 'Onboarding' | 'In-Process' | 'On-Hold' | 'Ads Launched' | 'Closed';
+export type ClientStatus = 'Active' | 'Launched' | 'Archived' | 'Team Members';
 
 export interface Client {
   id: string;

@@ -24,16 +24,14 @@ interface ClientDetailProps {
 // Helper for mapped status colors (text only for tags usually, or full badges)
 const getStatusBadgeStyles = (status: string) => {
   switch (status) {
-    case 'Onboarding':
-      return 'bg-[var(--status-onboarding-bg)] text-[var(--status-onboarding-text)]';
-    case 'In-Process':
-      return 'bg-[var(--status-process-bg)] text-[var(--status-process-text)]';
-    case 'On-Hold':
-      return 'bg-[var(--status-hold-bg)] text-[var(--status-hold-text)]';
-    case 'Ads Launched':
-      return 'bg-[var(--status-ads-bg)] text-[var(--status-ads-text)]';
-    case 'Closed':
-      return 'bg-[var(--status-closed-bg)] text-[var(--status-closed-text)]';
+    case 'Active':
+      return 'bg-emerald-100 text-emerald-700';
+    case 'Launched':
+      return 'bg-purple-100 text-purple-700';
+    case 'Team Members':
+      return 'bg-blue-100 text-blue-700';
+    case 'Archived':
+      return 'bg-gray-100 text-gray-700';
     default:
       return 'bg-gray-100 text-gray-700';
   }

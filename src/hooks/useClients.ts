@@ -191,18 +191,8 @@ export function useClients() {
     }
   };
 
-  const activeClients = clients.filter(
-    (c) => c.status !== 'On-Hold' && c.status !== 'Closed'
-  );
-
-  const inactiveClients = clients.filter(
-    (c) => c.status === 'On-Hold' || c.status === 'Closed'
-  );
-
   return {
     clients,
-    activeClients,
-    inactiveClients,
     loading,
     error,
     createClient,

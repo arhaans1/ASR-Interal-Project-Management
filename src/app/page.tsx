@@ -11,8 +11,7 @@ import { Users } from 'lucide-react';
 
 export default function Home() {
   const {
-    activeClients,
-    inactiveClients,
+    clients,
     loading: clientsLoading,
     createClient,
     updateClient,
@@ -39,14 +38,14 @@ export default function Home() {
   // Update selected client when clients change
   useEffect(() => {
     if (selectedClient) {
-      const updated = [...activeClients, ...inactiveClients].find(
+      const updated = clients.find(
         (c) => c.id === selectedClient.id
       );
       if (updated) {
         setSelectedClient(updated);
       }
     }
-  }, [activeClients, inactiveClients, selectedClient]);
+  }, [clients, selectedClient]);
 
   const handleSelectClient = (client: Client) => {
     setSelectedClient(client);
@@ -146,9 +145,9 @@ export default function Home() {
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
+      {/* Sidebar */}
       <Sidebar
-        activeClients={activeClients}
-        inactiveClients={inactiveClients}
+        clients={clients}
         selectedClientId={selectedClient?.id || null}
         onSelectClient={handleSelectClient}
         onAddNew={handleAddNew}

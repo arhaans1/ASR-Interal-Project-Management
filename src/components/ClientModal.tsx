@@ -13,11 +13,10 @@ interface ClientModalProps {
 }
 
 const statusOptions: ClientStatus[] = [
-  'Onboarding',
-  'In-Process',
-  'On-Hold',
-  'Ads Launched',
-  'Closed',
+  'Active',
+  'Launched',
+  'Team Members',
+  'Archived',
 ];
 
 export default function ClientModal({
@@ -29,7 +28,7 @@ export default function ClientModal({
 }: ClientModalProps) {
   const [name, setName] = useState('');
   const [businessName, setBusinessName] = useState('');
-  const [status, setStatus] = useState<ClientStatus>('Onboarding');
+  const [status, setStatus] = useState<ClientStatus>('Active');
 
   useEffect(() => {
     if (client && mode === 'edit') {
@@ -39,7 +38,7 @@ export default function ClientModal({
     } else {
       setName('');
       setBusinessName('');
-      setStatus('Onboarding');
+      setStatus('Active');
     }
   }, [client, mode, isOpen]);
 
@@ -136,13 +135,13 @@ export default function ClientModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-5 py-3.5 border border-gray-200 text-gray-600 rounded-2xl hover:bg-gray-50 hover:text-gray-800 transition-colors font-semibold"
+              className="flex-1 px-5 py-3.5 border border-gray-200 text-gray-600 rounded-2xl hover:bg-gray-50 hover:text-gray-800 transition-colors font-semibold shadow-sm hover:shadow-md"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 px-5 py-3.5 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 transition-all font-semibold shadow-lg shadow-indigo-200"
+              className="flex-1 px-5 py-3.5 bg-slate-900 text-white rounded-2xl hover:bg-slate-800 transition-all font-semibold shadow-lg hover:shadow-xl ring-1 ring-white/20"
             >
               {mode === 'create' ? 'Create Client' : 'Save Changes'}
             </button>
