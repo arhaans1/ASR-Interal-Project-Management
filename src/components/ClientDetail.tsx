@@ -28,15 +28,15 @@ interface ClientDetailProps {
 const getStatusBadgeStyles = (status: string) => {
   switch (status) {
     case 'Active':
-      return 'bg-emerald-100 text-emerald-700';
+      return 'bg-amber-100 text-amber-700'; // Now Orange
     case 'Launched':
-      return 'bg-purple-100 text-purple-700';
+      return 'bg-emerald-100 text-emerald-700'; // Now Green
     case 'Team Members':
       return 'bg-blue-100 text-blue-700';
     case 'Archived':
       return 'bg-gray-100 text-gray-700';
     default:
-      return 'bg-emerald-100 text-emerald-700';
+      return 'bg-amber-100 text-amber-700';
   }
 };
 
