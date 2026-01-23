@@ -131,7 +131,7 @@ export default function TaskSection({
               value={newCategoryName}
               onChange={(e) => setNewCategoryName(e.target.value)}
               placeholder="New Category Name..."
-              className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+              className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-slate-500/20 focus:border-slate-900 outline-none"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleCreateCategory();
@@ -141,7 +141,7 @@ export default function TaskSection({
             <div className="flex items-center gap-1">
               <button
                 onClick={handleCreateCategory}
-                className="p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+                className="p-2 bg-slate-900 text-white rounded-lg hover:bg-black transition-colors shadow-sm"
               >
                 <Check className="w-4 h-4" />
               </button>
@@ -301,7 +301,7 @@ export default function TaskSection({
                     {!creatingTaskInCategory && (
                       <button
                         onClick={() => setCreatingTaskInCategory(category.id)}
-                        className="w-full py-2 flex items-center justify-center gap-1 text-xs font-semibold text-gray-400 hover:text-indigo-600 hover:bg-white/50 rounded-xl transition-colors mt-2"
+                        className="w-full py-2 flex items-center justify-center gap-1 text-xs font-semibold text-gray-400 hover:text-slate-900 hover:bg-white/50 rounded-xl transition-colors mt-2"
                       >
                         <Plus className="w-3 h-3" />
                         Add Task
