@@ -18,8 +18,10 @@ export function useClients() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+      console.log('Fetched clients:', data); // Debug log
       setClients((data as Client[]) || []);
     } catch (err) {
+      console.error('Error fetching clients:', err); // Debug log
       setError(err instanceof Error ? err.message : 'Failed to fetch clients');
     } finally {
       setLoading(false);
@@ -36,6 +38,7 @@ export function useClients() {
     status: ClientStatus
   ): Promise<Client | null> => {
     try {
+      console.log('Creating client:', { name, businessName, status }); // Debug log
       const { data, error } = await supabase
         .from('clients')
         .insert({
@@ -48,11 +51,17 @@ export function useClients() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase insert error:', error); // Debug log
+        throw error;
+      }
+
       const clientData = data as Client;
+      console.log('Client created:', clientData); // Debug log
       setClients((prev) => [clientData, ...prev]);
       return clientData;
     } catch (err) {
+      console.error('Error creating client:', err); // Debug log
       setError(err instanceof Error ? err.message : 'Failed to create client');
       return null;
     }

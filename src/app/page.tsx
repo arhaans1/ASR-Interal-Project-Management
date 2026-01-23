@@ -13,6 +13,7 @@ export default function Home() {
   const {
     clients,
     loading: clientsLoading,
+    error,
     createClient,
     updateClient,
     cloneClient,
@@ -137,6 +138,27 @@ export default function Home() {
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-slate-900 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-500 font-medium">Loading workspace...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error State for Debugging
+  if (error) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gray-50 p-4">
+        <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full text-center border border-red-100">
+          <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-8 h-8 text-red-500">⚠️</div>
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Connection Error</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-2 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all font-semibold"
+          >
+            Retry Connection
+          </button>
         </div>
       </div>
     );
