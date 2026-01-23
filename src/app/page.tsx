@@ -16,6 +16,7 @@ export default function Home() {
     error,
     createClient,
     updateClient,
+    deleteClient,
     cloneClient,
   } = useClients();
 
@@ -190,6 +191,10 @@ export default function Home() {
           onUpdateTask={handleUpdateTask}
           onDeleteTask={handleDeleteTask}
           onToggleTask={handleToggleTask}
+          onDelete={async (id) => {
+            const success = await deleteClient(id);
+            if (success) setSelectedClient(null);
+          }}
         />
       ) : (
         <div className="flex-1 flex items-center justify-center bg-gray-50">

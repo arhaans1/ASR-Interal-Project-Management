@@ -1,10 +1,12 @@
 'use client';
 
+import { useState } from 'react';
+
 import { Client } from '@/types/database';
 import { CategoryWithTasks } from '@/hooks/useCategories';
 import TaskSection from './TaskSection';
 import TextBox from './TextBox';
-import { Copy, Settings, Building2, Calendar, Link as LinkIcon, FileText } from 'lucide-react';
+import { Copy, Settings, Building2, Calendar, Link as LinkIcon, FileText, Trash2, Loader2 } from 'lucide-react';
 
 interface ClientDetailProps {
   client: Client;
@@ -19,6 +21,7 @@ interface ClientDetailProps {
   onUpdateTask: (categoryId: string, taskId: string, name: string) => Promise<void>;
   onDeleteTask: (categoryId: string, taskId: string) => Promise<void>;
   onToggleTask: (categoryId: string, taskId: string, completed: boolean) => Promise<void>;
+  onDelete: (id: string) => Promise<void>; // New prop
 }
 
 // Helper for mapped status colors (text only for tags usually, or full badges)
@@ -33,7 +36,7 @@ const getStatusBadgeStyles = (status: string) => {
     case 'Archived':
       return 'bg-gray-100 text-gray-700';
     default:
-      return 'bg-gray-100 text-gray-700';
+      return 'bg-emerald-100 text-emerald-700';
   }
 };
 
@@ -50,7 +53,17 @@ export default function ClientDetail({
   onUpdateTask,
   onDeleteTask,
   onToggleTask,
+  onDelete, // New prop
 }: ClientDetailProps) {
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (confirm(`Are you sure you want to delete ${client.name}? This action cannot be undone.`)) {
+      setIsDeleting(true);
+      await onDelete(client.id);
+      setIsDeleting(false);
+    }
+  };
   return (
     <div className="flex-1 h-screen overflow-y-auto">
       <div className="w-full h-full p-4 md:p-6 lg:p-8 relative">
@@ -83,6 +96,7 @@ export default function ClientDetail({
             <button
               onClick={onClone}
               className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all font-medium text-sm shadow-sm"
+              title="Clone Client"
             >
               <Copy className="w-4 h-4" />
               <span>Clone</span>
@@ -93,6 +107,14 @@ export default function ClientDetail({
             >
               <Settings className="w-4 h-4" />
               <span>Status</span>
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+              title="Delete Client"
+            >
+              {isDeleting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
             </button>
           </div>
         </div>
