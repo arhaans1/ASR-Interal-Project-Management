@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Client } from '@/types/database';
-import { ChevronRight, Plus, Users, Layout, Rocket, Archive } from 'lucide-react';
+import { ChevronRight, Plus, Users, Layout, Rocket, Archive, Copy } from 'lucide-react';
 
 interface SidebarProps {
   clients: Client[];
@@ -22,6 +22,7 @@ export default function Sidebar({
     active: true,
     launched: true,
     team: true,
+    templates: true,
     archived: false,
   });
 
@@ -38,6 +39,8 @@ export default function Sidebar({
         return 'bg-emerald-500'; // Now Green
       case 'Team Members':
         return 'bg-blue-500';
+      case 'Templates':
+        return 'bg-indigo-500';
       case 'Archived':
         return 'bg-gray-400';
       default:
@@ -49,11 +52,12 @@ export default function Sidebar({
   const activeClients = clients.filter(c => c.status === 'Active');
   const launchedClients = clients.filter(c => c.status === 'Launched');
   const teamClients = clients.filter(c => c.status === 'Team Members');
+  const templateClients = clients.filter(c => c.status === 'Templates');
   const archivedClients = clients.filter(c => c.status === 'Archived');
 
   // Find any clients that don't fit into the above categories
   const uncategorizedClients = clients.filter(c =>
-    !['Active', 'Launched', 'Team Members', 'Archived'].includes(c.status)
+    !['Active', 'Launched', 'Team Members', 'Templates', 'Archived'].includes(c.status)
   );
 
   const ClientItem = ({ client }: { client: Client }) => (
@@ -164,6 +168,20 @@ export default function Sidebar({
           />
           <div className={`space-y-1 transition-all duration-300 origin-top ${expandedSections.team ? 'opacity-100 max-h-[1000px] mb-4' : 'opacity-0 max-h-0 overflow-hidden'}`}>
             {teamClients.map(client => <ClientItem key={client.id} client={client} />)}
+          </div>
+        </div>
+
+        {/* Templates Section */}
+        <div>
+          <SectionHeader
+            title="Templates"
+            count={templateClients.length}
+            isExpanded={expandedSections.templates}
+            onClick={() => toggleSection('templates')}
+            icon={Copy}
+          />
+          <div className={`space-y-1 transition-all duration-300 origin-top ${expandedSections.templates ? 'opacity-100 max-h-[1000px] mb-4' : 'opacity-0 max-h-0 overflow-hidden'}`}>
+            {templateClients.map(client => <ClientItem key={client.id} client={client} />)}
           </div>
         </div>
 

@@ -1,4 +1,4 @@
-export type ClientStatus = 'Active' | 'Launched' | 'Archived' | 'Team Members';
+export type ClientStatus = 'Active' | 'Launched' | 'Archived' | 'Team Members' | 'Templates';
 
 export interface Client {
   id: string;

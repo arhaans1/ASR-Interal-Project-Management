@@ -16,6 +16,7 @@ const statusOptions: ClientStatus[] = [
   'Active',
   'Launched',
   'Team Members',
+  'Templates',
   'Archived',
 ];
 

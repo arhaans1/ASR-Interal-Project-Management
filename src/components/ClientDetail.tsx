@@ -36,6 +36,8 @@ const getStatusBadgeStyles = (status: string) => {
       return 'bg-emerald-100 text-emerald-700'; // Now Green
     case 'Team Members':
       return 'bg-blue-100 text-blue-700';
+    case 'Templates':
+      return 'bg-indigo-100 text-indigo-700';
     case 'Archived':
       return 'bg-gray-100 text-gray-700';
     default:
