@@ -22,22 +22,38 @@ export function useCategories(clientId: string | null) {
     try {
       setLoading(true);
 
-      // OPTIMIZED: Single query to fetch categories AND their tasks
+      // Step 1: Fetch Categories
       const { data: categoriesData, error: catError } = await supabase
         .from('categories')
-        .select(`
-          *,
-          tasks (*)
-        `)
+        .select('*')
         .eq('client_id', clientId)
         .order('order_index');
 
       if (catError) throw catError;
 
-      // Transform data to ensure tasks are ordered correctly (server-side ordering in nested query is tricky in v2, doing client side sort for safety)
-      const categoriesWithTasks: CategoryWithTasks[] = (categoriesData || []).map((cat: any) => ({
-        ...cat,
-        tasks: (cat.tasks || []).sort((a: Task, b: Task) => a.order_index - b.order_index),
+      const categories = (categoriesData as Category[]) || [];
+
+      if (categories.length === 0) {
+        setCategories([]);
+        return;
+      }
+
+      // Step 2: Fetch Tasks for these categories in one batch
+      const categoryIds = categories.map(c => c.id);
+      const { data: tasksData, error: taskError } = await supabase
+        .from('tasks')
+        .select('*')
+        .in('category_id', categoryIds)
+        .order('order_index');
+
+      if (taskError) throw taskError;
+
+      const tasks = (tasksData as Task[]) || [];
+
+      // Step 3: Merge in memory
+      const categoriesWithTasks: CategoryWithTasks[] = categories.map(category => ({
+        ...category,
+        tasks: tasks.filter(t => t.category_id === category.id)
       }));
 
       setCategories(categoriesWithTasks);
