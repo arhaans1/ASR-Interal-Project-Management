@@ -7,6 +7,7 @@ import { Client, ClientStatus, Category, Task } from '@/types/database';
 export function useClients() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isCloning, setIsCloning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchClients = useCallback(async () => {
@@ -97,6 +98,8 @@ export function useClients() {
       if (error) throw error;
       setClients((prev) => prev.filter((client) => client.id !== id));
       return true;
+      setClients((prev) => prev.filter((client) => client.id !== id));
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete client');
       return false;
@@ -105,7 +108,8 @@ export function useClients() {
 
   const cloneClient = async (client: Client): Promise<Client | null> => {
     try {
-      // Generate copy name
+      setIsCloning(true);
+      // 1. Generate new name
       const baseName = client.name.replace(/-copy\d*$/, '');
       const existingCopies = clients.filter(
         (c) => c.name.startsWith(baseName + '-copy') || c.name === baseName + '-copy'
@@ -128,7 +132,19 @@ export function useClients() {
         copyName = `${baseName}-copy${maxNum + 1}`;
       }
 
-      // Create new client
+      // 2. Fetch ALL original data (Categories + Tasks) in ONE query
+      const { data: originalData, error: fetchError } = await supabase
+        .from('categories')
+        .select(`
+          *,
+          tasks (*)
+        `)
+        .eq('client_id', client.id)
+        .order('order_index');
+
+      if (fetchError) throw fetchError;
+
+      // 3. Create New Client
       const { data: newClient, error: clientError } = await supabase
         .from('clients')
         .insert({
@@ -142,53 +158,57 @@ export function useClients() {
         .single();
 
       if (clientError) throw clientError;
-
       const clonedClient = newClient as Client;
 
-      // Fetch categories for the original client
-      const { data: categories, error: catError } = await supabase
-        .from('categories')
-        .select('*')
-        .eq('client_id', client.id)
-        .order('order_index');
+      // 4. Bulk Insert Categories
+      // We need to map old Category ID -> New Category ID to insert tasks correctly
+      const categoriesToInsert = (originalData || []).map((cat: any) => ({
+        client_id: clonedClient.id,
+        name: cat.name,
+        order_index: cat.order_index,
+      }));
 
-      if (catError) throw catError;
-
-      // Clone categories and tasks
-      for (const category of (categories as Category[]) || []) {
-        const { data: newCategory, error: newCatError } = await supabase
+      if (categoriesToInsert.length > 0) {
+        const { data: newCategories, error: catInsertError } = await supabase
           .from('categories')
-          .insert({
-            client_id: clonedClient.id,
-            name: category.name,
-            order_index: category.order_index,
-          })
-          .select()
-          .single();
+          .insert(categoriesToInsert)
+          .select();
 
-        if (newCatError) throw newCatError;
+        if (catInsertError) throw catInsertError;
 
-        const clonedCategory = newCategory as Category;
+        // 5. Bulk Insert Tasks
+        // Match new categories to old categories by order_index (assuming order is preserved and unique enough for this context)
+        // A safer way is to map by name+index or just use the returning order if we trust Supabase returns in same insertion order (usually yes for bulk, but not guaranteed).
+        // Let's rely on matching 'name' and 'order_index' to find the corresponding old category.
 
-        // Fetch tasks for this category
-        const { data: tasks, error: taskError } = await supabase
-          .from('tasks')
-          .select('*')
-          .eq('category_id', category.id)
-          .order('order_index');
+        const tasksToInsert: any[] = [];
 
-        if (taskError) throw taskError;
+        // originalData has the tasks. newCategories has the new IDs.
+        // We iterate through originalData, find the matching new Category, and prepare tasks.
 
-        // Clone tasks
-        for (const task of (tasks as Task[]) || []) {
-          const { error: newTaskError } = await supabase.from('tasks').insert({
-            category_id: clonedCategory.id,
-            name: task.name,
-            completed: false, // Reset completion status
-            order_index: task.order_index,
-          });
+        (originalData || []).forEach((oldCat: any) => {
+          const matchingNewCat = (newCategories as Category[]).find(
+            nc => nc.name === oldCat.name && nc.order_index === oldCat.order_index
+          );
 
-          if (newTaskError) throw newTaskError;
+          if (matchingNewCat && oldCat.tasks && oldCat.tasks.length > 0) {
+            oldCat.tasks.forEach((task: Task) => {
+              tasksToInsert.push({
+                category_id: matchingNewCat.id,
+                name: task.name,
+                completed: false,
+                order_index: task.order_index
+              });
+            });
+          }
+        });
+
+        if (tasksToInsert.length > 0) {
+          const { error: taskInsertError } = await supabase
+            .from('tasks')
+            .insert(tasksToInsert);
+
+          if (taskInsertError) throw taskInsertError;
         }
       }
 
@@ -197,12 +217,15 @@ export function useClients() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to clone client');
       return null;
+    } finally {
+      setIsCloning(false);
     }
   };
 
   return {
     clients,
     loading,
+    isCloning, // Export state
     error,
     createClient,
     updateClient,

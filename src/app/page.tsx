@@ -13,6 +13,7 @@ export default function Home() {
   const {
     clients,
     loading: clientsLoading,
+    isCloning, // Capture isCloning
     error,
     createClient,
     updateClient,
@@ -168,8 +169,18 @@ export default function Home() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
+    <div className="flex h-screen bg-gray-50 relative">
+      {/* Global Loading Overlay (Cloning) */}
+      {isCloning && (
+        <div className="absolute inset-0 z-50 bg-white/50 backdrop-blur-sm flex items-center justify-center">
+          <div className="bg-white p-6 rounded-2xl shadow-2xl flex flex-col items-center animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-3"></div>
+            <p className="text-gray-900 font-bold">Cloning Client...</p>
+            <p className="text-sm text-gray-500">This may take a moment</p>
+          </div>
+        </div>
+      )}
+
       {/* Sidebar */}
       <Sidebar
         clients={clients}
@@ -180,26 +191,33 @@ export default function Home() {
 
       {/* Main Content */}
       {selectedClient ? (
-        <ClientDetail
-          client={selectedClient}
-          categories={categories}
-          onUpdateClient={handleUpdateClientField}
-          onClone={handleClone}
-          onUpdateStatus={handleUpdateStatus}
-          onCreateCategory={handleCreateCategory}
-          onUpdateCategory={handleUpdateCategory}
-          onDeleteCategory={handleDeleteCategory}
-          onCreateTask={handleCreateTask}
-          onUpdateTask={handleUpdateTask}
-          onDeleteTask={handleDeleteTask}
-          onToggleTask={handleToggleTask}
-          onReorderCategory={reorderCategory}
-          onReorderTask={reorderTask}
-          onDelete={async (id) => {
-            const success = await deleteClient(id);
-            if (success) setSelectedClient(null);
-          }}
-        />
+        categoriesLoading ? (
+          <div className="flex-1 flex flex-col h-screen overflow-hidden items-center justify-center">
+            <div className="w-10 h-10 border-4 border-slate-900 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p className="text-gray-500 font-medium">Loading workspace...</p>
+          </div>
+        ) : (
+          <ClientDetail
+            client={selectedClient}
+            categories={categories}
+            onUpdateClient={handleUpdateClientField}
+            onClone={handleClone}
+            onUpdateStatus={handleUpdateStatus}
+            onCreateCategory={handleCreateCategory}
+            onUpdateCategory={handleUpdateCategory}
+            onDeleteCategory={handleDeleteCategory}
+            onCreateTask={handleCreateTask}
+            onUpdateTask={handleUpdateTask}
+            onDeleteTask={handleDeleteTask}
+            onToggleTask={handleToggleTask}
+            onReorderCategory={reorderCategory}
+            onReorderTask={reorderTask}
+            onDelete={async (id) => {
+              const success = await deleteClient(id);
+              if (success) setSelectedClient(null);
+            }}
+          />
+        )
       ) : (
         <div className="flex-1 flex items-center justify-center bg-gray-50">
           <div className="text-center bg-white p-12 rounded-3xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] ring-1 ring-black/5 max-w-md w-full mx-4">
