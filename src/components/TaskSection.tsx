@@ -25,6 +25,7 @@ interface TaskSectionProps {
   onDeleteTask: (categoryId: string, taskId: string) => Promise<void>;
   onToggleTask: (categoryId: string, taskId: string, completed: boolean) => Promise<void>;
   onReorderCategory: (categoryId: string, newOrderIndex: number) => Promise<boolean>;
+  onReorderTask: (categoryId: string, taskId: string, newOrderIndex: number) => Promise<boolean>;
 }
 
 // Helper to get alternating gradients for cards
@@ -43,6 +44,7 @@ export default function TaskSection({
   onDeleteTask,
   onToggleTask,
   onReorderCategory,
+  onReorderTask,
 }: TaskSectionProps) {
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -294,7 +296,31 @@ export default function TaskSection({
                     {category.tasks.map((task) => (
                       <div
                         key={task.id}
-                        className="group/task relative flex items-center gap-3 px-3 py-2 bg-white/60 hover:bg-white rounded-xl border border-transparent hover:border-gray-100 shadow-sm hover:shadow-md transition-all duration-200"
+                        className="group/task relative flex items-center gap-3 px-3 py-2 bg-white/60 hover:bg-white rounded-xl border border-transparent hover:border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 cursor-move"
+                        draggable
+                        onDragStart={(e) => {
+                          e.stopPropagation();
+                          e.dataTransfer.setData('taskId', task.id);
+                          e.dataTransfer.setData('sourceCategoryId', category.id);
+                          e.dataTransfer.effectAllowed = 'move';
+                        }}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const draggedTaskId = e.dataTransfer.getData('taskId');
+                          const sourceCategoryId = e.dataTransfer.getData('sourceCategoryId');
+
+                          if (draggedTaskId && sourceCategoryId === category.id && draggedTaskId !== task.id) {
+                            const draggedIndex = category.tasks.findIndex(t => t.id === draggedTaskId);
+                            // We need the TARGET index. Since we are mapping, we know 'task' is the target.
+                            const targetIndex = category.tasks.findIndex(t => t.id === task.id);
+
+                            if (draggedIndex !== -1 && targetIndex !== -1 && draggedIndex !== targetIndex) {
+                              onReorderTask(category.id, draggedTaskId, targetIndex);
+                            }
+                          }
+                        }}
                         onDoubleClick={() => startEditingTask(task)}
                       >
                         <button

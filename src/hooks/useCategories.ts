@@ -281,6 +281,66 @@ export function useCategories(clientId: string | null) {
     }
   };
 
+  const reorderTask = async (
+    categoryId: string,
+    taskId: string,
+    newIndex: number
+  ): Promise<boolean> => {
+    try {
+      setCategories((prev) => {
+        const categoryIndex = prev.findIndex((c) => c.id === categoryId);
+        if (categoryIndex === -1) return prev;
+
+        const category = prev[categoryIndex];
+        const oldIndex = category.tasks.findIndex((t) => t.id === taskId);
+        if (oldIndex === -1) return prev;
+
+        const newTasks = [...category.tasks];
+        const [removed] = newTasks.splice(oldIndex, 1);
+        newTasks.splice(newIndex, 0, removed);
+
+        const updatedCategory = {
+          ...category,
+          tasks: newTasks.map((t, idx) => ({ ...t, order_index: idx })),
+        };
+
+        const newCategories = [...prev];
+        newCategories[categoryIndex] = updatedCategory;
+        return newCategories;
+      });
+
+      const category = categories.find((c) => c.id === categoryId);
+      if (!category) return false;
+
+      const oldIndex = category.tasks.findIndex((t) => t.id === taskId);
+      if (oldIndex === -1) return false;
+
+      const newTasks = [...category.tasks];
+      const [removed] = newTasks.splice(oldIndex, 1);
+      newTasks.splice(newIndex, 0, removed);
+
+      const updates = newTasks.map((t, idx) => ({
+        id: t.id,
+        order_index: idx,
+      }));
+
+      await Promise.all(
+        updates.map((update) =>
+          supabase
+            .from('tasks')
+            .update({ order_index: update.order_index })
+            .eq('id', update.id)
+        )
+      );
+
+      return true;
+    } catch (err) {
+      console.error('Reorder task failed', err);
+      fetchCategories();
+      return false;
+    }
+  };
+
   const toggleTask = async (
     categoryId: string,
     taskId: string,
@@ -301,6 +361,7 @@ export function useCategories(clientId: string | null) {
     updateTask,
     deleteTask,
     toggleTask,
+    reorderTask,
     refreshCategories: fetchCategories,
   };
 }
