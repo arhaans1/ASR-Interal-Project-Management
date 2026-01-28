@@ -6,6 +6,7 @@ import { Client } from '@/types/database';
 import { CategoryWithTasks } from '@/hooks/useCategories';
 import TaskSection from './TaskSection';
 import TextBox from './TextBox';
+import ConfirmModal from './ConfirmModal';
 import { Copy, Settings, Building2, Calendar, Link as LinkIcon, FileText, Trash2, Loader2 } from 'lucide-react';
 
 interface ClientDetailProps {
@@ -60,16 +61,24 @@ export default function ClientDetail({
   onDelete, // New prop
 }: ClientDetailProps) {
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const handleDelete = async () => {
-    if (confirm(`Are you sure you want to delete ${client.name}? This action cannot be undone.`)) {
-      setIsDeleting(true);
-      await onDelete(client.id);
-      setIsDeleting(false);
-    }
+    setIsDeleting(true);
+    await onDelete(client.id);
+    setIsDeleting(false);
   };
   return (
     <div className="flex-1 h-screen overflow-y-auto">
+      <ConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDelete}
+        title="Delete Client?"
+        message={`Are you sure you want to delete ${client.name}? This action cannot be undone.`}
+        confirmLabel="Delete Client"
+        isDestructive={true}
+      />
       <div className="w-full h-full p-4 md:p-6 lg:p-8 relative">
         {/* Header */}
         <div className="mb-8 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
@@ -113,7 +122,7 @@ export default function ClientDetail({
               <span>Status</span>
             </button>
             <button
-              onClick={handleDelete}
+              onClick={() => setIsDeleteModalOpen(true)}
               disabled={isDeleting}
               className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
               title="Delete Client"
