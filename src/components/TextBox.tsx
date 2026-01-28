@@ -11,31 +11,69 @@ interface TextBoxProps {
   className?: string;
 }
 
-// Function to detect and linkify URLs in text
-function linkifyText(text: string): React.ReactNode[] {
-  // Regex to capture URLs starting with http/https or www.
-  // Note: Simple regex for demonstration, can be improved for edge cases
-  const urlRegex = /((?:https?:\/\/|www\.)[^\s]+)/g;
-  const parts = text.split(urlRegex);
+// Function to render rich text (Bold, Italic, Underline, Links)
+function renderRichText(text: string): React.ReactNode[] {
+  if (!text) return [];
 
-  return parts.map((part, index) => {
-    if (part.match(urlRegex)) {
-      const href = part.startsWith('www.') ? `https://${part}` : part;
-      return (
-        <a
-          key={index}
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()} // Prevent triggering edit mode when clicking link
-          className="text-indigo-600 hover:text-indigo-800 underline break-all cursor-pointer relative z-20"
-        >
-          {part}
-        </a>
-      );
+  const formatRules = [
+    { type: 'bold', regex: /\*\*(.+?)\*\*/ },
+    { type: 'italic', regex: /\*(.+?)\*/ },
+    { type: 'underline', regex: /<u>(.+?)<\/u>/ },
+    { type: 'link', regex: /((?:https?:\/\/|www\.)[^\s]+)/ }
+  ];
+
+  let bestMatch: RegExpMatchArray | null = null;
+  let bestRule: { type: string; regex: RegExp } | null = null;
+  let minIndex = text.length;
+
+  formatRules.forEach(rule => {
+    const match = text.match(rule.regex);
+    if (match && match.index! < minIndex) {
+      minIndex = match.index!;
+      bestMatch = match;
+      bestRule = rule;
     }
-    return <span key={index}>{part}</span>;
   });
+
+  if (!bestMatch || !bestRule) {
+    return [text];
+  }
+
+  const pre = text.substring(0, minIndex);
+  const matchFull = (bestMatch as any)[0];
+  const content = (bestMatch as any)[1]; // Inner content (group 1) for formatting, or full match for link if invalid group
+  const post = text.substring(minIndex + matchFull.length);
+
+  // Recursively render pre & post
+  const preNodes = renderRichText(pre);
+  const postNodes = renderRichText(post);
+
+  let midNode: React.ReactNode;
+  const keyCheck = `${minIndex}-${matchFull.length}`; // Simple unique key part
+
+  if ((bestRule as any).type === 'link') {
+    const href = matchFull.startsWith('www.') ? `https://${matchFull}` : matchFull;
+    midNode = (
+      <a
+        key={`link-${keyCheck}`}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        className="text-indigo-600 hover:text-indigo-800 underline break-all cursor-pointer relative z-20"
+      >
+        {matchFull}
+      </a>
+    );
+  } else if ((bestRule as any).type === 'bold') {
+    midNode = <strong key={`bold-${keyCheck}`} className="font-bold">{renderRichText(content)}</strong>;
+  } else if ((bestRule as any).type === 'italic') {
+    midNode = <em key={`italic-${keyCheck}`} className="italic">{renderRichText(content)}</em>;
+  } else if ((bestRule as any).type === 'underline') {
+    midNode = <u key={`underline-${keyCheck}`} className="underline">{renderRichText(content)}</u>;
+  }
+
+  return [...preNodes, midNode!, ...postNodes];
 }
 
 export default function TextBox({
@@ -65,6 +103,40 @@ export default function TextBox({
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setLocalValue(e.target.value);
     setHasChanges(e.target.value !== value);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Keyboard shortcuts for formatting: Ctrl+B (Bold), Ctrl+I (Italic), Ctrl+U (Underline)
+    if ((e.ctrlKey || e.metaKey) && ['b', 'i', 'u'].includes(e.key.toLowerCase())) {
+      e.preventDefault();
+
+      const start = e.currentTarget.selectionStart;
+      const end = e.currentTarget.selectionEnd;
+      const text = e.currentTarget.value;
+      const selected = text.substring(start, end);
+
+      // Define markers
+      let prefix = '';
+      let suffix = '';
+
+      if (e.key.toLowerCase() === 'b') { prefix = '**'; suffix = '**'; }
+      else if (e.key.toLowerCase() === 'i') { prefix = '*'; suffix = '*'; }
+      else if (e.key.toLowerCase() === 'u') { prefix = '<u>'; suffix = '</u>'; }
+
+      const newText = text.substring(0, start) + prefix + selected + suffix + text.substring(end);
+
+      setLocalValue(newText);
+      setHasChanges(newText !== value);
+
+      // Restore selection to cover the wrapped text (or inside it?)
+      // Let's select the inner text so user can keep typing or editing it
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          textareaRef.current.setSelectionRange(start + prefix.length, end + prefix.length);
+        }
+      }, 0);
+    }
   };
 
   const handleSave = () => {
@@ -110,6 +182,7 @@ export default function TextBox({
             onChange={handleChange}
             onBlur={handleBlur}
             placeholder={placeholder}
+            onKeyDown={handleKeyDown}
             className="w-full h-full resize-none bg-transparent border-0 focus:ring-0 outline-none text-sm text-gray-700 placeholder-gray-400 p-0 font-medium leading-relaxed overflow-hidden"
             autoFocus
           />
@@ -120,7 +193,7 @@ export default function TextBox({
           >
             {localValue ? (
               <div className="whitespace-pre-wrap break-words">
-                {linkifyText(localValue)}
+                {renderRichText(localValue)}
               </div>
             ) : (
               <span className="text-gray-400 italic">{placeholder}</span>
