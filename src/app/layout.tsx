@@ -12,6 +12,10 @@ export const metadata: Metadata = {
   description: "Internal project management tool for ASR Media Pro",
 };
 
+import { PresenceProvider } from "@/context/PresenceContext";
+
+// ...
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -20,7 +24,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${jakarta.className} ${jakarta.variable} antialiased font-sans`}>
-        {children}
+        <PresenceProvider>
+          {children}
+        </PresenceProvider>
       </body>
     </html>
   );

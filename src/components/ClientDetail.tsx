@@ -8,6 +8,7 @@ import TextBox from './TextBox';
 import ConfirmModal from './ConfirmModal';
 import { Copy, Settings, Building2, Calendar, Link as LinkIcon, FileText, Trash2, Loader2, Share2, MessageSquare } from 'lucide-react';
 import ChatModal from '@/components/ChatModal';
+import ActiveUsers from '@/components/ActiveUsers';
 
 interface ClientDetailProps {
   client: Client;
@@ -113,7 +114,11 @@ export default function ClientDetail({
             </div>
           </div>
 
+
           <div className="flex items-center gap-3">
+            {/* Active Users Indicator */}
+            <ActiveUsers />
+
             <button
               onClick={() => {
                 const portalUrl = `${window.location.origin}/portal/${client.id}`;
