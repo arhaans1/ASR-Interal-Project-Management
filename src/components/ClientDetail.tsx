@@ -172,6 +172,16 @@ export default function ClientDetail({
 
           {/* Right Side - Info Cards - Takes 4 columns (1/3) */}
           <div className="lg:col-span-4 space-y-6">
+            {/* Team Chat Button */}
+            <button
+              onClick={() => setIsChatOpen(true)}
+              className="w-full py-4 bg-slate-900 border border-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl transition-all shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-3 group relative overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <MessageSquare className="w-5 h-5 group-hover:scale-110 transition-transform relative z-10" />
+              <span className="relative z-10">Open Team Chat</span>
+            </button>
+
             {/* Notes - Monochrome */}
             <div className="glass-panel prominent-shadow rounded-3xl overflow-hidden">
               <div className="bg-slate-900 px-6 py-4 border-b border-slate-800 flex items-center gap-2 text-white font-semibold backdrop-blur-sm">
@@ -206,15 +216,7 @@ export default function ClientDetail({
                   className="bg-transparent border-0 focus:bg-transparent min-h-[120px]"
                 />
               </div>
-              <div className="px-6 pb-6 pt-2">
-                <button
-                  onClick={() => setIsChatOpen(true)}
-                  className="w-full py-3 bg-white border-2 border-slate-100 hover:border-indigo-500 hover:text-indigo-600 text-slate-500 font-bold rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 group"
-                >
-                  <MessageSquare className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                  Open Team Chat
-                </button>
-              </div>
+
             </div>
           </div>
         </div>

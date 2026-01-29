@@ -106,10 +106,7 @@ export default function ChatInput({ onSend, isLoading }: ChatInputProps) {
                     </button>
                 </div>
             </div>
-            <div className="mt-2 flex gap-2 text-xs text-gray-400 px-1">
-                <span className="flex items-center gap-1"><Bold className="w-3 h-3" /> **bold**</span>
-                <span className="flex items-center gap-1"><Italic className="w-3 h-3" /> *italic*</span>
-            </div>
+
         </div>
     );
 }

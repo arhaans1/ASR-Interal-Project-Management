@@ -40,14 +40,20 @@ export default function ChatBubble({ message, isCurrentUser }: ChatBubbleProps) 
                 </div>
 
                 <div className={`px-4 py-3 rounded-2xl shadow-sm text-sm whitespace-pre-wrap ${isCurrentUser
-                        ? 'bg-indigo-600 text-white rounded-tr-sm'
-                        : 'bg-white border border-gray-100 text-gray-800 rounded-tl-sm'
+                    ? 'bg-indigo-600 text-white rounded-tr-sm'
+                    : 'bg-white border border-gray-100 text-gray-800 rounded-tl-sm'
                     }`}>
-                    {/* We could use a markdown parser here if needed for bold/italics etc, 
-                User asked for "proper formatting". For now let's support basic text. 
-                If they use the rich text input we might get HTML or Markdown. 
-                Let's assume text for now and maybe upgrade to dangerouslySetInnerHTML if strict requirement.*/}
-                    {message.content}
+                    {message.content.split(/(\s+)/).map((part, i) => {
+                        const urlRegex = /^(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|org|net|io|co|in|ai|app|dev)[^\s]*)$/i;
+                        if (urlRegex.test(part)) {
+                            let href = part;
+                            if (!href.startsWith('http')) href = 'https://' + href;
+                            return (
+                                <a key={i} href={href} target="_blank" rel="noopener noreferrer" className="underline opacity-80 hover:opacity-100" style={{ textDecorationColor: 'currentColor' }}>{part}</a>
+                            );
+                        }
+                        return part;
+                    })}
                 </div>
 
                 {/* Attachments */}
@@ -60,8 +66,8 @@ export default function ChatBubble({ message, isCurrentUser }: ChatBubbleProps) 
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-colors border ${isCurrentUser
-                                        ? 'bg-indigo-50 border-indigo-100 text-indigo-700 hover:bg-indigo-100'
-                                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                                    ? 'bg-indigo-50 border-indigo-100 text-indigo-700 hover:bg-indigo-100'
+                                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
                                     }`}
                             >
                                 <Paperclip className="w-3 h-3" />
