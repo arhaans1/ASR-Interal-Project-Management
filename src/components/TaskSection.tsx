@@ -125,14 +125,14 @@ export default function TaskSection({
             const progress = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
 
             return (
-              <div className="flex-1 max-w-md ml-4 flex items-center gap-3">
-                <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700/50">
+              <div className="flex-1 max-w-lg ml-6 flex items-center gap-4">
+                <div className="flex-1 h-4 bg-slate-800 rounded-full overflow-hidden border border-slate-700/50">
                   <div
                     className="h-full bg-emerald-500 rounded-full transition-all duration-700 ease-out shadow-[0_0_10px_rgba(16,185,129,0.3)]"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
-                <span className="text-xs font-bold text-emerald-400 min-w-[3ch]">{progress}%</span>
+                <span className="text-sm font-bold text-emerald-400 min-w-[3ch]">{progress}%</span>
               </div>
             );
           })()}
