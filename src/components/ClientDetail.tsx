@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-
+import { useState, useEffect } from 'react';
 import { Client } from '@/types/database';
 import { CategoryWithTasks } from '@/hooks/useCategories';
 import TaskSection from './TaskSection';
 import TextBox from './TextBox';
 import ConfirmModal from './ConfirmModal';
-import { Copy, Settings, Building2, Calendar, Link as LinkIcon, FileText, Trash2, Loader2, Share2 } from 'lucide-react';
+import { Copy, Settings, Building2, Calendar, Link as LinkIcon, FileText, Trash2, Loader2, Share2, MessageSquare } from 'lucide-react';
+import ChatModal from '@/components/ChatModal';
 
 interface ClientDetailProps {
   client: Client;
@@ -24,7 +24,7 @@ interface ClientDetailProps {
   onToggleTask: (categoryId: string, taskId: string, completed: boolean) => Promise<void>;
   onReorderCategory: (categoryId: string, newOrderIndex: number) => Promise<boolean>;
   onReorderTask: (categoryId: string, taskId: string, newOrderIndex: number) => Promise<boolean>;
-  onDelete: (id: string) => Promise<void>; // New prop
+  onDelete: (id: string) => Promise<void>;
 }
 
 // Helper for mapped status colors (text only for tags usually, or full badges)
@@ -64,6 +64,12 @@ export default function ClientDetail({
 }: ClientDetailProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/me').then(res => res.json()).then(data => setCurrentUser(data.user));
+  }, []);
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -200,10 +206,27 @@ export default function ClientDetail({
                   className="bg-transparent border-0 focus:bg-transparent min-h-[120px]"
                 />
               </div>
+              <div className="px-6 pb-6 pt-2">
+                <button
+                  onClick={() => setIsChatOpen(true)}
+                  className="w-full py-3 bg-white border-2 border-slate-100 hover:border-indigo-500 hover:text-indigo-600 text-slate-500 font-bold rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 group"
+                >
+                  <MessageSquare className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                  Open Team Chat
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
+      {/* Chat Modal */}
+      <ChatModal
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        clientId={client.id}
+        clientName={client.name}
+        currentUser={currentUser}
+      />
     </div>
   );
 }
