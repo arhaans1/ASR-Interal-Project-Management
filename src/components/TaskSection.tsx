@@ -107,14 +107,35 @@ export default function TaskSection({
 
       {/* Styled Header */}
       <div className="bg-slate-900 px-6 py-4 border-b border-slate-800 flex items-center justify-between backdrop-blur-sm">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-white/10 text-white rounded-2xl ring-1 ring-white/10">
-            <ListTodo className="w-5 h-5" />
+        <div className="flex-1 flex items-center gap-6 mr-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-white/10 text-white rounded-2xl ring-1 ring-white/10">
+              <ListTodo className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-white tracking-tight">Tasks</h2>
+              <p className="text-xs text-slate-400 font-medium">{categories.length} categories</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-xl font-bold text-white tracking-tight">Tasks</h2>
-            <p className="text-xs text-slate-400 font-medium">{categories.length} categories</p>
-          </div>
+
+          {/* Global Progress Bar */}
+          {categories.length > 0 && (() => {
+            const totalTasks = categories.reduce((acc, cat) => acc + cat.tasks.length, 0);
+            const completedTasks = categories.reduce((acc, cat) => acc + cat.tasks.filter(t => t.completed).length, 0);
+            const progress = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
+
+            return (
+              <div className="flex-1 max-w-md ml-4 flex items-center gap-3">
+                <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700/50">
+                  <div
+                    className="h-full bg-emerald-500 rounded-full transition-all duration-700 ease-out shadow-[0_0_10px_rgba(16,185,129,0.3)]"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+                <span className="text-xs font-bold text-emerald-400 min-w-[3ch]">{progress}%</span>
+              </div>
+            );
+          })()}
         </div>
 
         <button

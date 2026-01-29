@@ -19,10 +19,10 @@ export default function Sidebar({
 
   // State for expanded sections
   const [expandedSections, setExpandedSections] = useState({
-    active: true,
-    launched: true,
-    team: true,
-    templates: true,
+    active: false,
+    launched: false,
+    team: false,
+    templates: false,
     archived: false,
   });
 
