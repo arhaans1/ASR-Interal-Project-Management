@@ -72,6 +72,46 @@ export default function ClientDetail({
     fetch('/api/auth/me').then(res => res.json()).then(data => setCurrentUser(data.user));
   }, []);
 
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    // Poll for unread messages
+    const checkUnread = async () => {
+      try {
+        // Retrieve last read timestamp
+        const lastRead = localStorage.getItem(`chat_last_read_${client.id}`);
+        const lastReadDate = lastRead ? new Date(lastRead) : new Date(0); // Default to epoch if never read
+
+        // Fetch latest messages (simple poll)
+        // Ideally we'd have a lightweight endpoint, but getting all is "ok" for now per constraint.
+        const res = await fetch(`/api/chat/${client.id}`);
+        if (res.ok) {
+          const messages = await res.json();
+
+          // Count messages newer than lastRead
+          const unread = messages.filter((m: any) => new Date(m.created_at) > lastReadDate).length;
+          setUnreadCount(unread);
+        }
+      } catch (e) {
+        console.error("Failed to check unread messages");
+      }
+    };
+
+    checkUnread();
+    const interval = setInterval(checkUnread, 10000); // Check every 10 seconds
+
+    return () => clearInterval(interval);
+  }, [client.id, isChatOpen]); // Re-run if chat closes (to update count after reading)
+
+  // Reset count when opening chat
+  useEffect(() => {
+    if (isChatOpen) {
+      setUnreadCount(0);
+      localStorage.setItem(`chat_last_read_${client.id}`, new Date().toISOString());
+    }
+  }, [isChatOpen, client.id]);
+
+
   const handleDelete = async () => {
     setIsDeleting(true);
     await onDelete(client.id);
@@ -185,6 +225,13 @@ export default function ClientDetail({
               <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
               <MessageSquare className="w-5 h-5 group-hover:scale-110 transition-transform relative z-10" />
               <span className="relative z-10">Open Team Chat</span>
+
+              {/* Notification Badge */}
+              {unreadCount > 0 && (
+                <div className="absolute top-2 left-2 flex items-center justify-center w-6 h-6 rounded-full bg-red-500 border-2 border-white text-white text-xs font-bold shadow-md z-20 animate-pulse">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </div>
+              )}
             </button>
 
             {/* Notes - Monochrome */}
