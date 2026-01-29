@@ -7,7 +7,7 @@ import { CategoryWithTasks } from '@/hooks/useCategories';
 import TaskSection from './TaskSection';
 import TextBox from './TextBox';
 import ConfirmModal from './ConfirmModal';
-import { Copy, Settings, Building2, Calendar, Link as LinkIcon, FileText, Trash2, Loader2 } from 'lucide-react';
+import { Copy, Settings, Building2, Calendar, Link as LinkIcon, FileText, Trash2, Loader2, Share2 } from 'lucide-react';
 
 interface ClientDetailProps {
   client: Client;
@@ -108,6 +108,18 @@ export default function ClientDetail({
           </div>
 
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                const portalUrl = `${window.location.origin}/portal/${client.id}`;
+                navigator.clipboard.writeText(portalUrl);
+                alert('Portal Link Copied: ' + portalUrl);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-colors font-semibold text-sm"
+              title="Copy Share Link"
+            >
+              <Share2 className="w-4 h-4" />
+              Share Portal
+            </button>
             <button
               onClick={onClone}
               className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all font-medium text-sm shadow-sm"

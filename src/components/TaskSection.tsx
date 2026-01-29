@@ -24,8 +24,9 @@ interface TaskSectionProps {
   onUpdateTask: (categoryId: string, taskId: string, name: string) => Promise<void>;
   onDeleteTask: (categoryId: string, taskId: string) => Promise<void>;
   onToggleTask: (categoryId: string, taskId: string, completed: boolean) => Promise<void>;
-  onReorderCategory: (categoryId: string, newOrderIndex: number) => Promise<boolean>;
+
   onReorderTask: (categoryId: string, taskId: string, newOrderIndex: number) => Promise<boolean>;
+  isReadOnly?: boolean;
 }
 
 // Helper to get alternating gradients for cards
@@ -45,6 +46,7 @@ export default function TaskSection({
   onToggleTask,
   onReorderCategory,
   onReorderTask,
+  isReadOnly = false,
 }: TaskSectionProps) {
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -138,19 +140,21 @@ export default function TaskSection({
           })()}
         </div>
 
-        <button
-          onClick={() => setIsCreatingCategory(true)}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-gray-900 font-semibold text-sm transition-all shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-          New Category
-        </button>
+        {!isReadOnly && (
+          <button
+            onClick={() => setIsCreatingCategory(true)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-gray-900 font-semibold text-sm transition-all shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            New Category
+          </button>
+        )}
       </div>
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6 pr-2">
         {/* New Category Input */}
-        {isCreatingCategory && (
+        {isCreatingCategory && !isReadOnly && (
           <div className="flex items-center gap-2 p-4 mb-4 bg-gray-50 rounded-2xl border border-gray-200 animate-in fade-in slide-in-from-top-2 duration-200">
             <input
               type="text"
@@ -202,7 +206,7 @@ export default function TaskSection({
                 <div
                   key={category.id}
                   className={`break-inside-avoid rounded-2xl border transition-all duration-200 flex flex-col h-fit bg-white/40 backdrop-blur-sm ${getCategoryGradient(index)}`}
-                  draggable
+                  draggable={!isReadOnly}
 
                   onDragStart={(e) => {
                     // We will implement the ref check logic using a module-level variable or a ref if possible
@@ -232,14 +236,16 @@ export default function TaskSection({
                 >
                   {/* Category Header */}
                   <div className="p-4 flex items-start justify-between gap-3">
-                    <div
-                      className="drag-handle mt-1 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500"
-                      onMouseDown={() => { (window as any).__isDragHandleDown = true; }}
-                      onMouseUp={() => { (window as any).__isDragHandleDown = false; }}
-                      onMouseLeave={() => { (window as any).__isDragHandleDown = false; }}
-                    >
-                      <GripVertical className="w-4 h-4" />
-                    </div>
+                    {!isReadOnly && (
+                      <div
+                        className="drag-handle mt-1 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500"
+                        onMouseDown={() => { (window as any).__isDragHandleDown = true; }}
+                        onMouseUp={() => { (window as any).__isDragHandleDown = false; }}
+                        onMouseLeave={() => { (window as any).__isDragHandleDown = false; }}
+                      >
+                        <GripVertical className="w-4 h-4" />
+                      </div>
+                    )}
                     {editingCategoryId === category.id ? (
                       <div className="flex-1 flex items-center gap-2">
                         <input
@@ -272,7 +278,7 @@ export default function TaskSection({
                     ) : (
                       <div
                         className="flex-1"
-                        onDoubleClick={() => startEditingCategory(category)}
+                        onDoubleClick={() => !isReadOnly && startEditingCategory(category)}
                       >
                         <h3 className="font-bold text-gray-900 text-lg tracking-tight leading-none mb-1">
                           {category.name}
@@ -283,20 +289,23 @@ export default function TaskSection({
                       </div>
                     )}
 
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => startEditingCategory(category)}
-                        className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-white/50 rounded-lg transition-colors"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => onDeleteCategory(category.id)}
-                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                    {/* Edit controls for category */}
+                    {!isReadOnly && (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => startEditingCategory(category)}
+                          className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-white/50 rounded-lg transition-colors"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => onDeleteCategory(category.id)}
+                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Progress Bar */}
@@ -317,8 +326,8 @@ export default function TaskSection({
                     {category.tasks.map((task) => (
                       <div
                         key={task.id}
-                        className={`group/task relative flex items-center gap-3 px-3 py-2 bg-white/60 hover:bg-white rounded-xl border border-transparent hover:border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 ${editingTaskId !== task.id ? 'cursor-move' : ''}`}
-                        draggable={editingTaskId !== task.id}
+                        className={`group/task relative flex items-center gap-3 px-3 py-2 bg-white/60 hover:bg-white rounded-xl border border-transparent hover:border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 ${editingTaskId !== task.id && !isReadOnly ? 'cursor-move' : ''}`}
+                        draggable={editingTaskId !== task.id && !isReadOnly}
                         onDragStart={(e) => {
                           e.stopPropagation();
                           e.dataTransfer.setData('taskId', task.id);
@@ -342,11 +351,12 @@ export default function TaskSection({
                             }
                           }
                         }}
-                        onDoubleClick={() => startEditingTask(task)}
+                        onDoubleClick={() => !isReadOnly && startEditingTask(task)}
                       >
                         <button
-                          onClick={() => onToggleTask(category.id, task.id, !task.completed)}
-                          className={`flex-shrink-0 transition-all duration-300 ${task.completed ? 'text-emerald-500 scale-105' : 'text-gray-300 hover:text-emerald-400'}`}
+                          onClick={() => !isReadOnly && onToggleTask(category.id, task.id, !task.completed)}
+                          disabled={isReadOnly}
+                          className={`flex-shrink-0 transition-all duration-300 ${task.completed ? 'text-emerald-500 scale-105' : 'text-gray-300 hover:text-emerald-400'} ${isReadOnly ? 'cursor-default' : ''}`}
                         >
                           {task.completed ? (
                             <CheckCircle2 className="w-5 h-5 fill-emerald-50" />
@@ -393,7 +403,7 @@ export default function TaskSection({
                               {task.name}
                             </span>
 
-                            <div className="flex items-center opacity-0 group-hover/task:opacity-100 transition-all gap-1">
+                            <div className={`flex items-center transition-all gap-1 ${isReadOnly ? 'hidden' : 'opacity-0 group-hover/task:opacity-100'}`}>
                               <button
                                 onClick={() => startEditingTask(task)}
                                 className="p-1 text-gray-300 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
@@ -413,7 +423,7 @@ export default function TaskSection({
                     ))}
 
                     {/* Add Task Button (Small) */}
-                    {!creatingTaskInCategory && (
+                    {!creatingTaskInCategory && !isReadOnly && (
                       <button
                         onClick={() => setCreatingTaskInCategory(category.id)}
                         className="w-full py-2 flex items-center justify-center gap-1 text-xs font-semibold text-gray-400 hover:text-slate-900 hover:bg-white/50 rounded-xl transition-colors mt-2"
@@ -455,6 +465,6 @@ export default function TaskSection({
           </div>
         )}
       </div>
-    </div >
+    </div>
   );
 }

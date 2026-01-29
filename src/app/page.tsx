@@ -69,10 +69,12 @@ export default function Home() {
   const handleModalSubmit = async (
     name: string,
     businessName: string,
-    status: ClientStatus
+    status: ClientStatus,
+    username?: string,
+    password?: string
   ) => {
     if (modalMode === 'create') {
-      const newClient = await createClient(name, businessName, status);
+      const newClient = await createClient(name, businessName, status, username, password);
       if (newClient) {
         setSelectedClient(newClient);
       }
@@ -81,6 +83,8 @@ export default function Home() {
         name,
         business_name: businessName,
         status,
+        username,
+        password,
       });
     }
   };

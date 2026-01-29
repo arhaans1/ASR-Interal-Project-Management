@@ -36,7 +36,9 @@ export function useClients() {
   const createClient = async (
     name: string,
     businessName: string,
-    status: ClientStatus
+    status: ClientStatus,
+    username?: string,
+    password?: string
   ): Promise<Client | null> => {
     try {
       console.log('Creating client:', { name, businessName, status }); // Debug log
@@ -48,6 +50,8 @@ export function useClients() {
           status,
           important_links: '',
           notes: '',
+          username: username || null,
+          password: password || null,
         })
         .select()
         .single();
@@ -73,6 +77,8 @@ export function useClients() {
     updates: Partial<Omit<Client, 'id' | 'created_at'>>
   ): Promise<boolean> => {
     try {
+      // If password is provided, we should probably hash it in production.
+      // For now, simple text as requested.
       const { error } = await supabase
         .from('clients')
         .update(updates)

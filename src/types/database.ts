@@ -9,6 +9,14 @@ export interface Client {
   notes: string;
   created_at: string;
   updated_at: string;
+  username?: string;
+  password?: string;
+}
+
+export interface User {
+  id: string;
+  username: string;
+  role: 'admin';
 }
 
 export interface Category {

@@ -7,7 +7,7 @@ import { Client, ClientStatus } from '@/types/database';
 interface ClientModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (name: string, businessName: string, status: ClientStatus) => void;
+  onSubmit: (name: string, businessName: string, status: ClientStatus, username?: string, password?: string) => void;
   client?: Client | null;
   mode: 'create' | 'edit';
 }
@@ -29,16 +29,22 @@ export default function ClientModal({
 }: ClientModalProps) {
   const [name, setName] = useState('');
   const [businessName, setBusinessName] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [status, setStatus] = useState<ClientStatus>('Active');
 
   useEffect(() => {
     if (client && mode === 'edit') {
       setName(client.name);
       setBusinessName(client.business_name);
+      setUsername(client.username || '');
+      setPassword(client.password || ''); // Note: In real app, don't populate password back
       setStatus(client.status);
     } else {
       setName('');
       setBusinessName('');
+      setUsername('');
+      setPassword('');
       setStatus('Active');
     }
   }, [client, mode, isOpen]);
@@ -46,7 +52,7 @@ export default function ClientModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (name.trim() && businessName.trim()) {
-      onSubmit(name.trim(), businessName.trim(), status);
+      onSubmit(name.trim(), businessName.trim(), status, username.trim(), password.trim());
       onClose();
     }
   };
@@ -131,6 +137,38 @@ export default function ClientModal({
             </div>
           </div>
 
+          <div className="pt-4 border-t border-gray-100">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Client Portal Access</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2 ml-1">
+                  Username
+                </label>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="username"
+                  className="w-full px-5 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2 ml-1">
+                  Password
+                </label>
+                <input
+                  type="text"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="password"
+                  className="w-full px-5 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
+                />
+              </div>
+            </div>
+          </div>
+
+
+
           {/* Actions */}
           <div className="flex gap-3 pt-4">
             <button
@@ -148,7 +186,7 @@ export default function ClientModal({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </div >
+    </div >
   );
 }
