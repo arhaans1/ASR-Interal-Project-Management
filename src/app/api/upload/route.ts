@@ -29,7 +29,7 @@ export async function POST(request: Request) {
         const bucketName = 'chat-attachments';
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         const filename = file.name.replace(/\s/g, '_');
-        const path = `${uniqueSuffix} -${filename} `;
+        const path = `${uniqueSuffix}-${filename}`;
 
         const { data, error } = await supabaseAdmin
             .storage
