@@ -41,8 +41,8 @@ export default function ActiveUsers() {
                 const res = await fetch('/api/users');
                 if (res.ok) {
                     const data = await res.json();
-                    // data.users is the array
-                    const allUsers = data.users || [];
+                    // API returns array directly
+                    const allUsers = Array.isArray(data) ? data : (data.users || []);
 
                     // 2. Merge with Online Presence
                     // We want to display EVERYONE.
