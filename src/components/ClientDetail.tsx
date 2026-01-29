@@ -175,9 +175,9 @@ export default function ClientDetail({
             {/* Team Chat Button */}
             <button
               onClick={() => setIsChatOpen(true)}
-              className="w-full py-4 bg-slate-900 border border-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl transition-all shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-3 group relative overflow-hidden"
+              className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold rounded-2xl transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-3 group relative overflow-hidden"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
               <MessageSquare className="w-5 h-5 group-hover:scale-110 transition-transform relative z-10" />
               <span className="relative z-10">Open Team Chat</span>
             </button>

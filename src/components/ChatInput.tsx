@@ -41,12 +41,14 @@ export default function ChatInput({ onSend, isLoading }: ChatInputProps) {
                     body: formData,
                 });
                 const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Upload failed');
+
                 if (data.url) {
                     setAttachments(prev => [...prev, { type: 'file', url: data.url, name: data.name }]);
                 }
             } catch (error) {
                 console.error("Upload failed", error);
-                alert("Upload failed");
+                alert("Upload failed: " + (error as Error).message);
             } finally {
                 setIsUploading(false);
                 if (fileInputRef.current) fileInputRef.current.value = '';
