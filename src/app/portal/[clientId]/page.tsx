@@ -5,7 +5,6 @@ import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Client, Category, Task } from '@/types/database';
 import { Users, FileText, Link as LinkIcon, LogOut, LayoutDashboard, LifeBuoy, ChevronRight, Mail } from 'lucide-react';
-import { getSession, logout } from '@/lib/auth';
 import TaskSection from '@/components/TaskSection';
 import RichTextDisplay from '@/components/RichTextDisplay';
 

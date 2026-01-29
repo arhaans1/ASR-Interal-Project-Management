@@ -9,6 +9,9 @@ import ClientDetail from '@/components/ClientDetail';
 import ClientModal from '@/components/ClientModal';
 import { Users } from 'lucide-react';
 
+import Link from 'next/link';
+import TeamManagementModal from '@/components/TeamManagementModal';
+
 export default function Home() {
   const {
     clients,
@@ -23,7 +26,18 @@ export default function Home() {
 
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
+
+  // Listen for team settings event
+  useEffect(() => {
+    const handleOpenTeamSettings = () => setIsTeamModalOpen(true);
+    window.addEventListener('openTeamSettings', handleOpenTeamSettings);
+
+    return () => {
+      window.removeEventListener('openTeamSettings', handleOpenTeamSettings);
+    }
+  }, []);
 
   const {
     categories,
@@ -251,6 +265,10 @@ export default function Home() {
         onSubmit={handleModalSubmit}
         client={modalMode === 'edit' ? selectedClient : null}
         mode={modalMode}
+      />
+      <TeamManagementModal
+        isOpen={isTeamModalOpen}
+        onClose={() => setIsTeamModalOpen(false)}
       />
     </div>
   );
