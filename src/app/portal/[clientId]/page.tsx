@@ -142,10 +142,10 @@ export default function ClientPortalPage() {
                 </button>
             </header>
 
-            <main className="flex-1 p-4 md:p-6 lg:p-8 max-w-7xl mx-auto w-full">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                    {/* Tasks (ReadOnly) */}
-                    <div className="lg:col-span-8 h-[calc(100vh-140px)]">
+            <main className="flex-1 p-4 md:p-6 lg:p-8 w-full">
+                <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-140px)]">
+                    {/* Tasks (ReadOnly) - Takes mostly full width now */}
+                    <div className="flex-1 overflow-hidden h-full">
                         <TaskSection
                             categories={categories}
                             onCreateCategory={async () => { }}
@@ -161,31 +161,14 @@ export default function ClientPortalPage() {
                         />
                     </div>
 
-                    {/* Info Panel */}
-                    <div className="lg:col-span-4 space-y-6">
-                        {/* Notes */}
-                        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-                            <div className="bg-gray-50/50 px-6 py-4 border-b border-gray-100 font-bold text-gray-900 flex items-center gap-2">
-                                <FileText className="w-4 h-4 text-gray-400" /> Notes
-                            </div>
-                            <div className="p-6 text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">
-                                {client.notes || <span className="text-gray-400 italic">No notes available.</span>}
-                            </div>
-                        </div>
-
+                    {/* Info Panel - Links Only */}
+                    <div className="w-full lg:w-80 flex-shrink-0 space-y-6">
                         {/* Links */}
                         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
                             <div className="bg-gray-50/50 px-6 py-4 border-b border-gray-100 font-bold text-gray-900 flex items-center gap-2">
                                 <LinkIcon className="w-4 h-4 text-gray-400" /> Important Links
                             </div>
                             <div className="p-6 text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">
-                                {/* We could use TextBox with readOnly here if we want rich text parsing? 
-                            Yes, let's use TextBox later if needed, but simple text ok for now. 
-                            Actually TextBox has renderRichText. Let's try to reuse TextBox in read-only mode if possible.
-                            Wait, TextBox is an input/textarea.
-                            I should probably update TextBox to have a view-only mode or just use a parser.
-                            For now, raw text is safe. 
-                        */}
                                 {client.important_links || <span className="text-gray-400 italic">No links shared.</span>}
                             </div>
                         </div>
