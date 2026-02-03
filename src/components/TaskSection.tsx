@@ -88,9 +88,11 @@ export default function TaskSection({
       });
 
       if (taskCategory) {
-        await onUpdateTask(taskCategory, assigningTaskId, {
-          assigned_to: targetUserId
-        });
+        // DIRECT UPDATE: Bypass onUpdateTask to avoid prop-drilling issues
+        await supabase
+          .from('tasks')
+          .update({ assigned_to: targetUserId })
+          .eq('id', assigningTaskId);
 
         // 2. LOGIC: Copy to Target User Board
         // A. Find Target User's "Tasks" Category
