@@ -167,6 +167,8 @@ export default function TaskSection({
       // The user confirmed "It's working now" before the redirect complaint.
       // So the bypass worked.
 
+      setAssignModalOpen(false);
+
       // Let's add a local "toast" state.
       setToastMessage(`Task assigned to ${targetUserName}`);
       setShowToast(true);
