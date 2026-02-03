@@ -137,9 +137,11 @@ export default function Home() {
   const handleUpdateTask = async (
     categoryId: string,
     taskId: string,
-    name: string
+    updates: any // Accept any updates (name, completed, assigned_to, etc.)
   ) => {
-    await updateTask(categoryId, taskId, { name });
+    // If updates is a string (legacy), wrap it. Otherwise pass as is.
+    const payload = typeof updates === 'string' ? { name: updates } : updates;
+    await updateTask(categoryId, taskId, payload);
   };
 
   const handleDeleteTask = async (categoryId: string, taskId: string) => {

@@ -20,7 +20,7 @@ interface ClientDetailProps {
   onUpdateCategory: (categoryId: string, name: string) => Promise<void>;
   onDeleteCategory: (categoryId: string) => Promise<void>;
   onCreateTask: (categoryId: string, name: string) => Promise<void>;
-  onUpdateTask: (categoryId: string, taskId: string, name: string) => Promise<void>;
+  onUpdateTask: (categoryId: string, taskId: string, updates: any) => Promise<void>;
   onDeleteTask: (categoryId: string, taskId: string) => Promise<void>;
   onToggleTask: (categoryId: string, taskId: string, completed: boolean) => Promise<void>;
   onReorderCategory: (categoryId: string, newOrderIndex: number) => Promise<boolean>;
