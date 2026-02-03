@@ -33,5 +33,7 @@ export interface Task {
   name: string;
   completed: boolean;
   order_index: number;
+  assigned_to?: string | null;
+  assigned_user_name?: string | null; // Join result
   created_at: string;
 }

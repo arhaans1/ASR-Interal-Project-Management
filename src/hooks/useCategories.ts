@@ -40,15 +40,26 @@ export function useCategories(clientId: string | null) {
 
       // Step 2: Fetch Tasks for these categories in one batch
       const categoryIds = categories.map(c => c.id);
+
+      // We need to fetch assigned_to relation.
+      // Supabase Join: assigned_to (id, name)
+      // Note: 'assigned_to' is the FK to 'clients'.
       const { data: tasksData, error: taskError } = await supabase
         .from('tasks')
-        .select('*')
+        .select(`
+            *,
+            assigned_client:assigned_to(name)
+        `)
         .in('category_id', categoryIds)
         .order('order_index');
 
       if (taskError) throw taskError;
 
-      const tasks = (tasksData as Task[]) || [];
+      // Transform result to match Task interface (flatten assigned_client.name)
+      const tasks = (tasksData || []).map((t: any) => ({
+        ...t,
+        assigned_user_name: t.assigned_client?.name || null
+      })) as Task[];
 
       // Step 3: Merge in memory
       const categoriesWithTasks: CategoryWithTasks[] = categories.map(category => ({
