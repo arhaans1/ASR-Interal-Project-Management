@@ -6,9 +6,10 @@ import { CategoryWithTasks } from '@/hooks/useCategories';
 import TaskSection from './TaskSection';
 import TextBox from './TextBox';
 import ConfirmModal from './ConfirmModal';
-import { Copy, Settings, Building2, Calendar, Link as LinkIcon, FileText, Trash2, Loader2, Share2, MessageSquare } from 'lucide-react';
+import { Copy, Settings, Building2, Calendar, Link as LinkIcon, FileText, Trash2, Loader2, Share2, MessageSquare, StickyNote } from 'lucide-react';
 import ChatModal from '@/components/ChatModal';
 import ActiveUsers from '@/components/ActiveUsers';
+import QuickPadModal from './QuickPadModal';
 
 interface ClientDetailProps {
   client: Client;
@@ -66,6 +67,7 @@ export default function ClientDetail({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isQuickPadOpen, setIsQuickPadOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
 
   useEffect(() => {
@@ -217,22 +219,35 @@ export default function ClientDetail({
 
           {/* Right Side - Info Cards - Takes 4 columns (1/3) */}
           <div className="lg:col-span-4 space-y-6">
-            {/* Team Chat Button */}
-            <button
-              onClick={() => setIsChatOpen(true)}
-              className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold rounded-2xl transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-3 group relative overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-              <MessageSquare className="w-5 h-5 group-hover:scale-110 transition-transform relative z-10" />
-              <span className="relative z-10">Open Team Chat</span>
+            {/* Action Buttons Row */}
+            <div className="flex gap-4">
+              {/* Team Chat Button */}
+              <button
+                onClick={() => setIsChatOpen(true)}
+                className="flex-1 py-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold rounded-2xl transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-3 group relative overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <MessageSquare className="w-5 h-5 group-hover:scale-110 transition-transform relative z-10" />
+                <span className="relative z-10">Open Team Chat</span>
 
-              {/* Notification Badge */}
-              {unreadCount > 0 && (
-                <div className="absolute top-2 left-2 flex items-center justify-center w-6 h-6 rounded-full bg-red-500 border-2 border-white text-white text-xs font-bold shadow-md z-20 animate-pulse">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </div>
-              )}
-            </button>
+                {/* Notification Badge */}
+                {unreadCount > 0 && (
+                  <div className="absolute top-2 left-2 flex items-center justify-center w-6 h-6 rounded-full bg-red-500 border-2 border-white text-white text-xs font-bold shadow-md z-20 animate-pulse">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </div>
+                )}
+              </button>
+
+              {/* Quick Pad Button */}
+              <button
+                onClick={() => setIsQuickPadOpen(true)}
+                className="flex-1 py-4 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500 text-white font-bold rounded-2xl transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-3 group relative overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <StickyNote className="w-5 h-5 group-hover:scale-110 transition-transform relative z-10" />
+                <span className="relative z-10">Open Quick Pad</span>
+              </button>
+            </div>
 
             {/* Notes - Monochrome */}
             <div className="glass-panel prominent-shadow rounded-3xl overflow-hidden">
@@ -280,6 +295,12 @@ export default function ClientDetail({
         clientId={client.id}
         clientName={client.name}
         currentUser={currentUser}
+      />
+
+      <QuickPadModal
+        isOpen={isQuickPadOpen}
+        onClose={() => setIsQuickPadOpen(false)}
+        clientId={client.id}
       />
     </div>
   );
