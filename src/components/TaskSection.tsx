@@ -123,11 +123,18 @@ export default function TaskSection({
         }
 
         if (targetCategoryId) {
+          // Determine Origin Client ID
+          // The task is currently in a category belonging to 'currentAssigneeId' (if assigned) or the board owner.
+          // Actually, we are viewing a board. The board belongs to `categories[0].client_id`.
+          // If we are on the main board, that IS the origin.
+          const originClientId = categories.length > 0 ? categories[0].client_id : null;
+
           await supabase.from('tasks').insert({
             category_id: targetCategoryId,
             name: assigningTaskName,
             completed: false,
-            order_index: 9999 // append
+            order_index: 9999, // append
+            origin_client_id: originClientId // Add source tracking
           });
         }
 
@@ -537,6 +544,15 @@ export default function TaskSection({
                             >
                               {task.name}
                             </span>
+
+                            {/* Origin Client Tag */}
+                            {task.origin_client_name && (
+                              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-rose-50 border border-rose-100 rounded-md mx-2">
+                                <span className="text-[10px] uppercase font-bold tracking-wider text-rose-600">
+                                  {task.origin_client_name}
+                                </span>
+                              </div>
+                            )}
 
                             <div className={`flex items-center transition-all gap-1 ${isReadOnly ? 'hidden' : 'opacity-0 group-hover/task:opacity-100'}`}>
                               {/* Assign User Button */}

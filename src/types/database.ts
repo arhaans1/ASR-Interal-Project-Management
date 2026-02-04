@@ -35,5 +35,7 @@ export interface Task {
   order_index: number;
   assigned_to?: string | null;
   assigned_user_name?: string | null; // Join result
+  origin_client_id?: string | null;
+  origin_client_name?: string | null; // Join result
   created_at: string;
 }

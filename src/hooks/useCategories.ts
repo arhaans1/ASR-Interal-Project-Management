@@ -42,23 +42,25 @@ export function useCategories(clientId: string | null) {
       const categoryIds = categories.map(c => c.id);
 
       // We need to fetch assigned_to relation.
-      // Supabase Join: assigned_to (id, name)
-      // Note: 'assigned_to' is the FK to 'clients'.
+      // Fetch assigned_to relation AND origin_client_id relation.
+      // Supabase Join: assigned_to (id, name), origin_client_id (id, name)
       const { data: tasksData, error: taskError } = await supabase
         .from('tasks')
         .select(`
             *,
-            assigned_client:assigned_to(name)
+            assigned_client:assigned_to(name),
+            origin_client:origin_client_id(name)
         `)
         .in('category_id', categoryIds)
         .order('order_index');
 
       if (taskError) throw taskError;
 
-      // Transform result to match Task interface (flatten assigned_client.name)
+      // Transform result to match Task interface (flatten assigned_client.name and origin_client.name)
       const tasks = (tasksData || []).map((t: any) => ({
         ...t,
-        assigned_user_name: t.assigned_client?.name || null
+        assigned_user_name: t.assigned_client?.name || null,
+        origin_client_name: t.origin_client?.name || null
       })) as Task[];
 
       // Step 3: Merge in memory
