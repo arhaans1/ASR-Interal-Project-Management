@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { X, Plus, FileText, Trash2, Loader2, StickyNote } from 'lucide-react';
+import { X, Plus, Trash2, Loader2, StickyNote } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import QuickPadEditor from './QuickPadEditor';
 
@@ -84,27 +84,36 @@ export default function QuickPadModal({ isOpen, onClose, clientId }: QuickPadMod
     const handleSave = async (content: string, drawing: string) => {
         if (!selectedNoteId) return;
 
-        // Extract title from first line of text content (simple heuristic)
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = content;
-        const firstLine = tempDiv.textContent?.split('\n')[0].trim().slice(0, 30) || 'Untitled Note';
+        // NO AUTO-TITLE Generation. Use current title.
 
         setIsSaving(true);
         // Optimistic update
-        setNotes(prev => prev.map(n => n.id === selectedNoteId ? { ...n, content, drawing_data: drawing, title: firstLine, updated_at: new Date().toISOString() } : n));
+        setNotes(prev => prev.map(n => n.id === selectedNoteId ? { ...n, content, drawing_data: drawing, updated_at: new Date().toISOString() } : n));
 
         await supabase
             .from('quick_notes')
             .update({
                 content,
                 drawing_data: drawing,
-                title: firstLine,
                 updated_at: new Date().toISOString()
             })
             .eq('id', selectedNoteId);
 
         setIsSaving(false);
     };
+
+    const handleUpdateTitle = async (newTitle: string) => {
+        if (!selectedNoteId) return;
+
+        // Update local
+        setNotes(prev => prev.map(n => n.id === selectedNoteId ? { ...n, title: newTitle } : n));
+
+        // Debounce Save to DB (optional, but for simplicity direct update or debounce)
+        await supabase
+            .from('quick_notes')
+            .update({ title: newTitle })
+            .eq('id', selectedNoteId);
+    }
 
     const selectedNote = notes.find(n => n.id === selectedNoteId);
     const filteredNotes = notes.filter(n => n.title.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -188,9 +197,18 @@ export default function QuickPadModal({ isOpen, onClose, clientId }: QuickPadMod
                 {/* Main Editor Area */}
                 <div className="flex-1 flex flex-col bg-[#F8FAFC]">
                     <div className="h-14 border-b border-gray-200 bg-white flex items-center justify-between px-6 flex-shrink-0">
-                        <span className="font-semibold text-gray-500 text-lg">
-                            {selectedNote ? selectedNote.title : 'Select a note'}
-                        </span>
+                        {/* Editable Title */}
+                        {selectedNote ? (
+                            <input
+                                type="text"
+                                value={selectedNote.title}
+                                onChange={(e) => handleUpdateTitle(e.target.value)}
+                                placeholder="Untitled Note"
+                                className="font-semibold text-gray-700 text-lg bg-transparent border-none focus:outline-none focus:ring-0 placeholder-gray-300 w-full max-w-md"
+                            />
+                        ) : (
+                            <span className="font-semibold text-gray-500 text-lg">Select a note</span>
+                        )}
 
                         <div className="flex items-center gap-4">
                             {isSaving && <span className="text-xs text-gray-400 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Saving...</span>}

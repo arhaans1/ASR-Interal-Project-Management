@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { Type, PenTool, Eraser, Bold, Italic, Underline } from 'lucide-react';
+import { Type, Eraser, Bold, Italic, Underline, Trash2 } from 'lucide-react';
 
 interface QuickPadEditorProps {
     initialContent: string;
@@ -19,6 +19,9 @@ const QuickPadEditor = forwardRef<{ save: () => void }, QuickPadEditorProps>(({
     const editorRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+
+    // For smoothing
+    const pointsRef = useRef<{ x: number, y: number }[]>([]);
 
     // Initialize content
     useEffect(() => {
@@ -49,17 +52,18 @@ const QuickPadEditor = forwardRef<{ save: () => void }, QuickPadEditorProps>(({
     useEffect(() => {
         const resizeCanvas = () => {
             if (containerRef.current && canvasRef.current) {
+                // Save current content to restore after resize clears it
+                const currentData = canvasRef.current.toDataURL();
+
                 canvasRef.current.width = containerRef.current.offsetWidth;
                 canvasRef.current.height = containerRef.current.offsetHeight;
-                // Re-draw if needed (would need to store stroke history for perfect resize, 
-                // but for now scaling/bitmap restoration is complex without history. 
-                // Simpler: Just resize. Bitmap might clear if we reset width.
-                // Restoration:
-                if (initialDrawing) {
-                    const img = new Image();
-                    img.onload = () => canvasRef.current?.getContext('2d')?.drawImage(img, 0, 0);
-                    img.src = initialDrawing;
-                }
+
+                // Restore
+                const img = new Image();
+                img.onload = () => {
+                    canvasRef.current?.getContext('2d')?.drawImage(img, 0, 0);
+                };
+                img.src = currentData;
             }
         };
 
@@ -67,7 +71,7 @@ const QuickPadEditor = forwardRef<{ save: () => void }, QuickPadEditorProps>(({
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
         return () => window.removeEventListener('resize', resizeCanvas);
-    }, [initialDrawing]);
+    }, []); // Remove dependency on initialDrawing to avoid reset loop
 
     // Expose save method
     useImperativeHandle(ref, () => ({
@@ -78,11 +82,7 @@ const QuickPadEditor = forwardRef<{ save: () => void }, QuickPadEditorProps>(({
         }
     }));
 
-    // Auto-save on blur or periodic? 
-    // Let's rely on parent triggering save or local debounced save.
-    // For now parent controls save via ref or we call onSave on changes.
     const handleContentChange = () => {
-        // Debounce this in real app
         const content = editorRef.current?.innerHTML || '';
         const drawing = canvasRef.current?.toDataURL() || '';
         onSave(content, drawing);
@@ -92,12 +92,22 @@ const QuickPadEditor = forwardRef<{ save: () => void }, QuickPadEditorProps>(({
         const content = editorRef.current?.innerHTML || '';
         const drawing = canvasRef.current?.toDataURL() || '';
         onSave(content, drawing);
+        pointsRef.current = []; // Reset points
     }
 
     // Formatting helpers
     const execFormat = (command: string) => {
         document.execCommand(command, false);
         editorRef.current?.focus();
+    };
+
+    const clearCanvas = () => {
+        const canvas = canvasRef.current;
+        const ctx = canvas?.getContext('2d');
+        if (canvas && ctx) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            handleDrawingEnd();
+        }
     };
 
     // Drawing Logic
@@ -108,17 +118,26 @@ const QuickPadEditor = forwardRef<{ save: () => void }, QuickPadEditorProps>(({
         const ctx = canvas?.getContext('2d');
         if (!ctx || !canvas) return;
 
+        // Fix coordinate extraction
         const rect = canvas.getBoundingClientRect();
-        // Handle Touch or Mouse
         const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
         const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
 
-        ctx.beginPath();
-        ctx.moveTo(clientX - rect.left, clientY - rect.top);
-        ctx.lineWidth = mode === 'marker' ? 3 : 20; // Eraser is bigger
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+
+        pointsRef.current = [{ x, y }];
+
+        ctx.lineWidth = mode === 'marker' ? 3 : 20;
         ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
         ctx.strokeStyle = mode === 'marker' ? '#000000' : 'rgba(0,0,0,1)';
         ctx.globalCompositeOperation = mode === 'marker' ? 'source-over' : 'destination-out';
+
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x, y); // Draw dot
+        ctx.stroke();
     };
 
     const draw = (e: React.MouseEvent | React.TouchEvent) => {
@@ -130,14 +149,47 @@ const QuickPadEditor = forwardRef<{ save: () => void }, QuickPadEditorProps>(({
         const rect = canvas.getBoundingClientRect();
         const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
         const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
 
-        ctx.lineTo(clientX - rect.left, clientY - rect.top);
-        ctx.stroke();
+        pointsRef.current.push({ x, y });
+        const points = pointsRef.current;
+
+        // Smoothing Logic: Quadratic Curve
+        if (points.length > 2) {
+            if (mode === 'marker') {
+                const p1 = points[points.length - 2];
+                const p2 = points[points.length - 1];
+                const p0 = points[points.length - 3];
+
+                // Simple smoothing by using midpoints
+                const mid1x = (p0.x + p1.x) / 2;
+                const mid1y = (p0.y + p1.y) / 2;
+                const mid2x = (p1.x + p2.x) / 2;
+                const mid2y = (p1.y + p2.y) / 2;
+
+                ctx.beginPath();
+                ctx.moveTo(mid1x, mid1y);
+                ctx.quadraticCurveTo(p1.x, p1.y, mid2x, mid2y);
+                ctx.stroke();
+            } else {
+                // Eraser - simple lines are better for responsive feel
+                const p2 = points[points.length - 1];
+                const p1 = points[points.length - 2];
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+            }
+        }
     };
 
     const stopDrawing = () => {
         setIsDrawing(false);
-        if (mode !== 'text') handleDrawingEnd();
+        if (mode !== 'text') {
+            pointsRef.current = [];
+            handleDrawingEnd();
+        }
     };
 
     return (
@@ -159,7 +211,6 @@ const QuickPadEditor = forwardRef<{ save: () => void }, QuickPadEditorProps>(({
                         title="Marker"
                     >
                         <div className="w-4 h-4 rounded-full bg-black mx-0.5" />
-                        {/* <PenTool className="w-5 h-5" /> */}
                     </button>
                     <button
                         onClick={() => setMode('eraser')}
@@ -168,12 +219,21 @@ const QuickPadEditor = forwardRef<{ save: () => void }, QuickPadEditorProps>(({
                     >
                         <Eraser className="w-5 h-5" />
                     </button>
+
+                    <div className="w-px h-6 bg-gray-200 mx-1" />
+
+                    <button
+                        onClick={clearCanvas}
+                        className="p-2 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        title="Clear All Drawing"
+                    >
+                        <Trash2 className="w-5 h-5" />
+                    </button>
                 </div>
 
                 <div className="h-6 w-px bg-gray-200 mx-2" />
 
                 <div className="flex items-center gap-1">
-                    {/* Formatting - Only works in text mode logically, but button availability is fine */}
                     <button onMouseDown={(e) => { e.preventDefault(); execFormat('bold'); }} className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg"><Bold className="w-4 h-4" /></button>
                     <button onMouseDown={(e) => { e.preventDefault(); execFormat('italic'); }} className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg"><Italic className="w-4 h-4" /></button>
                     <button onMouseDown={(e) => { e.preventDefault(); execFormat('underline'); }} className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg"><Underline className="w-4 h-4" /></button>
@@ -185,10 +245,10 @@ const QuickPadEditor = forwardRef<{ save: () => void }, QuickPadEditorProps>(({
                 {/* Layer 1: ContentEditable */}
                 <div
                     ref={editorRef}
-                    contentEditable={true} // Always editable, but clicks might be intercepted by canvas if z-index is wrong
+                    contentEditable={true}
                     onInput={handleContentChange}
                     className="absolute inset-0 p-6 outline-none overflow-y-auto z-10 font-medium text-gray-700 leading-relaxed"
-                    style={{ minHeight: '100%', pointerEvents: mode === 'text' ? 'auto' : 'none' }} // allow clicking through if drawing
+                    style={{ minHeight: '100%', pointerEvents: mode === 'text' ? 'auto' : 'none' }}
                 />
 
                 {/* Layer 2: Canvas */}
@@ -196,7 +256,7 @@ const QuickPadEditor = forwardRef<{ save: () => void }, QuickPadEditorProps>(({
                     ref={canvasRef}
                     className="absolute inset-0 z-20 touch-none"
                     style={{
-                        pointerEvents: mode === 'text' ? 'none' : 'auto', // Pass through to text if in text mode
+                        pointerEvents: mode === 'text' ? 'none' : 'auto',
                         cursor: mode === 'eraser' ? 'crosshair' : 'default'
                     }}
                     onMouseDown={startDrawing}
