@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Client } from '@/types/database';
 import { ChevronRight, Plus, Users, Layout, Rocket, Archive, Copy } from 'lucide-react';
 
@@ -103,6 +103,28 @@ export default function Sidebar({
     </button>
   );
 
+  // Scroll Persistence
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Restore scroll position
+    const savedScroll = sessionStorage.getItem('sidebar-scroll-position');
+    if (scrollRef.current && savedScroll) {
+      scrollRef.current.scrollTop = parseInt(savedScroll, 10);
+    }
+
+    // Save scroll position handler
+    const handleScroll = () => {
+      if (scrollRef.current) {
+        sessionStorage.setItem('sidebar-scroll-position', scrollRef.current.scrollTop.toString());
+      }
+    };
+
+    const element = scrollRef.current;
+    element?.addEventListener('scroll', handleScroll);
+    return () => element?.removeEventListener('scroll', handleScroll);
+  }, []);
+
   return (
     <div className="w-80 shrink-0 h-screen glass-panel border-r-0 flex flex-col z-20 relative">
       {/* Header */}
@@ -127,7 +149,10 @@ export default function Sidebar({
       </div>
 
       {/* Client Lists */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6 scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent">
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto px-4 py-4 space-y-6 scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent"
+      >
 
         {/* Active Section */}
         <div>

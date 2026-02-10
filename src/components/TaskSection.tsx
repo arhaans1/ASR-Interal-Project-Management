@@ -509,17 +509,24 @@ export default function TaskSection({
 
                         {editingTaskId === task.id ? (
                           <div className="flex-1 flex items-center gap-2 z-10">
-                            <input
-                              type="text"
+                            <textarea
                               value={editingTaskName}
                               onChange={(e) => setEditingTaskName(e.target.value)}
-                              className="flex-1 px-2 py-1 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                              className="flex-1 px-3 py-2 bg-white border border-indigo-200 rounded-xl text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none resize-y min-h-[80px] shadow-sm"
                               autoFocus
                               onKeyDown={(e) => {
-                                if (e.key === 'Enter') handleUpdateTask(category.id, task.id);
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                  e.preventDefault();
+                                  handleUpdateTask(category.id, task.id);
+                                }
                                 if (e.key === 'Escape') setEditingTaskId(null);
                               }}
-                              onBlur={() => handleUpdateTask(category.id, task.id)}
+                              onBlur={() => {
+                                // Optional: Save on blur? Or keep explicit save button?
+                                // User usually expects save on click away, but for textarea explicitly, maybe safer to wait?
+                                // Let's auto-save on blur for consistency with previous input
+                                handleUpdateTask(category.id, task.id);
+                              }}
                             />
                             <button
                               onMouseDown={(e) => e.preventDefault()}
