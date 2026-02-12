@@ -546,10 +546,26 @@ export default function TaskSection({
                         ) : (
                           <>
                             <span
-                              className={`flex-1 text-sm font-medium transition-all duration-200 ${task.completed ? 'text-gray-400 line-through decoration-gray-300' : 'text-gray-700'
+                              className={`flex-1 text-sm font-medium transition-all duration-200 whitespace-pre-wrap break-words min-w-0 ${task.completed ? 'text-gray-400 line-through decoration-gray-300' : 'text-gray-700'
                                 }`}
                             >
-                              {task.name}
+                              {task.name.split(/(https?:\/\/[^\s]+)/g).map((part, i) => {
+                                if (part.match(/https?:\/\/[^\s]+/)) {
+                                  return (
+                                    <a
+                                      key={i}
+                                      href={part}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-blue-500 hover:underline relative z-20 hover:text-blue-600"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      {part}
+                                    </a>
+                                  );
+                                }
+                                return part;
+                              })}
                             </span>
 
                             {/* Origin Client Tag */}
