@@ -70,8 +70,9 @@ export function useCategories(clientId: string | null) {
       }));
 
       setCategories(categoriesWithTasks);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch categories');
+    } catch (err: any) {
+      const errorMessage = typeof err === 'string' ? err : (err?.message || 'Failed to fetch categories');
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -104,8 +105,9 @@ export function useCategories(clientId: string | null) {
       const categoryData = data as Category;
       setCategories((prev) => [...prev, { ...categoryData, tasks: [] }]);
       return categoryData;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create category');
+    } catch (err: any) {
+      const errorMessage = typeof err === 'string' ? err : (err?.message || 'Failed to create category');
+      setError(errorMessage);
       return null;
     }
   };
@@ -128,8 +130,9 @@ export function useCategories(clientId: string | null) {
         )
       );
       return true;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update category');
+    } catch (err: any) {
+      const errorMessage = typeof err === 'string' ? err : (err?.message || 'Failed to update category');
+      setError(errorMessage);
       return false;
     }
   };
@@ -145,8 +148,9 @@ export function useCategories(clientId: string | null) {
 
       setCategories((prev) => prev.filter((cat) => cat.id !== categoryId));
       return true;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete category');
+    } catch (err: any) {
+      const errorMessage = typeof err === 'string' ? err : (err?.message || 'Failed to delete category');
+      setError(errorMessage);
       return false;
     }
   };
@@ -243,8 +247,9 @@ export function useCategories(clientId: string | null) {
         )
       );
       return taskData;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create task');
+    } catch (err: any) {
+      const errorMessage = typeof err === 'string' ? err : (err?.message || 'Failed to create task');
+      setError(errorMessage);
       return null;
     }
   };
@@ -275,8 +280,9 @@ export function useCategories(clientId: string | null) {
         )
       );
       return true;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update task');
+    } catch (err: any) {
+      const errorMessage = typeof err === 'string' ? err : (err?.message || 'Failed to update task');
+      setError(errorMessage);
       return false;
     }
   };
@@ -298,8 +304,9 @@ export function useCategories(clientId: string | null) {
         )
       );
       return true;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete task');
+    } catch (err: any) {
+      const errorMessage = typeof err === 'string' ? err : (err?.message || 'Failed to delete task');
+      setError(errorMessage);
       return false;
     }
   };

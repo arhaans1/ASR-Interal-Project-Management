@@ -21,9 +21,10 @@ export function useClients() {
       if (error) throw error;
       console.log('Fetched clients:', data); // Debug log
       setClients((data as Client[]) || []);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching clients:', err); // Debug log
-      setError(err instanceof Error ? err.message : 'Failed to fetch clients');
+      const errorMessage = err?.message || (typeof err === 'string' ? err : 'Failed to fetch clients');
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -65,9 +66,10 @@ export function useClients() {
       console.log('Client created:', clientData); // Debug log
       setClients((prev) => [clientData, ...prev]);
       return clientData;
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error creating client:', err); // Debug log
-      setError(err instanceof Error ? err.message : 'Failed to create client');
+      const errorMessage = err?.message || (typeof err === 'string' ? err : 'Failed to create client');
+      setError(errorMessage);
       return null;
     }
   };
@@ -91,8 +93,9 @@ export function useClients() {
         )
       );
       return true;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update client');
+    } catch (err: any) {
+      const errorMessage = err?.message || (typeof err === 'string' ? err : 'Failed to update client');
+      setError(errorMessage);
       return false;
     }
   };
@@ -106,8 +109,9 @@ export function useClients() {
       return true;
       setClients((prev) => prev.filter((client) => client.id !== id));
       return true;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete client');
+    } catch (err: any) {
+      const errorMessage = err?.message || (typeof err === 'string' ? err : 'Failed to delete client');
+      setError(errorMessage);
       return false;
     }
   };
@@ -220,8 +224,9 @@ export function useClients() {
 
       setClients((prev) => [clonedClient, ...prev]);
       return clonedClient;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to clone client');
+    } catch (err: any) {
+      const errorMessage = err?.message || (typeof err === 'string' ? err : 'Failed to clone client');
+      setError(errorMessage);
       return null;
     } finally {
       setIsCloning(false);
