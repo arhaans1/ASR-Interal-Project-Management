@@ -468,7 +468,7 @@ export default function TaskSection({
                     {category.tasks.map((task) => (
                       <div
                         key={task.id}
-                        className={`group/task relative flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-3 py-2 bg-white/60 hover:bg-white rounded-xl border border-transparent hover:border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 ${editingTaskId !== task.id && !isReadOnly ? 'cursor-move' : ''}`}
+                        className={`group/task relative flex flex-wrap items-center justify-between gap-y-2 gap-x-3 px-3 py-2 bg-white/60 hover:bg-white rounded-xl border border-transparent hover:border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 ${editingTaskId !== task.id && !isReadOnly ? 'cursor-move' : ''}`}
                         draggable={editingTaskId !== task.id && !isReadOnly}
                         onDragStart={(e) => {
                           e.stopPropagation();
@@ -495,11 +495,11 @@ export default function TaskSection({
                         }}
                         onDoubleClick={() => !isReadOnly && startEditingTask(task)}
                       >
-                        <div className="flex items-start sm:items-center gap-3 flex-1 min-w-0">
+                        <div className="flex items-start gap-3 flex-1 basis-[160px] min-w-[200px]">
                           <button
                             onClick={() => !isReadOnly && onToggleTask(category.id, task.id, !task.completed)}
                             disabled={isReadOnly}
-                            className={`flex-shrink-0 mt-0.5 sm:mt-0 transition-all duration-300 ${task.completed ? 'text-emerald-500 scale-105' : 'text-gray-300 hover:text-emerald-400'} ${isReadOnly ? 'cursor-default' : ''}`}
+                            className={`flex-shrink-0 mt-0.5 transition-all duration-300 ${task.completed ? 'text-emerald-500 scale-105' : 'text-gray-300 hover:text-emerald-400'} ${isReadOnly ? 'cursor-default' : ''}`}
                           >
                             {task.completed ? (
                               <CheckCircle2 className="w-5 h-5 fill-emerald-50" />
@@ -509,11 +509,11 @@ export default function TaskSection({
                           </button>
 
                           {editingTaskId === task.id ? (
-                            <div className="flex-1 flex items-center gap-2 z-10">
+                            <div className="flex-1 flex items-center gap-2 z-10 w-full">
                               <textarea
                                 value={editingTaskName}
                                 onChange={(e) => setEditingTaskName(e.target.value)}
-                                className="flex-1 px-3 py-2 bg-white border border-indigo-200 rounded-xl text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none resize-y min-h-[80px] shadow-sm"
+                                className="flex-1 px-3 py-2 bg-white border border-indigo-200 rounded-xl text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none resize-y min-h-[80px] shadow-sm w-full"
                                 autoFocus
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter' && !e.shiftKey) {
@@ -526,24 +526,26 @@ export default function TaskSection({
                                   handleUpdateTask(category.id, task.id);
                                 }}
                               />
-                              <button
-                                onMouseDown={(e) => e.preventDefault()}
-                                onClick={() => handleUpdateTask(category.id, task.id)}
-                                className="text-green-600 hover:text-green-700 p-1 flex-shrink-0"
-                              >
-                                <Check className="w-4 h-4" />
-                              </button>
-                              <button
-                                onMouseDown={(e) => e.preventDefault()}
-                                onClick={() => setEditingTaskId(null)}
-                                className="text-gray-400 hover:text-gray-600 p-1 flex-shrink-0"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
+                              <div className="flex flex-col gap-1 flex-shrink-0">
+                                <button
+                                  onMouseDown={(e) => e.preventDefault()}
+                                  onClick={() => handleUpdateTask(category.id, task.id)}
+                                  className="text-green-600 hover:text-green-700 p-1 bg-green-50 rounded"
+                                >
+                                  <Check className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onMouseDown={(e) => e.preventDefault()}
+                                  onClick={() => setEditingTaskId(null)}
+                                  className="text-gray-400 hover:text-gray-600 p-1 bg-gray-50 rounded"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
                             </div>
                           ) : (
                             <span
-                              className={`flex-1 text-sm font-medium transition-all duration-200 whitespace-pre-wrap break-words min-w-0 ${task.completed ? 'text-gray-400 line-through decoration-gray-300' : 'text-gray-700'
+                              className={`flex-1 text-sm font-medium transition-all duration-200 whitespace-pre-wrap break-words min-w-[100px] leading-snug ${task.completed ? 'text-gray-400 line-through decoration-gray-300' : 'text-gray-700'
                                 }`}
                             >
                               {task.name.split(/(https?:\/\/[^\s]+)/g).map((part, i) => {
@@ -554,7 +556,7 @@ export default function TaskSection({
                                       href={part}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="text-blue-500 hover:underline relative z-20 hover:text-blue-600"
+                                      className="text-blue-500 hover:underline relative z-20 hover:text-blue-600 break-all"
                                       onClick={(e) => e.stopPropagation()}
                                     >
                                       {part}
@@ -568,21 +570,21 @@ export default function TaskSection({
                         </div>
 
                         {editingTaskId !== task.id && (
-                          <div className="flex items-center pl-8 sm:pl-0 gap-2 sm:gap-1 mt-1 sm:mt-0 opacity-100 sm:opacity-0 sm:group-hover/task:opacity-100 transition-opacity">
+                          <div className="flex items-center gap-2 flex-wrap flex-shrink-0 ml-auto justify-end opacity-100 lg:opacity-0 lg:group-hover/task:opacity-100 transition-opacity">
                             {/* Origin Client Tag */}
                             {task.origin_client_name && (
-                              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-rose-50 border border-rose-100 rounded-md sm:mx-2 flex-shrink-0">
-                                <span className="text-[10px] uppercase font-bold tracking-wider text-rose-600 truncate max-w-[120px] sm:max-w-none">
+                              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-rose-50 border border-rose-100 rounded-md flex-shrink-0 max-w-full">
+                                <span className="text-[10px] uppercase font-bold tracking-wider text-rose-600 truncate max-w-[150px]">
                                   {task.origin_client_name}
                                 </span>
                               </div>
                             )}
 
-                            <div className={`flex items-center transition-all gap-1 ${isReadOnly ? 'hidden' : ''}`}>
+                            <div className={`flex items-center transition-all gap-1 flex-shrink-0 ${isReadOnly ? 'hidden' : ''}`}>
                               {/* Assign User Button */}
                               <button
                                 onClick={() => openAssignModal(task)}
-                                className="p-1 sm:mr-1 text-gray-400 sm:text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors flex items-center justify-center h-6 w-6"
+                                className="p-1 mr-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors flex items-center justify-center h-6 w-6"
                                 title={task.assigned_user_name ? `Assigned to ${task.assigned_user_name}` : "Assign to Team Member"}
                               >
                                 {task.assigned_user_name ? (
@@ -596,13 +598,13 @@ export default function TaskSection({
 
                               <button
                                 onClick={() => startEditingTask(task)}
-                                className="p-1 text-gray-400 sm:text-gray-300 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                                className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
                               >
                                 <Edit2 className="w-3 h-3" />
                               </button>
                               <button
                                 onClick={() => onDeleteTask(category.id, task.id)}
-                                className="p-1 text-gray-400 sm:text-gray-300 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                                className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
                               >
                                 <Trash2 className="w-3 h-3" />
                               </button>
