@@ -570,21 +570,21 @@ export default function TaskSection({
                         </div>
 
                         {editingTaskId !== task.id && (
-                          <div className="flex items-center gap-2 flex-wrap flex-shrink-0 ml-auto justify-end opacity-100 lg:opacity-0 lg:group-hover/task:opacity-100 transition-opacity">
+                          <div className="flex items-center gap-2 flex-wrap flex-shrink-0 ml-auto justify-end transition-opacity">
                             {/* Origin Client Tag */}
                             {task.origin_client_name && (
-                              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-rose-50 border border-rose-100 rounded-md flex-shrink-0 max-w-full">
+                              <div className="flex items-center gap-1.5 px-3 py-1 bg-rose-50 border border-rose-200 rounded-lg flex-shrink-0 max-w-full shadow-sm">
                                 <span className="text-[10px] uppercase font-bold tracking-wider text-rose-600 truncate max-w-[150px]">
                                   {task.origin_client_name}
                                 </span>
                               </div>
                             )}
 
-                            <div className={`flex items-center transition-all gap-1 flex-shrink-0 ${isReadOnly ? 'hidden' : ''}`}>
+                            <div className={`flex items-center gap-1 flex-shrink-0 ${isReadOnly ? 'hidden' : ''}`}>
                               {/* Assign User Button */}
                               <button
                                 onClick={() => openAssignModal(task)}
-                                className="p-1 mr-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors flex items-center justify-center h-6 w-6"
+                                className="p-1 px-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors flex items-center justify-center h-7 gap-1 border border-transparent hover:border-indigo-100"
                                 title={task.assigned_user_name ? `Assigned to ${task.assigned_user_name}` : "Assign to Team Member"}
                               >
                                 {task.assigned_user_name ? (
@@ -598,15 +598,15 @@ export default function TaskSection({
 
                               <button
                                 onClick={() => startEditingTask(task)}
-                                className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                                className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors border border-transparent"
                               >
-                                <Edit2 className="w-3 h-3" />
+                                <Edit2 className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 onClick={() => onDeleteTask(category.id, task.id)}
-                                className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                                className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors border border-transparent"
                               >
-                                <Trash2 className="w-3 h-3" />
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           </div>
