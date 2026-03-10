@@ -379,6 +379,105 @@ export function useCategories(clientId: string | null) {
     return updateTask(categoryId, taskId, { completed });
   };
 
+  const moveTask = async (
+    sourceCategoryId: string,
+    targetCategoryId: string,
+    taskId: string,
+    newIndex: number
+  ): Promise<boolean> => {
+    try {
+      if (sourceCategoryId === targetCategoryId) {
+        return reorderTask(sourceCategoryId, taskId, newIndex);
+      }
+
+      setCategories((prev) => {
+        const sourceCatIndex = prev.findIndex((c) => c.id === sourceCategoryId);
+        const targetCatIndex = prev.findIndex((c) => c.id === targetCategoryId);
+        if (sourceCatIndex === -1 || targetCatIndex === -1) return prev;
+
+        const sourceCategory = prev[sourceCatIndex];
+        const targetCategory = prev[targetCatIndex];
+
+        const taskIndex = sourceCategory.tasks.findIndex((t) => t.id === taskId);
+        if (taskIndex === -1) return prev;
+
+        const taskToMove = { ...sourceCategory.tasks[taskIndex], category_id: targetCategoryId };
+
+        const newSourceTasks = [...sourceCategory.tasks];
+        newSourceTasks.splice(taskIndex, 1);
+
+        const newTargetTasks = [...targetCategory.tasks];
+        newTargetTasks.splice(newIndex, 0, taskToMove);
+
+        const newCategories = [...prev];
+        newCategories[sourceCatIndex] = {
+          ...sourceCategory,
+          tasks: newSourceTasks.map((t, idx) => ({ ...t, order_index: idx })),
+        };
+        newCategories[targetCatIndex] = {
+          ...targetCategory,
+          tasks: newTargetTasks.map((t, idx) => ({ ...t, order_index: idx })),
+        };
+
+        return newCategories;
+      });
+
+      const sourceCategory = categories.find((c) => c.id === sourceCategoryId);
+      const targetCategory = categories.find((c) => c.id === targetCategoryId);
+      if (!sourceCategory || !targetCategory) return false;
+
+      const taskIndex = sourceCategory.tasks.findIndex((t) => t.id === taskId);
+      if (taskIndex === -1) return false;
+
+      const taskToMove = { ...sourceCategory.tasks[taskIndex], category_id: targetCategoryId };
+
+      const newSourceTasks = [...sourceCategory.tasks];
+      newSourceTasks.splice(taskIndex, 1);
+
+      const newTargetTasks = [...targetCategory.tasks];
+      newTargetTasks.splice(newIndex, 0, taskToMove);
+
+      const sourceUpdates = newSourceTasks.map((t, idx) => ({
+        id: t.id,
+        order_index: idx,
+      }));
+
+      const targetUpdates = newTargetTasks.map((t, idx) => ({
+        id: t.id,
+        order_index: idx,
+      }));
+
+      await Promise.all([
+        supabase
+          .from('tasks')
+          .update({ category_id: targetCategoryId, order_index: newIndex })
+          .eq('id', taskId),
+
+        ...sourceUpdates.map((update) =>
+          supabase
+            .from('tasks')
+            .update({ order_index: update.order_index })
+            .eq('id', update.id)
+        ),
+
+        ...targetUpdates
+          .filter(t => t.id !== taskId)
+          .map((update) =>
+            supabase
+              .from('tasks')
+              .update({ order_index: update.order_index })
+              .eq('id', update.id)
+          )
+      ]);
+
+      return true;
+    } catch (err) {
+      console.error('Move task failed', err);
+      fetchCategories();
+      return false;
+    }
+  };
+
   return {
     categories,
     loading,
@@ -392,6 +491,7 @@ export function useCategories(clientId: string | null) {
     deleteTask,
     toggleTask,
     reorderTask,
+    moveTask,
     refreshCategories: fetchCategories,
   };
 }

@@ -191,6 +191,7 @@ export default function ClientPortalPage() {
                                         onToggleTask={async () => { }} // Read only!
                                         onReorderCategory={async () => false}
                                         onReorderTask={async () => false}
+                                        onMoveTask={async () => false}
                                         isReadOnly={true}
                                     />
                                 </div>

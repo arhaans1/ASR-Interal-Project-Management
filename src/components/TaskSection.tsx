@@ -29,6 +29,7 @@ interface TaskSectionProps {
   onToggleTask: (categoryId: string, taskId: string, completed: boolean) => Promise<void>;
   onReorderCategory: (categoryId: string, newOrderIndex: number) => Promise<boolean>;
   onReorderTask: (categoryId: string, taskId: string, newOrderIndex: number) => Promise<boolean>;
+  onMoveTask: (sourceCategoryId: string, targetCategoryId: string, taskId: string, newOrderIndex: number) => Promise<boolean>;
   isReadOnly?: boolean;
 }
 
@@ -49,6 +50,7 @@ export default function TaskSection({
   onToggleTask,
   onReorderCategory,
   onReorderTask,
+  onMoveTask,
   isReadOnly = false,
 }: TaskSectionProps) {
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
@@ -374,6 +376,13 @@ export default function TaskSection({
                         onReorderCategory(draggedId, targetIndex);
                       }
                     }
+
+                    const draggedTaskId = e.dataTransfer.getData('taskId');
+                    const sourceCategoryId = e.dataTransfer.getData('sourceCategoryId');
+                    if (draggedTaskId && sourceCategoryId && sourceCategoryId !== category.id) {
+                      const newIndex = category.tasks.length;
+                      onMoveTask(sourceCategoryId, category.id, draggedTaskId, newIndex);
+                    }
                   }}
                 >
                   {/* Category Header */}
@@ -483,13 +492,21 @@ export default function TaskSection({
                           const draggedTaskId = e.dataTransfer.getData('taskId');
                           const sourceCategoryId = e.dataTransfer.getData('sourceCategoryId');
 
-                          if (draggedTaskId && sourceCategoryId === category.id && draggedTaskId !== task.id) {
-                            const draggedIndex = category.tasks.findIndex(t => t.id === draggedTaskId);
-                            // We need the TARGET index. Since we are mapping, we know 'task' is the target.
-                            const targetIndex = category.tasks.findIndex(t => t.id === task.id);
+                          if (!draggedTaskId) return;
 
-                            if (draggedIndex !== -1 && targetIndex !== -1 && draggedIndex !== targetIndex) {
-                              onReorderTask(category.id, draggedTaskId, targetIndex);
+                          if (sourceCategoryId === category.id) {
+                            if (draggedTaskId !== task.id) {
+                              const draggedIndex = category.tasks.findIndex(t => t.id === draggedTaskId);
+                              const targetIndex = category.tasks.findIndex(t => t.id === task.id);
+
+                              if (draggedIndex !== -1 && targetIndex !== -1 && draggedIndex !== targetIndex) {
+                                onReorderTask(category.id, draggedTaskId, targetIndex);
+                              }
+                            }
+                          } else if (sourceCategoryId) {
+                            const targetIndex = category.tasks.findIndex(t => t.id === task.id);
+                            if (targetIndex !== -1) {
+                              onMoveTask(sourceCategoryId, category.id, draggedTaskId, targetIndex);
                             }
                           }
                         }}

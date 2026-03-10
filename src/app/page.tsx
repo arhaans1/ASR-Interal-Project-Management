@@ -51,6 +51,7 @@ export default function Home() {
     toggleTask,
     reorderTask,
     reorderCategory,
+    moveTask,
     refreshCategories,
   } = useCategories(selectedClient?.id || null);
 
@@ -232,6 +233,7 @@ export default function Home() {
             onToggleTask={handleToggleTask}
             onReorderCategory={reorderCategory}
             onReorderTask={reorderTask}
+            onMoveTask={moveTask}
             onDelete={async (id) => {
               const success = await deleteClient(id);
               if (success) setSelectedClient(null);

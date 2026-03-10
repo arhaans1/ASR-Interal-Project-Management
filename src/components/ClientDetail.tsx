@@ -26,6 +26,7 @@ interface ClientDetailProps {
   onToggleTask: (categoryId: string, taskId: string, completed: boolean) => Promise<void>;
   onReorderCategory: (categoryId: string, newOrderIndex: number) => Promise<boolean>;
   onReorderTask: (categoryId: string, taskId: string, newOrderIndex: number) => Promise<boolean>;
+  onMoveTask: (sourceCategoryId: string, targetCategoryId: string, taskId: string, newOrderIndex: number) => Promise<boolean>;
   onDelete: (id: string) => Promise<void>;
 }
 
@@ -62,6 +63,7 @@ export default function ClientDetail({
   onToggleTask,
   onReorderCategory,
   onReorderTask,
+  onMoveTask,
   onDelete, // New prop
 }: ClientDetailProps) {
   const [isDeleting, setIsDeleting] = useState(false);
@@ -214,6 +216,7 @@ export default function ClientDetail({
               onToggleTask={onToggleTask}
               onReorderCategory={onReorderCategory}
               onReorderTask={onReorderTask}
+              onMoveTask={onMoveTask}
             />
           </div>
 
