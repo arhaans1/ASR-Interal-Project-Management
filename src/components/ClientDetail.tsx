@@ -112,6 +112,9 @@ export default function ClientDetail({
     if (isChatOpen) {
       setUnreadCount(0);
       localStorage.setItem(`chat_last_read_${client.id}`, new Date().toISOString());
+
+      // Notify global chat hook to clear the badge instantly
+      window.dispatchEvent(new CustomEvent('chat_read_updated'));
     }
   }, [isChatOpen, client.id]);
 
