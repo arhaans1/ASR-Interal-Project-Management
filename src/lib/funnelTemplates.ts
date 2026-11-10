@@ -1,4 +1,4 @@
-import { FunnelType, TaskOwner } from '@/types/database';
+import { DueAnchor, FunnelType, TaskOwner } from '@/types/database';
 
 // ---------------------------------------------------------------------------
 // Funnel types
@@ -25,12 +25,17 @@ export interface TemplateTask {
   name: string;
   owner: TaskOwner;
   is_onboarding?: boolean;
+  is_approval?: boolean;
   task_key?: string;
 }
 
 export interface TemplateCategory {
   name: string;
   tasks: TemplateTask[];
+  // Timeline rule: due this many business days after onboarding is complete,
+  // or after the client's approval.
+  due_after?: DueAnchor;
+  due_days?: number;
 }
 
 const step = (task_key: string, name: string): TemplateTask => ({
@@ -61,21 +66,39 @@ const CLIENT_ONBOARDING: TemplateCategory = {
   ],
 };
 
+// CAM timeline: research, strategy and the course outline are due 3 business days after
+// onboarding. The client then reviews and approves the outline, and everything else is
+// due 5 business days after that approval.
 const CAM_TEMPLATE: TemplateCategory[] = [
   CLIENT_ONBOARDING,
   {
-    name: 'Research & Strategy',
+    name: 'Research, Strategy & Course Outline',
+    due_after: 'onboarding',
+    due_days: 3,
     tasks: [
       asr('Conduct market research'),
       asr('Conduct audience and customer research'),
       asr('Develop positioning'),
       asr('Create the CAM offer architecture'),
+      asr('Create the course outline (modules, value bombs, and bonuses)'),
+    ],
+  },
+  {
+    name: 'Client Approval',
+    tasks: [
+      {
+        name: 'Review and approve the course outline',
+        owner: 'client',
+        is_approval: true,
+        task_key: 'approve_course_outline',
+      },
     ],
   },
   {
     name: 'Course Creation',
+    due_after: 'approval',
+    due_days: 5,
     tasks: [
-      asr('Create modules, value bombs, and bonuses'),
       asr('Create the recording-ready course package'),
       asr('Create module PowerPoints'),
       asr('Create all bonus assets'),
@@ -83,6 +106,8 @@ const CAM_TEMPLATE: TemplateCategory[] = [
   },
   {
     name: 'Copy & Creatives',
+    due_after: 'approval',
+    due_days: 5,
     tasks: [
       asr('Write the complete sales-page copy'),
       asr('Create lifecycle email / WhatsApp nurture'),
@@ -93,6 +118,8 @@ const CAM_TEMPLATE: TemplateCategory[] = [
   },
   {
     name: 'Build & Setup',
+    due_after: 'approval',
+    due_days: 5,
     tasks: [
       asr('Set up Community & LMS'),
       asr('Build the funnel pages & payment gateway integration'),
@@ -109,11 +136,61 @@ const CAM_TEMPLATE: TemplateCategory[] = [
   },
 ];
 
+const VSL_TEMPLATE: TemplateCategory[] = [
+  CLIENT_ONBOARDING,
+  {
+    name: 'Copy & Creatives',
+    tasks: [
+      asr('Landing page copy'),
+      asr('VSL script'),
+      asr('Video ad scripts'),
+      asr('Image ads'),
+    ],
+  },
+  {
+    name: 'Funnel Build',
+    tasks: [
+      asr('Full funnel design (LP, VSL, thank you)'),
+      asr('Calendar integration'),
+      asr('Qualification form with DQ logic'),
+      asr('Nurture and reminder sequences'),
+    ],
+  },
+  {
+    name: 'Launch',
+    tasks: [asr('Ad launch')],
+  },
+];
+
+const WEBINAR_TEMPLATE: TemplateCategory[] = [
+  CLIENT_ONBOARDING,
+  {
+    name: 'Copy & Creatives',
+    tasks: [
+      asr('Webinar landing page copy'),
+      asr('Webinar script & PPT'),
+      asr('Video ad scripts'),
+      asr('Image ads'),
+    ],
+  },
+  {
+    name: 'Funnel Build',
+    tasks: [
+      asr('Full funnel design (LP, thank you)'),
+      asr('Zoom integration'),
+      asr('Nurture and reminder sequences'),
+    ],
+  },
+  {
+    name: 'Launch',
+    tasks: [asr('Ad launch')],
+  },
+];
+
 export const FUNNEL_TEMPLATES: Record<FunnelType, TemplateCategory[]> = {
   CAM: CAM_TEMPLATE,
-  // Only the client checklist is pre-listed for these; add the delivery tasks per project.
-  VSL: [CLIENT_ONBOARDING],
-  Webinar: [CLIENT_ONBOARDING],
+  VSL: VSL_TEMPLATE,
+  Webinar: WEBINAR_TEMPLATE,
 };
 
 export const templateTaskCount = (type: FunnelType) =>
@@ -243,6 +320,18 @@ export const STEP_GUIDES: Record<string, StepGuide> = {
     actions: [{ label: 'Open the worksheet', source: 'form', primary: true }],
     where: 'On-Boarding Worksheet › Payment Gateway Details',
     doneLabel: "I've shared Razorpay details",
+  },
+  approve_course_outline: {
+    eyebrow: 'Your approval',
+    summary:
+      'Your course outline is ready for you. Read it through and send any notes or changes to your project manager. Once you are happy with it, approve it here and we start on everything else.',
+    bullets: [
+      'Changes are easiest now, before the course, copy and pages are built on top of it.',
+      'The rest of your project is due 5 business days after you approve.',
+    ],
+    actions: [{ label: 'Open your Drive folder', source: 'drive', primary: true }],
+    where: '06 Low Ticket Course › Course Outline',
+    doneLabel: 'I approve the course outline',
   },
   record_video_ads: {
     eyebrow: 'Recording',

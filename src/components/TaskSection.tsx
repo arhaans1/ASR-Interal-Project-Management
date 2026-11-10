@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Plus,
   Check,
@@ -13,7 +13,9 @@ import {
   GripVertical,
   User as UserIcon,
   UserCheck,
+  CalendarClock,
 } from 'lucide-react';
+import { formatDate, Phase, summarizeProject } from '@/lib/progress';
 import { CategoryWithTasks } from '@/hooks/useCategories';
 import { Task } from '@/types/database';
 import TaskAssignModal from './TaskAssignModal';
@@ -54,6 +56,13 @@ export default function TaskSection({
   onMoveTask,
   isReadOnly = false,
 }: TaskSectionProps) {
+  // Stage and due date of each category, from the project's timeline rules
+  const phaseById = useMemo(() => {
+    const map: Record<string, Phase> = {};
+    summarizeProject(categories).phases.forEach((phase) => { map[phase.id] = phase; });
+    return map;
+  }, [categories]);
+
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
 
@@ -456,6 +465,25 @@ export default function TaskSection({
                         <div className="text-xs font-medium text-gray-500">
                           {completedCount} of {totalCount} completed
                         </div>
+                        {(() => {
+                          const phase = phaseById[category.id];
+                          if (!phase || phase.status === 'done') return null;
+                          return (
+                            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                              {phase.status === 'awaiting' && (
+                                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800">
+                                  Pending client approval
+                                </span>
+                              )}
+                              {(phase.dueDate || phase.dueHint) && (
+                                <span className={`inline-flex items-center gap-1 text-xs font-semibold ${phase.overdue ? 'text-red-600' : 'text-slate-600'}`}>
+                                  <CalendarClock className="w-3.5 h-3.5" />
+                                  {phase.dueDate ? `${phase.overdue ? 'Was due' : 'Due'} ${formatDate(phase.dueDate)}` : `Due ${phase.dueHint}`}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     )}
 
@@ -616,7 +644,7 @@ export default function TaskSection({
                                   }`}
                                 title={task.is_onboarding ? 'The client ticks this during onboarding' : 'The client ticks this in their portal'}
                               >
-                                {task.is_onboarding ? 'Client · Onboarding' : 'Client'}
+                                {task.is_onboarding ? 'Client · Onboarding' : task.is_approval ? 'Client · Approval' : 'Client'}
                               </span>
                             )}
 

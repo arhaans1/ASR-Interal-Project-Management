@@ -29,6 +29,7 @@ const toTask = (t: any): Task => ({
     order_index: t.order_index ?? 0,
     owner: t.owner === 'client' ? 'client' : 'team',
     is_onboarding: Boolean(t.is_onboarding),
+    is_approval: Boolean(t.is_approval),
     task_key: t.task_key ?? null,
     completed_at: t.completed_at ?? null,
     created_at: t.created_at,
@@ -52,6 +53,8 @@ export async function fetchCategories(clientIds: string[]): Promise<PortalCatego
         name: c.name,
         order_index: c.order_index ?? 0,
         created_at: c.created_at,
+        due_after: c.due_after ?? null,
+        due_days: c.due_days ?? null,
         tasks: (c.tasks || [])
             .map(toTask)
             .sort((a: Task, b: Task) => a.order_index - b.order_index),
@@ -59,9 +62,9 @@ export async function fetchCategories(clientIds: string[]): Promise<PortalCatego
 }
 
 // Who may open a given client's portal data.
-export function canViewClient(session: SessionData | null, client: { id: string; operator_id?: string | null }): boolean {
+export function canViewClient(session: SessionData | null, client: { id: string }): boolean {
     if (!session) return false;
-    if (session.role === 'admin') return true;
-    if (session.role === 'operator') return client.operator_id === session.userId;
+    // Team members and operators work across every project.
+    if (session.role === 'admin' || session.role === 'operator') return true;
     return session.role === 'client' && session.clientId === client.id;
 }

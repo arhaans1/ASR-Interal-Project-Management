@@ -30,12 +30,18 @@ export interface User {
   role: UserRole;
 }
 
+// What a phase's due date counts from
+export type DueAnchor = 'onboarding' | 'approval';
+
 export interface Category {
   id: string;
   client_id: string;
   name: string;
   order_index: number;
   created_at: string;
+  // Timeline rule: due `due_days` business days after the anchor is reached.
+  due_after?: DueAnchor | null;
+  due_days?: number | null;
 }
 
 export interface Task {
@@ -50,6 +56,7 @@ export interface Task {
   origin_client_name?: string | null; // Join result
   owner?: TaskOwner | null; // Who does it. Missing/null means the team.
   is_onboarding?: boolean | null; // Client must finish these before their dashboard opens
+  is_approval?: boolean | null; // The client signing off on submitted work
   task_key?: string | null; // Links the task to a guided onboarding step
   completed_at?: string | null;
   created_at: string;

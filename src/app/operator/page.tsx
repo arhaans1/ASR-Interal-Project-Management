@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ArrowUpRight, Check, ChevronDown, FolderOpen, Hourglass, Loader2, LogOut, Users, Wrench } from 'lucide-react';
+import { ArrowUpRight, CalendarClock, Check, ChevronDown, FolderOpen, Hourglass, Loader2, LogOut, Users, Wrench } from 'lucide-react';
 import { PortalCategory, PortalClient, Task } from '@/types/database';
 import { funnelLabel } from '@/lib/funnelTemplates';
-import { isClientTask, summarizeProject } from '@/lib/progress';
+import { formatDate, isClientTask, StageKey, summarizeProject } from '@/lib/progress';
+import WorkspaceSwitcher from '@/components/WorkspaceSwitcher';
 
 interface ClientEntry {
     client: PortalClient;
@@ -13,12 +14,17 @@ interface ClientEntry {
 }
 
 interface WorkspaceData {
-    viewer: { role: 'admin' | 'operator'; userId: string; username: string };
-    operators: { id: string; username: string }[];
+    viewer: { role: 'operator'; userId: string; username: string };
     clients: ClientEntry[];
 }
 
-const UNASSIGNED = '__unassigned__';
+const stageStyles: Record<StageKey, string> = {
+    empty: 'bg-slate-100 text-slate-600',
+    onboarding: 'bg-violet-100 text-violet-800',
+    pending_approval: 'bg-amber-100 text-amber-800',
+    in_progress: 'bg-indigo-100 text-indigo-800',
+    complete: 'bg-emerald-100 text-emerald-800',
+};
 
 export default function OperatorWorkspacePage() {
     const router = useRouter();
@@ -26,7 +32,6 @@ export default function OperatorWorkspacePage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [openClientId, setOpenClientId] = useState<string | null>(null);
-    const [operatorFilter, setOperatorFilter] = useState<string>('all');
     const [pendingTaskId, setPendingTaskId] = useState<string | null>(null);
     const [notice, setNotice] = useState('');
     const savingRef = useRef(false);
@@ -66,26 +71,21 @@ export default function OperatorWorkspacePage() {
         };
     }, [load]);
 
-    const isAdmin = data?.viewer.role === 'admin';
-
-    const entries = useMemo(() => {
-        const all = (data?.clients ?? []).map((entry) => ({ ...entry, summary: summarizeProject(entry.categories) }));
-        if (!isAdmin || operatorFilter === 'all') return all;
-        if (operatorFilter === UNASSIGNED) return all.filter((e) => !e.client.operator_id);
-        return all.filter((e) => e.client.operator_id === operatorFilter);
-    }, [data, isAdmin, operatorFilter]);
+    const entries = useMemo(
+        () => (data?.clients ?? []).map((entry) => ({ ...entry, summary: summarizeProject(entry.categories) })),
+        [data]
+    );
 
     const totals = useMemo(
         () => ({
             clients: entries.length,
             onboarding: entries.filter((e) => e.summary.hasOnboarding && !e.summary.onboardingComplete).length,
+            pendingApproval: entries.filter((e) => e.summary.stage.key === 'pending_approval').length,
             waitingOnClient: entries.reduce((n, e) => n + e.summary.clientPending.length, 0),
             onUs: entries.reduce((n, e) => n + e.summary.teamPending.length, 0),
         }),
         [entries]
     );
-
-    const operatorName = (id: string | null) => data?.operators.find((o) => o.id === id)?.username ?? null;
 
     const setTask = (clientId: string, taskId: string, patch: Partial<Task>) => {
         setData((prev) =>
@@ -159,12 +159,6 @@ export default function OperatorWorkspacePage() {
         );
     }
 
-    const filters = [
-        { id: 'all', label: 'All operators' },
-        ...data.operators.map((o) => ({ id: o.id, label: o.username })),
-        { id: UNASSIGNED, label: 'Unassigned' },
-    ];
-
     return (
         <div className="h-screen overflow-y-auto bg-[#F5F6FA]">
             <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/85 backdrop-blur-xl">
@@ -173,21 +167,13 @@ export default function OperatorWorkspacePage() {
                         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-lg font-bold text-white shadow-sm">A</div>
                         <div className="min-w-0 leading-tight">
                             <p className="truncate text-sm font-bold tracking-tight text-slate-900">ASR Media Pro</p>
-                            <p className="truncate text-xs font-medium text-slate-500">
-                                {isAdmin ? 'Operators overview' : 'Operator workspace'}
-                            </p>
+                            <p className="truncate text-xs font-medium text-slate-500">Operator workspace</p>
                         </div>
                     </div>
+                    <div className="hidden sm:block">
+                        <WorkspaceSwitcher current="operator" />
+                    </div>
                     <div className="flex shrink-0 items-center gap-1">
-                        {isAdmin && (
-                            <button
-                                onClick={() => router.push('/')}
-                                className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
-                            >
-                                <ArrowLeft className="h-4 w-4" />
-                                <span className="hidden sm:inline">Team workspace</span>
-                            </button>
-                        )}
                         <button
                             onClick={handleLogout}
                             className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
@@ -197,25 +183,25 @@ export default function OperatorWorkspacePage() {
                         </button>
                     </div>
                 </div>
+                <div className="border-t border-slate-200/70 px-4 py-2 sm:hidden">
+                    <WorkspaceSwitcher current="operator" />
+                </div>
             </header>
 
             <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
                 <div className="flex flex-col gap-1">
                     <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-                        {isAdmin ? 'Client projects by operator' : `Hello, ${data.viewer.username}`}
+                        Hello, {data.viewer.username}
                     </h1>
-                    <p className="text-slate-500">
-                        {isAdmin
-                            ? 'Who is running each project, and what is pending on each side.'
-                            : 'Your assigned clients, and what is pending on each side.'}
-                    </p>
+                    <p className="text-slate-500">Your assigned clients, and what is pending on each side.</p>
                 </div>
 
                 {/* Totals */}
-                <dl className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <dl className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-5">
                     {[
-                        { label: isAdmin ? 'Client projects' : 'Clients assigned', value: totals.clients, tone: 'text-slate-900' },
+                        { label: 'Clients assigned', value: totals.clients, tone: 'text-slate-900' },
                         { label: 'In onboarding', value: totals.onboarding, tone: 'text-slate-900' },
+                        { label: 'Pending client approval', value: totals.pendingApproval, tone: totals.pendingApproval > 0 ? 'text-amber-600' : 'text-slate-900' },
                         { label: 'Waiting on clients', value: totals.waitingOnClient, tone: totals.waitingOnClient > 0 ? 'text-amber-600' : 'text-slate-900' },
                         { label: 'Pending on our end', value: totals.onUs, tone: totals.onUs > 0 ? 'text-indigo-600' : 'text-slate-900' },
                     ].map((stat) => (
@@ -225,24 +211,6 @@ export default function OperatorWorkspacePage() {
                         </div>
                     ))}
                 </dl>
-
-                {isAdmin && (
-                    <div className="mt-6 flex gap-1.5 overflow-x-auto pb-1" role="group" aria-label="Filter by operator">
-                        {filters.map((f) => (
-                            <button
-                                key={f.id}
-                                onClick={() => setOperatorFilter(f.id)}
-                                aria-pressed={operatorFilter === f.id}
-                                className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${operatorFilter === f.id
-                                    ? 'bg-slate-900 text-white'
-                                    : 'border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900'
-                                    }`}
-                            >
-                                {f.label}
-                            </button>
-                        ))}
-                    </div>
-                )}
 
                 {notice && (
                     <div role="alert" className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700 ring-1 ring-red-200">
@@ -254,30 +222,26 @@ export default function OperatorWorkspacePage() {
                 {entries.length === 0 ? (
                     <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white/60 px-6 py-16 text-center">
                         <Users className="mx-auto h-10 w-10 text-slate-300" />
-                        <p className="mt-4 text-base font-semibold text-slate-900">
-                            {isAdmin ? 'No client projects here' : 'No clients assigned to you yet'}
-                        </p>
+                        <p className="mt-4 text-base font-semibold text-slate-900">No clients assigned to you yet</p>
                         <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">
-                            {isAdmin
-                                ? 'Assign an operator from the client card in the team workspace.'
-                                : 'When a client is assigned to you from the team workspace, it shows up here.'}
+                            When a client is assigned to you from the client card in the team workspace, it shows up here.
                         </p>
                     </div>
                 ) : (
                     <ul className="mt-6 space-y-3">
                         {entries.map(({ client, categories, summary }) => {
                             const open = openClientId === client.id;
-                            const inOnboarding = summary.hasOnboarding && !summary.onboardingComplete;
-                            const stage = summary.total === 0
-                                ? { label: 'No tasks yet', className: 'bg-slate-100 text-slate-600' }
-                                : inOnboarding
-                                    ? { label: `Onboarding · ${summary.onboardingDone}/${summary.onboardingTasks.length}`, className: 'bg-amber-100 text-amber-800' }
-                                    : client.status === 'Launched'
-                                        ? { label: 'Launched', className: 'bg-emerald-100 text-emerald-800' }
-                                        : summary.done === summary.total
-                                            ? { label: 'All tasks done', className: 'bg-emerald-100 text-emerald-800' }
-                                            : { label: 'In delivery', className: 'bg-indigo-100 text-indigo-800' };
-                            const assigned = operatorName(client.operator_id);
+                            const stage = {
+                                label:
+                                    summary.stage.key === 'onboarding'
+                                        ? `Onboarding · ${summary.onboardingDone}/${summary.onboardingTasks.length}`
+                                        : summary.stage.key === 'in_progress' && client.status === 'Launched'
+                                            ? 'Launched'
+                                            : summary.stage.label,
+                                className: stageStyles[summary.stage.key],
+                            };
+                            // The next date this project is working towards
+                            const nextDue = summary.phases.find((p) => p.status !== 'done' && p.dueDate);
 
                             return (
                                 <li key={client.id} className={`rounded-2xl border bg-white transition-shadow ${open ? 'border-slate-300 shadow-lg shadow-slate-950/5' : 'border-slate-200/80 shadow-sm'}`}>
@@ -299,7 +263,12 @@ export default function OperatorWorkspacePage() {
                                             </span>
                                             <span className="mt-0.5 block truncate text-sm text-slate-500">
                                                 {client.business_name}
-                                                {isAdmin && <> · {assigned ? `Operator: ${assigned}` : 'No operator assigned'}</>}
+                                                {nextDue && (
+                                                    <span className={`ml-2 inline-flex items-center gap-1 ${nextDue.overdue ? 'font-semibold text-red-600' : ''}`}>
+                                                        <CalendarClock className="h-3.5 w-3.5" />
+                                                        {nextDue.name} {nextDue.overdue ? 'was due' : 'due'} {formatDate(nextDue.dueDate)}
+                                                    </span>
+                                                )}
                                             </span>
                                         </span>
 

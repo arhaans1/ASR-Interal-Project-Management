@@ -18,20 +18,49 @@ One login page, three kinds of account:
 
 | Account | Created in | Lands on | Sees |
 | --- | --- | --- | --- |
-| Team (admin) | Team Settings › Manage Team | `/` | Every client card, tasks, chat and settings |
-| Operator | Team Settings › Manage Team, role "Operator" | `/operator` | Only the clients assigned to them, with what is pending from the client and from our side |
+| Team member | Team Settings › Manage Team | `/` | Every client card, tasks, chat and settings |
+| Operator | Team Settings › Manage Team, role "Operator" | `/operator` | Everything a team member sees, plus their own operator dashboard: the clients assigned to them, with what is pending from the client and from our side. A switcher at the top moves between the two |
 | Client | The client card (username + password) | `/portal/<id>` | Their onboarding, then their project dashboard |
+
+Users and their roles can be edited in Team Settings › Manage Team. Team members cannot open the operator dashboard.
+
+### Security
+
+- Passwords are stored hashed (scrypt). Older plain-text passwords are replaced with a hash the first time that person signs in. Stored passwords are never shown again; type a new one to change it.
+- The login cookie is signed with `SESSION_SECRET`, so it cannot be edited or forged. Set `SESSION_SECRET` to a long random string in the server environment. If it is missing, `SUPABASE_SERVICE_ROLE_KEY` is used to sign instead; if both are missing, nobody can sign in.
 
 ## Client onboarding and funnel types
 
 - A client card has a **funnel type** (VSL, Webinar or CAM), an **operator**, and three links shown in the portal: Drive folder, Start Here video and On-Boarding Worksheet.
-- Picking a funnel type pre-lists tasks on the card. CAM lists the full set from the On-Boarding Worksheet's "Total Deliverables" (8 client onboarding steps, 17 ASR tasks, 2 client recording tasks). VSL and Webinar list the client onboarding steps only. Templates live in `src/lib/funnelTemplates.ts`.
+- Picking a funnel type pre-lists tasks on the card. CAM lists the full set from the On-Boarding Worksheet's "Total Deliverables". VSL and Webinar list the client onboarding steps plus their own deliverables. Templates live in `src/lib/funnelTemplates.ts`.
 - Every task is done by the **team** or by the **client**. Use the person-with-tick icon on a task to switch it. Client tasks marked "Onboarding" must all be ticked before the client's dashboard opens.
 - The client ticks their tasks in the portal. It is the same task row the team sees, so the tick shows on the team board and in the operator workspace within about 15 seconds.
 
-### Database migration
+## Timelines and client approval
 
-Run `supabase-migration-client-onboarding.sql` once in the Supabase SQL Editor. It only adds columns (it is safe to re-run) and existing clients and tasks are left as they are.
+Phases can carry a due date that is counted in business days (Saturdays and Sundays skipped) from a point in the project. On the CAM template:
+
+1. **Research, Strategy & Course Outline** is due 3 business days after the client finishes onboarding.
+2. When that phase is done, the project shows **Pending client approval** until "Review and approve the course outline" is ticked (by the client in their portal, or by the team on their behalf).
+3. **Course Creation, Copy & Creatives and Build & Setup** are due 5 business days after that approval.
+
+Dates are worked out from when things were actually ticked, so they move with the client. VSL and Webinar templates list the deliverables with no date rules yet.
+
+## MCP server (AI assistants)
+
+`/api/mcp` is an MCP server (Streamable HTTP) so Claude, ChatGPT and other assistants can read project status and tick tasks.
+
+- Set `MCP_API_KEY` (16+ characters) in the server environment. Without it the endpoint is off.
+- Connect with `https://<your-domain>/api/mcp` and the header `Authorization: Bearer <MCP_API_KEY>`, or, for assistants that only take a URL, `https://<your-domain>/api/mcp/<MCP_API_KEY>`. Anyone with that URL can update tasks, so treat it like a password.
+- Tools: `list_projects`, `get_project`, `update_task`.
+- Example: "the course outline for Quantseekho has been submitted" → the assistant ticks the outline task and the stage becomes Pending client approval. "The client approved it" → it ticks the approval task, the stage returns to In progress and the remaining due dates are set.
+
+### Database migrations
+
+Run these once each, in order, in the Supabase SQL Editor. They only add columns, are safe to re-run, and leave existing clients and tasks as they are.
+
+1. `supabase-migration-client-onboarding.sql`
+2. `supabase-migration-timelines.sql`
 
 ## Tech Stack
 
@@ -64,6 +93,9 @@ Create a `.env.local` file in the root directory:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+SESSION_SECRET=a_long_random_string
+MCP_API_KEY=another_long_random_string   # optional, turns on the MCP server
 ```
 
 ### 4. Run the development server

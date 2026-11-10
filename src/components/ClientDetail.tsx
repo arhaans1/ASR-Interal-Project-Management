@@ -169,6 +169,11 @@ export default function ClientDetail({
               >
                 {client.status}
               </span>
+              {summary.stage.key === 'pending_approval' && (
+                <span className="px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 ring-1 ring-amber-300">
+                  Pending client approval
+                </span>
+              )}
               {client.funnel_type && (
                 <span className="px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-slate-900 text-white">
                   {funnelLabel(client.funnel_type)}
@@ -238,7 +243,7 @@ export default function ClientDetail({
                 setLinkCopied(true);
                 setTimeout(() => setLinkCopied(false), 2000);
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-colors font-semibold text-sm shadow-sm"
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-colors font-semibold text-sm shadow-sm whitespace-nowrap"
               title="Copy the client portal link"
             >
               {linkCopied ? <Check className="w-4 h-4 text-emerald-600" /> : <Share2 className="w-4 h-4" />}
