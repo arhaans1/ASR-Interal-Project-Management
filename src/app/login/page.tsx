@@ -34,6 +34,8 @@ export default function LoginPage() {
             // Redirect based on role
             if (data.role === 'admin') {
                 router.push('/');
+            } else if (data.role === 'operator') {
+                router.push('/operator');
             } else if (data.role === 'client' && data.clientId) {
                 router.push(`/portal/${data.clientId}`);
             }
@@ -45,18 +47,18 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen bg-white flex items-center justify-center p-4">
-            {/* Mesh Gradient Background */}
-            <div className="absolute inset-0 bg-[#FAFAFA] -z-20" />
-            <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-purple-50/50 to-transparent -z-10" />
+        <div className="relative h-screen overflow-y-auto bg-slate-950 flex items-center justify-center p-4">
+            {/* Soft brand glow */}
+            <div className="pointer-events-none absolute -top-40 left-1/2 h-[28rem] w-[28rem] -translate-x-1/2 rounded-full bg-indigo-600/30 blur-3xl" />
+            <div className="pointer-events-none absolute bottom-0 right-0 h-80 w-80 rounded-full bg-violet-600/20 blur-3xl" />
 
-            <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-gray-100 p-8 md:p-10 animate-in fade-in zoom-in-95 duration-300">
-                <div className="flex flex-col items-center mb-10">
-                    <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg ring-4 ring-slate-50 mb-4">
-                        <span className="text-white font-bold text-3xl">A</span>
+            <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-8 md:p-10 animate-in">
+                <div className="flex flex-col items-center mb-8">
+                    <div className="w-14 h-14 bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg mb-5">
+                        <span className="text-white font-bold text-2xl">A</span>
                     </div>
-                    <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Welcome Back</h1>
-                    <p className="text-gray-500 text-sm mt-2">Sign in to access your workspace</p>
+                    <h1 className="text-2xl font-bold text-slate-900 tracking-tight">ASR Media Pro</h1>
+                    <p className="text-slate-500 text-sm mt-1.5">Sign in to your workspace or client portal</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-5">
@@ -67,8 +69,10 @@ export default function LoginPage() {
                     )}
 
                     <div className="space-y-2">
-                        <label className="text-sm font-semibold text-gray-700 ml-1">Username</label>
+                        <label htmlFor="login-username" className="text-sm font-semibold text-gray-700 ml-1">Username</label>
                         <input
+                            id="login-username"
+                            autoComplete="username"
                             type="text"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
@@ -79,8 +83,10 @@ export default function LoginPage() {
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-sm font-semibold text-gray-700 ml-1">Password</label>
+                        <label htmlFor="login-password" className="text-sm font-semibold text-gray-700 ml-1">Password</label>
                         <input
+                            id="login-password"
+                            autoComplete="current-password"
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
@@ -93,7 +99,7 @@ export default function LoginPage() {
                     <button
                         type="submit"
                         disabled={isLoading}
-                        className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold text-sm tracking-wide shadow-lg hover:shadow-xl hover:bg-slate-800 hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="w-full py-3.5 bg-slate-900 text-white rounded-2xl font-semibold text-sm shadow-sm hover:bg-slate-800 transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                         {isLoading ? (
                             <>

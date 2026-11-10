@@ -59,33 +59,65 @@
 
 /* Base Styles */
 body {
-  background: linear-gradient(to bottom right, #f8fafc, #f1f5f9);
+  background: #f5f6fa;
   color: var(--foreground);
   font-family: var(--font-jakarta), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
 }
 
+/* Keyboard focus is always visible */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+/* Quiet scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
 /* Utilities */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
-  /* Soft shadow for light mode */
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
 }
 
 .soft-card {
   background-color: var(--card-bg);
-  border-radius: 1.5rem;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.03), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 1.25rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px -12px rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(226, 232, 240, 0.9);
 }
 
+/* The main surfaces of the workspace: one soft, layered shadow */
 .prominent-shadow {
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-  /* Very strong shadow */
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  /* Defines the edge clearly */
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 12px 32px -16px rgba(15, 23, 42, 0.12);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+/* Entrance used by modals and toasts */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-in {
+  animation: rise-in 0.2s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

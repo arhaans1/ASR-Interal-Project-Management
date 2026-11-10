@@ -4,7 +4,7 @@ export const SESSION_COOKIE_NAME = 'asr_session';
 
 export interface SessionData {
     userId: string;
-    role: 'admin' | 'client';
+    role: 'admin' | 'operator' | 'client';
     clientId?: string; // If role is client
     username: string;
 }

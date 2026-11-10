@@ -12,6 +12,27 @@ A clean, minimal single-page project management application for ASR Media Pro's 
 - **Clone Functionality**: Clone clients with all their tasks and data
 - **Active/Inactive Sections**: Automatically organize clients by status
 
+## Logins
+
+One login page, three kinds of account:
+
+| Account | Created in | Lands on | Sees |
+| --- | --- | --- | --- |
+| Team (admin) | Team Settings › Manage Team | `/` | Every client card, tasks, chat and settings |
+| Operator | Team Settings › Manage Team, role "Operator" | `/operator` | Only the clients assigned to them, with what is pending from the client and from our side |
+| Client | The client card (username + password) | `/portal/<id>` | Their onboarding, then their project dashboard |
+
+## Client onboarding and funnel types
+
+- A client card has a **funnel type** (VSL, Webinar or CAM), an **operator**, and three links shown in the portal: Drive folder, Start Here video and On-Boarding Worksheet.
+- Picking a funnel type pre-lists tasks on the card. CAM lists the full set from the On-Boarding Worksheet's "Total Deliverables" (8 client onboarding steps, 17 ASR tasks, 2 client recording tasks). VSL and Webinar list the client onboarding steps only. Templates live in `src/lib/funnelTemplates.ts`.
+- Every task is done by the **team** or by the **client**. Use the person-with-tick icon on a task to switch it. Client tasks marked "Onboarding" must all be ticked before the client's dashboard opens.
+- The client ticks their tasks in the portal. It is the same task row the team sees, so the tick shows on the team board and in the operator workspace within about 15 seconds.
+
+### Database migration
+
+Run `supabase-migration-client-onboarding.sql` once in the Supabase SQL Editor. It only adds columns (it is safe to re-run) and existing clients and tasks are left as they are.
+
 ## Tech Stack
 
 - **Frontend**: Next.js 14 (App Router), React, TypeScript

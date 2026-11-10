@@ -12,6 +12,7 @@ import {
   Circle,
   GripVertical,
   User as UserIcon,
+  UserCheck,
 } from 'lucide-react';
 import { CategoryWithTasks } from '@/hooks/useCategories';
 import { Task } from '@/types/database';
@@ -36,7 +37,7 @@ interface TaskSectionProps {
 // Helper to get alternating gradients for cards
 const getCategoryGradient = (index: number) => {
   // Consistent Monochrome Hover with Strong "Glow" (Deep Shadow)
-  return 'bg-white border-gray-200/60 shadow-sm hover:border-slate-900 hover:shadow-[0_0_25px_rgba(0,0,0,0.15)] hover:-translate-y-0.5';
+  return 'bg-slate-50/70 border-slate-200/80 hover:border-slate-300 hover:bg-white hover:shadow-md';
 };
 
 export default function TaskSection({
@@ -241,26 +242,43 @@ export default function TaskSection({
     setEditingCategoryName(category.name);
   };
 
+  // Who does a task: the team (default), the client, or the client as part of onboarding.
+  // Client tasks can be ticked from the client portal; onboarding ones must be done before
+  // the client's dashboard opens.
+  const cycleOwner = (categoryId: string, task: Task) => {
+    const next =
+      task.owner !== 'client'
+        ? { owner: 'client', is_onboarding: true }
+        : task.is_onboarding
+          ? { owner: 'client', is_onboarding: false }
+          : { owner: 'team', is_onboarding: false };
+    onUpdateTask(categoryId, task.id, next);
+  };
+
+  const ownerTitle = (task: Task) =>
+    task.owner !== 'client'
+      ? 'Done by the team. Click to make this a client onboarding step.'
+      : task.is_onboarding
+        ? 'Client onboarding step. Click to make it a regular client task.'
+        : 'Client task. Click to hand it back to the team.';
+
   const startEditingTask = (task: Task) => {
     setEditingTaskId(task.id);
     setEditingTaskName(task.name);
   };
 
   return (
-    <div className="glass-panel prominent-shadow rounded-3xl h-full flex flex-col relative overflow-hidden">
-      {/* Soft overlay gradient - Monochrome */}
-      <div className="absolute top-0 right-0 w-64 h-64 bg-gray-50/50 rounded-full blur-3xl -z-10 -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-
-      {/* Styled Header */}
-      <div className="bg-slate-900 px-6 py-4 border-b border-slate-800 flex items-center justify-between backdrop-blur-sm">
+    <div className="glass-panel prominent-shadow rounded-2xl h-full flex flex-col relative overflow-hidden">
+      {/* Header */}
+      <div className="px-6 py-4 border-b border-slate-200/80 flex items-center justify-between">
         <div className="flex-1 flex items-center gap-6 mr-6">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-white/10 text-white rounded-2xl ring-1 ring-white/10">
+            <div className="p-2 bg-slate-900 text-white rounded-xl">
               <ListTodo className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white tracking-tight">Tasks</h2>
-              <p className="text-xs text-slate-400 font-medium">{categories.length} categories</p>
+              <h2 className="text-lg font-bold text-slate-900 tracking-tight leading-tight">Tasks</h2>
+              <p className="text-xs text-slate-500 font-medium">{categories.length} categories</p>
             </div>
           </div>
 
@@ -272,13 +290,14 @@ export default function TaskSection({
 
             return (
               <div className="flex-1 max-w-lg ml-6 flex items-center gap-4">
-                <div className="flex-1 h-4 bg-slate-800 rounded-full overflow-hidden border border-slate-700/50">
+                <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-emerald-500 rounded-full transition-all duration-700 ease-out shadow-[0_0_10px_rgba(16,185,129,0.3)]"
+                    className="h-full bg-emerald-500 rounded-full transition-all duration-700 ease-out"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
-                <span className="text-sm font-bold text-emerald-400 min-w-[3ch]">{progress}%</span>
+                <span className="text-sm font-bold text-slate-900 tabular-nums min-w-[3ch]">{progress}%</span>
+                <span className="text-xs font-medium text-slate-500 whitespace-nowrap hidden 2xl:inline">{completedTasks} of {totalTasks} done</span>
               </div>
             );
           })()}
@@ -287,7 +306,7 @@ export default function TaskSection({
         {!isReadOnly && (
           <button
             onClick={() => setIsCreatingCategory(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-gray-900 font-semibold text-sm transition-all shadow-sm"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 font-semibold text-sm transition-colors shadow-sm"
           >
             <Plus className="w-4 h-4" />
             New Category
@@ -349,7 +368,7 @@ export default function TaskSection({
               return (
                 <div
                   key={category.id}
-                  className={`break-inside-avoid rounded-2xl border transition-all duration-200 flex flex-col h-fit bg-white/40 backdrop-blur-sm ${getCategoryGradient(index)}`}
+                  className={`break-inside-avoid rounded-2xl border transition-all duration-200 flex flex-col h-fit ${getCategoryGradient(index)}`}
                   draggable={!isReadOnly}
 
                   onDragStart={(e) => {
@@ -431,7 +450,7 @@ export default function TaskSection({
                         className="flex-1"
                         onDoubleClick={() => !isReadOnly && startEditingCategory(category)}
                       >
-                        <h3 className="font-bold text-gray-900 text-lg tracking-tight leading-none mb-1">
+                        <h3 className="font-bold text-slate-900 text-base tracking-tight leading-tight mb-1">
                           {category.name}
                         </h3>
                         <div className="text-xs font-medium text-gray-500">
@@ -477,7 +496,7 @@ export default function TaskSection({
                     {category.tasks.map((task) => (
                       <div
                         key={task.id}
-                        className={`group/task relative flex flex-wrap items-center justify-between gap-y-2 gap-x-3 px-3 py-2 bg-white/60 hover:bg-white rounded-xl border border-transparent hover:border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 ${editingTaskId !== task.id && !isReadOnly ? 'cursor-move' : ''}`}
+                        className={`group/task relative flex flex-wrap items-center justify-between gap-y-2 gap-x-3 px-3 py-2 bg-white rounded-xl border border-slate-200/70 hover:border-slate-300 transition-colors duration-150 ${editingTaskId !== task.id && !isReadOnly ? 'cursor-move' : ''}`}
                         draggable={editingTaskId !== task.id && !isReadOnly}
                         onDragStart={(e) => {
                           e.stopPropagation();
@@ -588,6 +607,19 @@ export default function TaskSection({
 
                         {editingTaskId !== task.id && (
                           <div className="flex items-center gap-2 flex-wrap flex-shrink-0 ml-auto justify-end transition-opacity">
+                            {/* Client-owned task tag */}
+                            {task.owner === 'client' && (
+                              <span
+                                className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider flex-shrink-0 ${task.is_onboarding
+                                  ? 'bg-violet-50 text-violet-700 ring-1 ring-violet-200'
+                                  : 'bg-sky-50 text-sky-700 ring-1 ring-sky-200'
+                                  }`}
+                                title={task.is_onboarding ? 'The client ticks this during onboarding' : 'The client ticks this in their portal'}
+                              >
+                                {task.is_onboarding ? 'Client · Onboarding' : 'Client'}
+                              </span>
+                            )}
+
                             {/* Origin Client Tag */}
                             {task.origin_client_name && (
                               <div className="flex items-center gap-1.5 px-3 py-1 bg-rose-50 border border-rose-200 rounded-lg flex-shrink-0 max-w-full shadow-sm">
@@ -598,6 +630,19 @@ export default function TaskSection({
                             )}
 
                             <div className={`flex items-center gap-1 flex-shrink-0 ${isReadOnly ? 'hidden' : ''}`}>
+                              {/* Team / Client owner toggle */}
+                              <button
+                                onClick={() => cycleOwner(category.id, task)}
+                                className={`p-1 rounded-lg transition-colors border border-transparent ${task.owner === 'client'
+                                  ? 'text-violet-600 hover:bg-violet-50'
+                                  : 'text-gray-400 hover:text-violet-600 hover:bg-violet-50'
+                                  }`}
+                                title={ownerTitle(task)}
+                                aria-label={ownerTitle(task)}
+                              >
+                                <UserCheck className="w-3.5 h-3.5" />
+                              </button>
+
                               {/* Assign User Button */}
                               <button
                                 onClick={() => openAssignModal(task)}
@@ -686,7 +731,7 @@ export default function TaskSection({
       {/* Glassmorphism Toast Notification */}
       {showToast && (
         <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-5 duration-300">
-          <div className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3">
+          <div className="bg-slate-900 text-white px-5 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3">
             <div className="bg-emerald-500/20 p-2 rounded-full">
               <Check className="w-5 h-5 text-emerald-400" />
             </div>

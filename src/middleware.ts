@@ -14,6 +14,8 @@ export function middleware(request: NextRequest) {
                 const session = JSON.parse(atob(sessionCookie.value));
                 if (session.role === 'admin') {
                     return NextResponse.redirect(new URL('/', request.url));
+                } else if (session.role === 'operator') {
+                    return NextResponse.redirect(new URL('/operator', request.url));
                 } else if (session.role === 'client' && session.clientId) {
                     return NextResponse.redirect(new URL(`/portal/${session.clientId}`, request.url));
                 }
@@ -25,7 +27,7 @@ export function middleware(request: NextRequest) {
     }
 
     // 2. Protect protected routes
-    const isProtectedRoute = path === '/' || path.startsWith('/portal');
+    const isProtectedRoute = path === '/' || path.startsWith('/portal') || path.startsWith('/operator');
 
     if (isProtectedRoute && !sessionCookie?.value) {
         return NextResponse.redirect(new URL('/login', request.url));
@@ -39,10 +41,24 @@ export function middleware(request: NextRequest) {
             // ADMIN ONLY routes
             if (path === '/') {
                 if (session.role !== 'admin') {
+                    // Operators have their own workspace
+                    if (session.role === 'operator') {
+                        return NextResponse.redirect(new URL('/operator', request.url));
+                    }
                     // Client trying to access Admin Dashboard -> Redirect to Portal
                     if (session.role === 'client' && session.clientId) {
                         return NextResponse.redirect(new URL(`/portal/${session.clientId}`, request.url));
                     }
+                    return NextResponse.redirect(new URL('/login', request.url));
+                }
+            }
+
+            // OPERATOR WORKSPACE: operators see their own clients, admins see everyone's
+            if (path.startsWith('/operator')) {
+                if (session.role === 'client' && session.clientId) {
+                    return NextResponse.redirect(new URL(`/portal/${session.clientId}`, request.url));
+                }
+                if (session.role !== 'admin' && session.role !== 'operator') {
                     return NextResponse.redirect(new URL('/login', request.url));
                 }
             }

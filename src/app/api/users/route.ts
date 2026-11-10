@@ -1,10 +1,16 @@
 
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { getSession } from '@/lib/auth';
 
 // GET: List all admin users
 export async function GET() {
     try {
+        const session = await getSession();
+        if (session?.role !== 'admin') {
+            return NextResponse.json({ error: 'Only admins can list users' }, { status: 403 });
+        }
+
         const { data: users, error } = await supabase
             .from('users')
             .select('id, username, created_at, role')
@@ -23,8 +29,14 @@ export async function GET() {
 // POST: Create a new admin user
 export async function POST(request: Request) {
     try {
+        const session = await getSession();
+        if (session?.role !== 'admin') {
+            return NextResponse.json({ error: 'Only admins can create users' }, { status: 403 });
+        }
+
         const body = await request.json();
-        const { username, password, role = 'admin' } = body;
+        const { username, password } = body;
+        const role = body.role === 'operator' ? 'operator' : 'admin';
 
         if (!username || !password) {
             return NextResponse.json({ error: 'Username and password are required' }, { status: 400 });
