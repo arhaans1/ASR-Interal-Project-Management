@@ -136,19 +136,33 @@ const CAM_TEMPLATE: TemplateCategory[] = [
   },
 ];
 
+// VSL and Webinar follow the same timeline as CAM: the copy and script are due 3 business
+// days after onboarding, the client approves them, and everything else is due 5 business
+// days after that approval. Launch waits on the client's recordings, so it has no date.
+const copyApproval = (name: string): TemplateCategory => ({
+  name: 'Client Approval',
+  tasks: [{ name, owner: 'client', is_approval: true, task_key: 'approve_copy' }],
+});
+
 const VSL_TEMPLATE: TemplateCategory[] = [
   CLIENT_ONBOARDING,
   {
-    name: 'Copy & Creatives',
-    tasks: [
-      asr('Landing page copy'),
-      asr('VSL script'),
-      asr('Video ad scripts'),
-      asr('Image ads'),
-    ],
+    name: 'Copy & Script',
+    due_after: 'onboarding',
+    due_days: 3,
+    tasks: [asr('Landing page copy'), asr('VSL script')],
+  },
+  copyApproval('Review and approve the landing page copy and VSL script'),
+  {
+    name: 'Ad Creatives',
+    due_after: 'approval',
+    due_days: 5,
+    tasks: [asr('Video ad scripts'), asr('Image ads')],
   },
   {
     name: 'Funnel Build',
+    due_after: 'approval',
+    due_days: 5,
     tasks: [
       asr('Full funnel design (LP, VSL, thank you)'),
       asr('Calendar integration'),
@@ -165,16 +179,22 @@ const VSL_TEMPLATE: TemplateCategory[] = [
 const WEBINAR_TEMPLATE: TemplateCategory[] = [
   CLIENT_ONBOARDING,
   {
-    name: 'Copy & Creatives',
-    tasks: [
-      asr('Webinar landing page copy'),
-      asr('Webinar script & PPT'),
-      asr('Video ad scripts'),
-      asr('Image ads'),
-    ],
+    name: 'Copy & Script',
+    due_after: 'onboarding',
+    due_days: 3,
+    tasks: [asr('Webinar landing page copy'), asr('Webinar script & PPT')],
+  },
+  copyApproval('Review and approve the landing page copy and webinar script'),
+  {
+    name: 'Ad Creatives',
+    due_after: 'approval',
+    due_days: 5,
+    tasks: [asr('Video ad scripts'), asr('Image ads')],
   },
   {
     name: 'Funnel Build',
+    due_after: 'approval',
+    due_days: 5,
     tasks: [
       asr('Full funnel design (LP, thank you)'),
       asr('Zoom integration'),
@@ -332,6 +352,18 @@ export const STEP_GUIDES: Record<string, StepGuide> = {
     actions: [{ label: 'Open your Drive folder', source: 'drive', primary: true }],
     where: '06 Low Ticket Course › Course Outline',
     doneLabel: 'I approve the course outline',
+  },
+  approve_copy: {
+    eyebrow: 'Your approval',
+    summary:
+      'Your copy and script are ready for you. Read them through and send any notes or changes to your project manager. Once you are happy with them, approve here and we start on everything else.',
+    bullets: [
+      'Changes are easiest now, before the ads and pages are built on top of this copy.',
+      'The rest of your project is due 5 business days after you approve.',
+    ],
+    actions: [{ label: 'Open your Drive folder', source: 'drive', primary: true }],
+    where: '05 Strategy and Copy',
+    doneLabel: 'I approve the copy and script',
   },
   record_video_ads: {
     eyebrow: 'Recording',

@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabaseRealtime as supabase } from '@/lib/supabase';
 import { usePathname } from 'next/navigation';
 
 export interface UserPresence {

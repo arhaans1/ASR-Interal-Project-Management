@@ -27,6 +27,8 @@ Users and their roles can be edited in Team Settings › Manage Team. Team membe
 ### Security
 
 - Passwords are stored hashed (scrypt). Older plain-text passwords are replaced with a hash the first time that person signs in. Stored passwords are never shown again; type a new one to change it.
+- The browser never talks to the database directly. The team workspace reads and writes through `/api/db`, which checks the signed-in team session and then uses the service role key on the server. `SUPABASE_SERVICE_ROLE_KEY` must be set.
+- After that version is live, run `supabase-migration-lockdown.sql`. It switches on row level security with no public policies, so the anon key inside the website can no longer read or change any table.
 - The login cookie is signed with `SESSION_SECRET`, so it cannot be edited or forged. Set `SESSION_SECRET` to a long random string in the server environment. If it is missing, `SUPABASE_SERVICE_ROLE_KEY` is used to sign instead; if both are missing, nobody can sign in.
 
 ## Client onboarding and funnel types
@@ -44,7 +46,7 @@ Phases can carry a due date that is counted in business days (Saturdays and Sund
 2. When that phase is done, the project shows **Pending client approval** until "Review and approve the course outline" is ticked (by the client in their portal, or by the team on their behalf).
 3. **Course Creation, Copy & Creatives and Build & Setup** are due 5 business days after that approval.
 
-Dates are worked out from when things were actually ticked, so they move with the client. VSL and Webinar templates list the deliverables with no date rules yet.
+Dates are worked out from when things were actually ticked, so they move with the client. VSL and Webinar follow the same rules: copy and script due 3 business days after onboarding, a client approval step, then ad creatives and the funnel build due 5 business days after approval.
 
 ## MCP server (AI assistants)
 
@@ -61,6 +63,7 @@ Run these once each, in order, in the Supabase SQL Editor. They only add columns
 
 1. `supabase-migration-client-onboarding.sql`
 2. `supabase-migration-timelines.sql`
+3. `supabase-migration-lockdown.sql` — only after the app version that uses `/api/db` is deployed (see Security)
 
 ## Tech Stack
 
