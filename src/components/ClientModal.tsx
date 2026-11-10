@@ -1,13 +1,28 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
-import { Client, ClientStatus } from '@/types/database';
+import { X, ChevronDown, FolderOpen, PlayCircle, FileText, ListChecks } from 'lucide-react';
+import { Client, ClientStatus, FunnelType, User } from '@/types/database';
+import { FUNNEL_TYPES, FUNNEL_TEMPLATES, templateTaskCount } from '@/lib/funnelTemplates';
+
+export interface ClientFormValues {
+  name: string;
+  businessName: string;
+  status: ClientStatus;
+  username: string;
+  password: string;
+  funnel_type: FunnelType | null;
+  operator_id: string | null;
+  drive_folder_url: string | null;
+  onboarding_video_url: string | null;
+  onboarding_form_url: string | null;
+  applyTemplate: boolean;
+}
 
 interface ClientModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (name: string, businessName: string, status: ClientStatus, username?: string, password?: string) => void;
+  onSubmit: (values: ClientFormValues) => void;
   client?: Client | null;
   mode: 'create' | 'edit';
 }
@@ -19,6 +34,11 @@ const statusOptions: ClientStatus[] = [
   'Templates',
   'Archived',
 ];
+
+const inputClass =
+  'w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none';
+const labelClass = 'block text-xs font-semibold text-slate-600 mb-1.5';
+const sectionTitleClass = 'text-[11px] font-bold text-slate-400 uppercase tracking-[0.12em] mb-3';
 
 export default function ClientModal({
   isOpen,
@@ -32,6 +52,13 @@ export default function ClientModal({
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [status, setStatus] = useState<ClientStatus>('Active');
+  const [funnelType, setFunnelType] = useState<FunnelType | null>(null);
+  const [operatorId, setOperatorId] = useState('');
+  const [driveUrl, setDriveUrl] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
+  const [formUrl, setFormUrl] = useState('');
+  const [addTemplate, setAddTemplate] = useState(false);
+  const [operators, setOperators] = useState<User[]>([]);
 
   useEffect(() => {
     if (client && mode === 'edit') {
@@ -40,153 +67,300 @@ export default function ClientModal({
       setUsername(client.username || '');
       setPassword(client.password || ''); // Note: In real app, don't populate password back
       setStatus(client.status);
+      setFunnelType(client.funnel_type || null);
+      setOperatorId(client.operator_id || '');
+      setDriveUrl(client.drive_folder_url || '');
+      setVideoUrl(client.onboarding_video_url || '');
+      setFormUrl(client.onboarding_form_url || '');
     } else {
       setName('');
       setBusinessName('');
       setUsername('');
       setPassword('');
       setStatus('Active');
+      setFunnelType(null);
+      setOperatorId('');
+      setDriveUrl('');
+      setVideoUrl('');
+      setFormUrl('');
     }
+    setAddTemplate(false);
   }, [client, mode, isOpen]);
+
+  // Operators to choose from
+  useEffect(() => {
+    if (!isOpen) return;
+    fetch('/api/users')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((users: User[]) => setOperators((users || []).filter((u) => u.role === 'operator')))
+      .catch(() => setOperators([]));
+  }, [isOpen]);
+
+  const isProject = status !== 'Team Members';
+  // New cards always get the template. Existing cards only when asked, so current tasks are never doubled up.
+  const applyTemplate = Boolean(funnelType) && isProject && (mode === 'create' || addTemplate);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (name.trim() && businessName.trim()) {
-      onSubmit(name.trim(), businessName.trim(), status, username.trim(), password.trim());
+      onSubmit({
+        name: name.trim(),
+        businessName: businessName.trim(),
+        status,
+        username: username.trim(),
+        password: password.trim(),
+        funnel_type: isProject ? funnelType : null,
+        operator_id: isProject && operatorId ? operatorId : null,
+        drive_folder_url: driveUrl.trim() || null,
+        onboarding_video_url: videoUrl.trim() || null,
+        onboarding_form_url: formUrl.trim() || null,
+        applyTemplate,
+      });
       onClose();
     }
   };
 
   if (!isOpen) return null;
 
+  const template = funnelType ? FUNNEL_TEMPLATES[funnelType] : null;
+
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200 border border-gray-100">
+    <div className="fixed inset-0 bg-slate-950/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 ring-1 ring-slate-900/5">
         {/* Header */}
-        <div className="px-8 pt-8 pb-4 flex items-center justify-between">
+        <div className="px-7 pt-6 pb-5 flex items-start justify-between border-b border-slate-100 shrink-0">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
-              {mode === 'create' ? 'New Client' : 'Edit Client'}
+            <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+              {mode === 'create' ? 'New client' : 'Edit client'}
             </h2>
-            <p className="text-gray-500 text-sm mt-1">
-              {mode === 'create' ? 'Add a new client to your workspace' : 'Update client details'}
+            <p className="text-slate-500 text-sm mt-0.5">
+              {mode === 'create'
+                ? 'Set up the card, the portal login and who runs the project.'
+                : 'Update the card, portal login and project settings.'}
             </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-2 bg-gray-50 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+            aria-label="Close"
+            className="p-2 -mr-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-8 pt-2 space-y-6">
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2 ml-1">
-                Client Name
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. John Doe"
-                className="w-full px-5 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2 ml-1">
-                Business Name
-              </label>
-              <input
-                type="text"
-                value={businessName}
-                onChange={(e) => setBusinessName(e.target.value)}
-                placeholder="e.g. Acme Corp"
-                className="w-full px-5 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2 ml-1">
-                Status
-              </label>
-              <div className="relative">
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value as ClientStatus)}
-                  className="w-full px-5 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none appearance-none cursor-pointer"
-                >
-                  {statusOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-                {/* Custom Arrow */}
-                <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none">
-                  <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
+        <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
+          <div className="px-7 py-6 space-y-7 overflow-y-auto">
+            {/* Details */}
+            <section>
+              <p className={sectionTitleClass}>Client</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="client-name" className={labelClass}>Client name</label>
+                  <input
+                    id="client-name"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g. John Doe"
+                    className={inputClass}
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="client-business" className={labelClass}>Business name</label>
+                  <input
+                    id="client-business"
+                    type="text"
+                    value={businessName}
+                    onChange={(e) => setBusinessName(e.target.value)}
+                    placeholder="e.g. Acme Corp"
+                    className={inputClass}
+                    required
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label htmlFor="client-status" className={labelClass}>Status</label>
+                  <div className="relative">
+                    <select
+                      id="client-status"
+                      value={status}
+                      onChange={(e) => setStatus(e.target.value as ClientStatus)}
+                      className={`${inputClass} appearance-none cursor-pointer pr-10`}
+                    >
+                      {statusOptions.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
+            </section>
 
-          <div className="pt-4 border-t border-gray-100">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Client Portal Access</p>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 ml-1">
-                  Username
-                </label>
-                <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="username"
-                  className="w-full px-5 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
-                />
+            {/* Project */}
+            {isProject && (
+              <section>
+                <p className={sectionTitleClass}>Project</p>
+
+                <label className={labelClass}>Funnel type</label>
+                <div className="grid grid-cols-4 gap-1.5 p-1 bg-slate-100 rounded-xl" role="radiogroup" aria-label="Funnel type">
+                  {[{ value: null, label: 'None' }, ...FUNNEL_TYPES.map((f) => ({ value: f.value, label: f.value }))].map((option) => {
+                    const active = funnelType === option.value;
+                    return (
+                      <button
+                        key={option.label}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        onClick={() => setFunnelType(option.value as FunnelType | null)}
+                        className={`py-2 rounded-lg text-sm font-semibold transition-all ${active
+                          ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-900/5'
+                          : 'text-slate-500 hover:text-slate-800'
+                          }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {template && funnelType && (
+                  <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50/60 p-3.5">
+                    <div className="flex items-start gap-2.5">
+                      <ListChecks className="w-4 h-4 text-indigo-600 mt-0.5 shrink-0" />
+                      <div className="min-w-0 text-sm">
+                        {mode === 'create' ? (
+                          <p className="font-semibold text-indigo-950">
+                            {templateTaskCount(funnelType)} tasks will be pre-listed on this card
+                          </p>
+                        ) : (
+                          <label className="flex items-center gap-2 font-semibold text-indigo-950 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={addTemplate}
+                              onChange={(e) => setAddTemplate(e.target.checked)}
+                              className="w-4 h-4 rounded accent-indigo-600"
+                            />
+                            Add the {templateTaskCount(funnelType)} template tasks to this card
+                          </label>
+                        )}
+                        <p className="text-indigo-900/70 mt-1 leading-relaxed">
+                          {template.map((c) => `${c.name} (${c.tasks.length})`).join(' · ')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-4">
+                  <label htmlFor="client-operator" className={labelClass}>Operator</label>
+                  <div className="relative">
+                    <select
+                      id="client-operator"
+                      value={operatorId}
+                      onChange={(e) => setOperatorId(e.target.value)}
+                      className={`${inputClass} appearance-none cursor-pointer pr-10`}
+                    >
+                      <option value="">Choose operator…</option>
+                      {operators.map((op) => (
+                        <option key={op.id} value={op.id}>
+                          {op.username}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                  {operators.length === 0 && (
+                    <p className="text-xs text-slate-500 mt-1.5">
+                      No operators yet. Create one in Team Settings › Manage Team.
+                    </p>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* Portal access */}
+            <section>
+              <p className={sectionTitleClass}>Client portal login</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="client-username" className={labelClass}>Username</label>
+                  <input
+                    id="client-username"
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="username"
+                    autoComplete="off"
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="client-password" className={labelClass}>Password</label>
+                  <input
+                    id="client-password"
+                    type="text"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="password"
+                    autoComplete="off"
+                    className={inputClass}
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 ml-1">
-                  Password
-                </label>
-                <input
-                  type="text"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="password"
-                  className="w-full px-5 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
-                />
-              </div>
-            </div>
+            </section>
+
+            {/* Onboarding links */}
+            {isProject && (
+              <section>
+                <p className={sectionTitleClass}>Onboarding links shown in the portal</p>
+                <div className="space-y-3">
+                  {[
+                    { id: 'client-drive', icon: FolderOpen, label: 'Google Drive folder', value: driveUrl, set: setDriveUrl, placeholder: 'https://drive.google.com/drive/folders/…' },
+                    { id: 'client-video', icon: PlayCircle, label: 'Start Here video', value: videoUrl, set: setVideoUrl, placeholder: 'Drive, YouTube, Loom or Vimeo link' },
+                    { id: 'client-form', icon: FileText, label: 'On-Boarding Worksheet', value: formUrl, set: setFormUrl, placeholder: 'https://docs.google.com/document/d/…' },
+                  ].map((field) => (
+                    <div key={field.id}>
+                      <label htmlFor={field.id} className={labelClass}>{field.label}</label>
+                      <div className="relative">
+                        <field.icon className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <input
+                          id={field.id}
+                          type="url"
+                          value={field.value}
+                          onChange={(e) => field.set(e.target.value)}
+                          placeholder={field.placeholder}
+                          className={`${inputClass} pl-10`}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
-
-
 
           {/* Actions */}
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-3 px-7 py-4 border-t border-slate-100 bg-slate-50/60 shrink-0">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-5 py-3.5 border border-gray-200 text-gray-600 rounded-2xl hover:bg-gray-50 hover:text-gray-800 transition-colors font-semibold shadow-sm hover:shadow-md"
+              className="flex-1 px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors text-sm font-semibold"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 px-5 py-3.5 bg-slate-900 text-white rounded-2xl hover:bg-slate-800 transition-all font-semibold shadow-lg hover:shadow-xl ring-1 ring-white/20"
+              className="flex-1 px-5 py-2.5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-semibold shadow-sm"
             >
-              {mode === 'create' ? 'Create Client' : 'Save Changes'}
+              {mode === 'create' ? 'Create client' : 'Save changes'}
             </button>
           </div>
         </form>
-      </div >
-    </div >
+      </div>
+    </div>
   );
 }

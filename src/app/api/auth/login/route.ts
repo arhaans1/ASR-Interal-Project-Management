@@ -24,12 +24,14 @@ export async function POST(request: Request) {
             .single();
 
         if (adminUser) {
+            // Operators get their own workspace; every other team account is an admin.
+            const role = adminUser.role === 'operator' ? 'operator' : 'admin';
             await createSession({
                 userId: adminUser.id,
-                role: 'admin',
+                role,
                 username: adminUser.username,
             });
-            return NextResponse.json({ success: true, role: 'admin' });
+            return NextResponse.json({ success: true, role });
         }
 
         // 2. Check Client Users

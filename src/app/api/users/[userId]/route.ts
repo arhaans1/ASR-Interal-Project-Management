@@ -1,6 +1,7 @@
 
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { getSession } from '@/lib/auth';
 
 interface Context {
     params: Promise<{ userId: string }>;
@@ -13,12 +14,20 @@ export async function PUT(
 ) {
     try {
         const body = await request.json();
-        const { username, password } = body;
+        const { username, password, role } = body;
         const { userId } = await params;
+
+        // Admins can edit anyone; everyone else only their own login.
+        const session = await getSession();
+        const isAdmin = session?.role === 'admin';
+        if (!session || session.role === 'client' || (!isAdmin && session.userId !== userId)) {
+            return NextResponse.json({ error: 'Not allowed' }, { status: 403 });
+        }
 
         const updates: any = {};
         if (username) updates.username = username;
         if (password) updates.password = password;
+        if (isAdmin && (role === 'admin' || role === 'operator')) updates.role = role;
 
         const { data, error } = await supabase
             .from('users')
@@ -44,6 +53,11 @@ export async function DELETE(
 ) {
     try {
         const { userId } = await params;
+
+        const session = await getSession();
+        if (session?.role !== 'admin') {
+            return NextResponse.json({ error: 'Only admins can remove users' }, { status: 403 });
+        }
 
         const { error } = await supabase
             .from('users')

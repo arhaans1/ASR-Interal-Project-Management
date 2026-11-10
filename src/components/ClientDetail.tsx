@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Client } from '@/types/database';
+import { funnelLabel } from '@/lib/funnelTemplates';
+import { summarizeProject } from '@/lib/progress';
 import { CategoryWithTasks } from '@/hooks/useCategories';
 import TaskSection from './TaskSection';
 import TextBox from './TextBox';
 import ConfirmModal from './ConfirmModal';
-import { Copy, Settings, Building2, Calendar, Link as LinkIcon, FileText, Trash2, Loader2, Share2, MessageSquare, StickyNote } from 'lucide-react';
+import { Copy, Settings, Building2, Calendar, Link as LinkIcon, FileText, Trash2, Loader2, Share2, MessageSquare, StickyNote, Check, UserCog, FolderOpen, ClipboardCheck } from 'lucide-react';
 import ChatModal from '@/components/ChatModal';
 import ActiveUsers from '@/components/ActiveUsers';
 import QuickPadModal from './QuickPadModal';
@@ -77,6 +79,25 @@ export default function ClientDetail({
   }, []);
 
   const [unreadCount, setUnreadCount] = useState(0);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [operatorName, setOperatorName] = useState<string | null>(null);
+
+  // Name of the operator running this project
+  useEffect(() => {
+    setOperatorName(null);
+    if (!client.operator_id) return;
+    let cancelled = false;
+    fetch('/api/users')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((users: any[]) => {
+        if (!cancelled) setOperatorName(users.find((u) => u.id === client.operator_id)?.username ?? null);
+      })
+      .catch(() => { });
+    return () => { cancelled = true; };
+  }, [client.operator_id]);
+
+  // What the client still owes us, straight from the board
+  const summary = useMemo(() => summarizeProject(categories), [categories]);
 
   useEffect(() => {
     // Poll for unread messages
@@ -139,17 +160,22 @@ export default function ClientDetail({
         {/* Header */}
         <div className="mb-8 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div>
-            <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-3xl font-bold text-gray-900 tracking-tight">{client.name}</h1>
+            <div className="flex flex-wrap items-center gap-2.5 mb-1.5">
+              <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 tracking-tight">{client.name}</h1>
               <span
-                className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${getStatusBadgeStyles(
+                className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider ${getStatusBadgeStyles(
                   client.status
                 )}`}
               >
                 {client.status}
               </span>
+              {client.funnel_type && (
+                <span className="px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-slate-900 text-white">
+                  {funnelLabel(client.funnel_type)}
+                </span>
+              )}
             </div>
-            <div className="flex items-center gap-4 text-gray-500 text-sm font-medium">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-slate-500 text-sm font-medium">
               <div className="flex items-center gap-1.5">
                 <Building2 className="w-4 h-4" />
                 <span>{client.business_name}</span>
@@ -158,7 +184,46 @@ export default function ClientDetail({
                 <Calendar className="w-4 h-4" />
                 <span>Started {new Date(client.created_at).toLocaleDateString()}</span>
               </div>
+              {client.operator_id && (
+                <div className="flex items-center gap-1.5">
+                  <UserCog className="w-4 h-4" />
+                  <span>Operator: {operatorName ?? '…'}</span>
+                </div>
+              )}
+              {client.drive_folder_url && (
+                <a
+                  href={client.drive_folder_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-slate-600 hover:text-slate-900 underline decoration-slate-300 underline-offset-4"
+                >
+                  <FolderOpen className="w-4 h-4 text-amber-500" />
+                  Drive folder
+                </a>
+              )}
             </div>
+            {summary.hasOnboarding && (
+              <div
+                className={`mt-3 inline-flex items-center gap-2.5 rounded-full pl-2.5 pr-3.5 py-1.5 text-xs font-semibold ring-1 ${summary.onboardingComplete
+                  ? 'bg-emerald-50 text-emerald-800 ring-emerald-200'
+                  : 'bg-violet-50 text-violet-800 ring-violet-200'
+                  }`}
+                title="Ticked by the client in their portal"
+              >
+                <ClipboardCheck className="w-4 h-4" />
+                {summary.onboardingComplete
+                  ? 'Client onboarding complete'
+                  : `Client onboarding ${summary.onboardingDone} of ${summary.onboardingTasks.length}`}
+                {!summary.onboardingComplete && (
+                  <span className="w-20 h-1.5 rounded-full bg-violet-200 overflow-hidden">
+                    <span
+                      className="block h-full rounded-full bg-violet-600 transition-all duration-500"
+                      style={{ width: `${(summary.onboardingDone / summary.onboardingTasks.length) * 100}%` }}
+                    />
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
 
@@ -170,17 +235,18 @@ export default function ClientDetail({
               onClick={() => {
                 const portalUrl = `${window.location.origin}/portal/${client.id}`;
                 navigator.clipboard.writeText(portalUrl);
-                alert('Portal Link Copied: ' + portalUrl);
+                setLinkCopied(true);
+                setTimeout(() => setLinkCopied(false), 2000);
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-colors font-semibold text-sm"
-              title="Copy Share Link"
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-colors font-semibold text-sm shadow-sm"
+              title="Copy the client portal link"
             >
-              <Share2 className="w-4 h-4" />
-              Share Portal
+              {linkCopied ? <Check className="w-4 h-4 text-emerald-600" /> : <Share2 className="w-4 h-4" />}
+              {linkCopied ? 'Link copied' : 'Share Portal'}
             </button>
             <button
               onClick={onClone}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all font-medium text-sm shadow-sm"
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-colors font-semibold text-sm shadow-sm"
               title="Clone Client"
             >
               <Copy className="w-4 h-4" />
@@ -188,10 +254,10 @@ export default function ClientDetail({
             </button>
             <button
               onClick={onUpdateStatus}
-              className="flex items-center gap-2 px-6 py-2 bg-slate-900 text-white rounded-full hover:bg-slate-800 transition-all font-medium text-sm shadow-lg ring-1 ring-white/20"
+              className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-colors font-semibold text-sm shadow-sm"
             >
               <Settings className="w-4 h-4" />
-              <span>Status</span>
+              <span>Edit</span>
             </button>
             <button
               onClick={() => setIsDeleteModalOpen(true)}
@@ -230,15 +296,14 @@ export default function ClientDetail({
               {/* Team Chat Button */}
               <button
                 onClick={() => setIsChatOpen(true)}
-                className="flex-1 py-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold rounded-2xl transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-3 group relative overflow-hidden"
+                className="flex-1 py-3.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold rounded-2xl transition-colors shadow-sm flex items-center justify-center gap-2.5 relative"
               >
-                <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <MessageSquare className="w-5 h-5 group-hover:scale-110 transition-transform relative z-10" />
-                <span className="relative z-10">Open Team Chat</span>
+                <MessageSquare className="w-4 h-4" />
+                <span>Open Team Chat</span>
 
                 {/* Notification Badge */}
                 {unreadCount > 0 && (
-                  <div className="absolute top-2 left-2 flex items-center justify-center w-6 h-6 rounded-full bg-red-500 border-2 border-white text-white text-xs font-bold shadow-md z-20 animate-pulse">
+                  <div className="absolute -top-2 -right-2 flex items-center justify-center w-6 h-6 rounded-full bg-red-500 border-2 border-white text-white text-xs font-bold shadow-md z-20 animate-pulse">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </div>
                 )}
@@ -247,19 +312,18 @@ export default function ClientDetail({
               {/* Quick Pad Button */}
               <button
                 onClick={() => setIsQuickPadOpen(true)}
-                className="flex-1 py-4 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500 text-white font-bold rounded-2xl transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-3 group relative overflow-hidden"
+                className="flex-1 py-3.5 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-800 text-sm font-semibold rounded-2xl transition-colors shadow-sm flex items-center justify-center gap-2.5"
               >
-                <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <StickyNote className="w-5 h-5 group-hover:scale-110 transition-transform relative z-10" />
-                <span className="relative z-10">Open Quick Pad</span>
+                <StickyNote className="w-4 h-4 text-indigo-600" />
+                <span>Open Quick Pad</span>
               </button>
             </div>
 
-            {/* Notes - Monochrome */}
-            <div className="glass-panel prominent-shadow rounded-3xl overflow-hidden">
-              <div className="bg-slate-900 px-6 py-4 border-b border-slate-800 flex items-center gap-2 text-white font-semibold backdrop-blur-sm">
-                <div className="p-1.5 bg-white/10 rounded-lg shadow-sm ring-1 ring-white/10">
-                  <FileText className="w-4 h-4 text-white" />
+            {/* Notes */}
+            <div className="glass-panel prominent-shadow rounded-2xl overflow-hidden">
+              <div className="px-5 py-3.5 border-b border-slate-200/80 flex items-center gap-2.5 text-slate-900 font-bold text-sm">
+                <div className="p-1.5 bg-slate-100 rounded-lg">
+                  <FileText className="w-4 h-4 text-slate-600" />
                 </div>
                 <h3>Notes</h3>
               </div>
@@ -273,11 +337,11 @@ export default function ClientDetail({
               </div>
             </div>
 
-            {/* Important Links - Monochrome */}
-            <div className="glass-panel prominent-shadow rounded-3xl overflow-hidden">
-              <div className="bg-slate-900 px-6 py-4 border-b border-slate-800 flex items-center gap-2 text-white font-semibold backdrop-blur-sm">
-                <div className="p-1.5 bg-white/10 rounded-lg shadow-sm ring-1 ring-white/10">
-                  <LinkIcon className="w-4 h-4 text-white" />
+            {/* Important Links */}
+            <div className="glass-panel prominent-shadow rounded-2xl overflow-hidden">
+              <div className="px-5 py-3.5 border-b border-slate-200/80 flex items-center gap-2.5 text-slate-900 font-bold text-sm">
+                <div className="p-1.5 bg-slate-100 rounded-lg">
+                  <LinkIcon className="w-4 h-4 text-slate-600" />
                 </div>
                 <h3>Important Links</h3>
               </div>

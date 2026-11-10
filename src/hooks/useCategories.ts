@@ -13,14 +13,15 @@ export function useCategories(clientId: string | null) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchCategories = useCallback(async () => {
+  // `silent` refreshes in the background without swapping the board for a spinner.
+  const fetchCategories = useCallback(async (silent = false) => {
     if (!clientId) {
       setCategories([]);
       return;
     }
 
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
 
       // Step 1: Fetch Categories
       const { data: categoriesData, error: catError } = await supabase
@@ -71,16 +72,34 @@ export function useCategories(clientId: string | null) {
 
       setCategories(categoriesWithTasks);
     } catch (err: any) {
+      // A failed background refresh keeps the board as it is.
+      if (silent) return;
       const errorMessage = typeof err === 'string' ? err : (err?.message || 'Failed to fetch categories');
       setError(errorMessage);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [clientId]);
 
   useEffect(() => {
     fetchCategories();
   }, [fetchCategories]);
+
+  // Clients tick tasks in their portal. Pull those ticks in while this board is open.
+  useEffect(() => {
+    if (!clientId) return;
+
+    const refresh = () => {
+      if (document.visibilityState === 'visible') fetchCategories(true);
+    };
+    const interval = setInterval(refresh, 15000);
+    document.addEventListener('visibilitychange', refresh);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [clientId, fetchCategories]);
 
   const createCategory = async (name: string): Promise<Category | null> => {
     if (!clientId) return null;
@@ -376,8 +395,25 @@ export function useCategories(clientId: string | null) {
     taskId: string,
     completed: boolean
   ): Promise<boolean> => {
-    return updateTask(categoryId, taskId, { completed });
+    const ok = await updateTask(categoryId, taskId, { completed });
+    // completed_at drives the client's timeline. It is written separately so ticking
+    // still works on a database that has not had the onboarding migration applied yet.
+    if (ok) {
+      const completed_at = completed ? new Date().toISOString() : null;
+      const { error } = await supabase.from('tasks').update({ completed_at }).eq('id', taskId);
+      if (!error) {
+        setCategories((prev) =>
+          prev.map((cat) =>
+            cat.id === categoryId
+              ? { ...cat, tasks: cat.tasks.map((t) => (t.id === taskId ? { ...t, completed_at } : t)) }
+              : cat
+          )
+        );
+      }
+    }
+    return ok;
   };
+
 
   const moveTask = async (
     sourceCategoryId: string,
@@ -492,6 +528,6 @@ export function useCategories(clientId: string | null) {
     toggleTask,
     reorderTask,
     moveTask,
-    refreshCategories: fetchCategories,
+    refreshCategories: () => fetchCategories(),
   };
 }

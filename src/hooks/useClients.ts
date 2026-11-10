@@ -2,7 +2,57 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Client, ClientStatus, Category, Task } from '@/types/database';
+import { Client, ClientStatus, Category, FunnelType, Task } from '@/types/database';
+import { FUNNEL_TEMPLATES } from '@/lib/funnelTemplates';
+
+// The extra fields on a client card. Only sent to the database when they are set,
+// so plain client cards keep working exactly as before.
+export interface ClientExtras {
+  funnel_type?: FunnelType | null;
+  operator_id?: string | null;
+  drive_folder_url?: string | null;
+  onboarding_video_url?: string | null;
+  onboarding_form_url?: string | null;
+}
+
+const definedExtras = (extras: ClientExtras) =>
+  Object.fromEntries(Object.entries(extras).filter(([, v]) => v !== undefined && v !== null && v !== ''));
+
+// Pre-list the template tasks for a funnel type on a client's board.
+export async function applyFunnelTemplate(clientId: string, funnelType: FunnelType): Promise<void> {
+  const template = FUNNEL_TEMPLATES[funnelType];
+
+  const { data: existing, error: existingError } = await supabase
+    .from('categories')
+    .select('order_index')
+    .eq('client_id', clientId);
+  if (existingError) throw existingError;
+
+  const offset = (existing || []).reduce((max, c: any) => Math.max(max, (c.order_index ?? 0) + 1), 0);
+
+  const { data: newCategories, error: catError } = await supabase
+    .from('categories')
+    .insert(template.map((cat, i) => ({ client_id: clientId, name: cat.name, order_index: offset + i })))
+    .select();
+  if (catError) throw catError;
+
+  const tasks = template.flatMap((cat, i) => {
+    const created = (newCategories as Category[]).find((c) => c.order_index === offset + i);
+    if (!created) return [];
+    return cat.tasks.map((task, order_index) => ({
+      category_id: created.id,
+      name: task.name,
+      completed: false,
+      order_index,
+      owner: task.owner,
+      is_onboarding: Boolean(task.is_onboarding),
+      task_key: task.task_key ?? null,
+    }));
+  });
+
+  const { error: taskError } = await supabase.from('tasks').insert(tasks);
+  if (taskError) throw taskError;
+}
 
 export function useClients() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -39,7 +89,8 @@ export function useClients() {
     businessName: string,
     status: ClientStatus,
     username?: string,
-    password?: string
+    password?: string,
+    extras: ClientExtras = {}
   ): Promise<Client | null> => {
     try {
       console.log('Creating client:', { name, businessName, status }); // Debug log
@@ -53,6 +104,7 @@ export function useClients() {
           notes: '',
           username: username || null,
           password: password || null,
+          ...definedExtras(extras),
         })
         .select()
         .single();
@@ -63,6 +115,9 @@ export function useClients() {
       }
 
       const clientData = data as Client;
+      if (extras.funnel_type) {
+        await applyFunnelTemplate(clientData.id, extras.funnel_type);
+      }
       console.log('Client created:', clientData); // Debug log
       setClients((prev) => [clientData, ...prev]);
       return clientData;
@@ -105,8 +160,6 @@ export function useClients() {
       const { error } = await supabase.from('clients').delete().eq('id', id);
 
       if (error) throw error;
-      setClients((prev) => prev.filter((client) => client.id !== id));
-      return true;
       setClients((prev) => prev.filter((client) => client.id !== id));
       return true;
     } catch (err: any) {
@@ -163,6 +216,9 @@ export function useClients() {
           status: client.status,
           important_links: client.important_links,
           notes: client.notes,
+          // The Drive folder, video and worksheet belong to the original client, so only the
+          // funnel type and operator carry over.
+          ...definedExtras({ funnel_type: client.funnel_type, operator_id: client.operator_id }),
         })
         .select()
         .single();
@@ -207,7 +263,11 @@ export function useClients() {
                 category_id: matchingNewCat.id,
                 name: task.name,
                 completed: false,
-                order_index: task.order_index
+                order_index: task.order_index,
+                // Keep who-does-what when the source board uses it
+                ...(task.owner === 'client'
+                  ? { owner: 'client', is_onboarding: Boolean(task.is_onboarding), task_key: task.task_key ?? null }
+                  : {}),
               });
             });
           }

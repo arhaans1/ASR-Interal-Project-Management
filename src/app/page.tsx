@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useClients } from '@/hooks/useClients';
+import { useClients, applyFunnelTemplate } from '@/hooks/useClients';
 import { useCategories } from '@/hooks/useCategories';
-import { Client, ClientStatus } from '@/types/database';
+import { Client } from '@/types/database';
 import Sidebar from '@/components/Sidebar';
 import ClientDetail from '@/components/ClientDetail';
-import ClientModal from '@/components/ClientModal';
+import ClientModal, { ClientFormValues } from '@/components/ClientModal';
 import { Users } from 'lucide-react';
 
 import Link from 'next/link';
@@ -81,26 +81,44 @@ export default function Home() {
     setIsModalOpen(true);
   };
 
-  const handleModalSubmit = async (
-    name: string,
-    businessName: string,
-    status: ClientStatus,
-    username?: string,
-    password?: string
-  ) => {
+  const handleModalSubmit = async (values: ClientFormValues) => {
+    const { name, businessName, status, username, password, applyTemplate, ...extras } = values;
+
     if (modalMode === 'create') {
-      const newClient = await createClient(name, businessName, status, username, password);
+      const newClient = await createClient(name, businessName, status, username, password, extras);
       if (newClient) {
         setSelectedClient(newClient);
       }
     } else if (modalMode === 'edit' && selectedClient) {
+      // Only touch the new columns when this card uses them, so editing an older
+      // card never depends on them.
+      const usesExtras =
+        Object.values(extras).some(Boolean) ||
+        Boolean(
+          selectedClient.funnel_type ||
+          selectedClient.operator_id ||
+          selectedClient.drive_folder_url ||
+          selectedClient.onboarding_video_url ||
+          selectedClient.onboarding_form_url
+        );
+
       await updateClient(selectedClient.id, {
         name,
         business_name: businessName,
         status,
         username,
         password,
+        ...(usesExtras ? extras : {}),
       });
+
+      if (applyTemplate && extras.funnel_type) {
+        try {
+          await applyFunnelTemplate(selectedClient.id, extras.funnel_type);
+          await refreshCategories();
+        } catch (err: any) {
+          alert('Could not add the template tasks: ' + (err?.message || 'unknown error'));
+        }
+      }
     }
   };
 
@@ -190,7 +208,7 @@ export default function Home() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 relative">
+    <div className="flex h-screen bg-[#F5F6FA] relative">
       {/* Global Loading Overlay (Cloning) */}
       {isCloning && (
         <div className="absolute inset-0 z-50 bg-white/50 backdrop-blur-sm flex items-center justify-center">
@@ -241,10 +259,10 @@ export default function Home() {
           />
         )
       ) : (
-        <div className="flex-1 flex items-center justify-center bg-gray-50">
-          <div className="text-center bg-white p-12 rounded-3xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] ring-1 ring-black/5 max-w-md w-full mx-4">
-            <div className="w-20 h-20 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-inner">
-              <Users className="w-10 h-10 text-slate-400" />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center bg-white p-12 rounded-3xl prominent-shadow max-w-md w-full mx-4">
+            <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <Users className="w-8 h-8 text-slate-400" />
             </div>
             <h2 className="text-2xl font-bold text-slate-900 mb-3 tracking-tight">
               No Client Selected
@@ -254,7 +272,7 @@ export default function Home() {
             </p>
             <button
               onClick={handleAddNew}
-              className="px-8 py-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all font-semibold shadow-lg hover:shadow-xl ring-1 ring-white/20"
+              className="px-6 py-2.5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-semibold shadow-sm"
             >
               Add New Client
             </button>
