@@ -1,4 +1,5 @@
 'use client';
+import BrandLogo from '@/components/BrandLogo';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -54,9 +55,7 @@ export default function LoginForm({ variant = 'team' }: { variant?: 'team' | 'cl
 
             <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-8 md:p-10 animate-in">
                 <div className="flex flex-col items-center mb-8">
-                    <div className="w-14 h-14 bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg mb-5">
-                        <span className="text-white font-bold text-2xl">A</span>
-                    </div>
+                    <BrandLogo theme="light" size={128} priority className="mb-2 h-32 w-32" />
                     <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
                         {variant === 'client' ? 'Client Portal' : 'ASR Media Pro'}
                     </h1>

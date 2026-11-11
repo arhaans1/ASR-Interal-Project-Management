@@ -1,4 +1,5 @@
 'use client';
+import BrandLogo from '@/components/BrandLogo';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -228,7 +229,7 @@ export default function ClientPortalPage() {
             <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/85 backdrop-blur-xl">
                 <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
                     <div className="flex min-w-0 items-center gap-3">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-lg font-bold text-white shadow-sm">A</div>
+                        <BrandLogo theme="light" size={48} priority className="h-12 w-12" />
                         <div className="min-w-0 leading-tight">
                             <p className="truncate text-sm font-bold tracking-tight text-slate-900">ASR Media Pro</p>
                             <p className="truncate text-xs font-medium text-slate-500">{client.business_name}</p>

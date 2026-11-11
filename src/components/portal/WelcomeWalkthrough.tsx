@@ -1,4 +1,5 @@
 'use client';
+import BrandLogo from '@/components/BrandLogo';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -89,7 +90,7 @@ function SceneVisual({ scene, firstName }: { scene: WalkthroughScene; firstName:
         case 'welcome':
             return (
                 <div className="flex flex-col items-center text-center">
-                    <div {...rise(0, 'flex h-20 w-20 items-center justify-center rounded-3xl bg-white text-4xl font-bold text-slate-950 shadow-2xl shadow-indigo-500/30')}>A</div>
+                    <div {...rise(0, 'h-24 w-24 overflow-hidden rounded-full shadow-2xl shadow-indigo-500/30 ring-1 ring-white/15')}><BrandLogo theme="dark" size={96} className="h-24 w-24" /></div>
                     <h2 {...rise(1, 'mt-8 text-4xl font-bold leading-tight tracking-tight sm:text-6xl')}>
                         Welcome to ASR Media Pro{firstName ? `, ${firstName}` : ''}.
                     </h2>
@@ -417,7 +418,7 @@ export default function WelcomeWalkthrough({ firstName, funnelType, mustFinish, 
                 </div>
                 <div className="mt-3 flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-base font-bold text-slate-950">A</div>
+                        <BrandLogo theme="dark" size={32} className="h-8 w-8 rounded-full ring-1 ring-white/20" />
                         <span className="text-sm font-semibold text-white/80">ASR Media Pro</span>
                     </div>
                     {!mustFinish && onClose && (
