@@ -55,14 +55,15 @@ const clientTask = (task_key: string, name: string): TemplateTask => ({
 const CLIENT_ONBOARDING: TemplateCategory = {
   name: 'Client Onboarding',
   tasks: [
-    step('watch_video', 'Watch the Start Here video'),
+    step('watch_welcome', 'Watch the welcome walkthrough'),
+    step('watch_video', 'Watch the worksheet fill-up guide'),
     step('fill_worksheet', 'Fill in the On-Boarding Worksheet'),
     step('upload_logo', 'Upload your logo'),
     step('upload_images', 'Upload your photos'),
     step('upload_testimonials', 'Upload testimonials & case studies'),
     step('meta_access', 'Give us Meta Ads access'),
-    step('domain_access', 'Share your domain login or DNS access'),
     step('payment_gateway', 'Share your Razorpay keys or login'),
+    step('domain_access', 'Share your domain login or DNS access'),
   ],
 };
 
@@ -76,6 +77,7 @@ const CAM_TEMPLATE: TemplateCategory[] = [
     due_after: 'onboarding',
     due_days: 3,
     tasks: [
+      asr('Welcome call with the client'),
       asr('Conduct market research'),
       asr('Conduct audience and customer research'),
       asr('Competitor research'),
@@ -148,7 +150,7 @@ const VSL_TEMPLATE: TemplateCategory[] = [
     name: 'Copy & Script',
     due_after: 'onboarding',
     due_days: 3,
-    tasks: [asr('Landing page copy'), asr('VSL script')],
+    tasks: [asr('Welcome call with the client'), asr('Landing page copy'), asr('VSL script')],
   },
   copyApproval('Review and approve the landing page copy and VSL script'),
   {
@@ -180,7 +182,7 @@ const WEBINAR_TEMPLATE: TemplateCategory[] = [
     name: 'Copy & Script',
     due_after: 'onboarding',
     due_days: 3,
-    tasks: [asr('Webinar landing page copy'), asr('Webinar script & PPT')],
+    tasks: [asr('Welcome call with the client'), asr('Webinar landing page copy'), asr('Webinar script & PPT')],
   },
   copyApproval('Review and approve the landing page copy and webinar script'),
   {
@@ -245,13 +247,22 @@ export interface StepGuide {
 }
 
 export const STEP_GUIDES: Record<string, StepGuide> = {
-  watch_video: {
+  watch_welcome: {
     eyebrow: 'Start here',
     summary:
-      'A short walkthrough of how your project works, where everything lives, and what we need from you. Please watch it before you fill in the worksheet.',
+      'A short walkthrough of how we will work together: what we need from you, what we build, and the timeline. It opens by itself the first time you sign in, and you can replay it any time.',
+    doneLabel: "I've watched the walkthrough",
+  },
+  watch_video: {
+    eyebrow: 'Before you fill the worksheet',
+    summary:
+      'A short video that shows you how to fill in the On-Boarding Worksheet, section by section. Watch it first, and keep it open while you fill the worksheet in.',
     embedVideo: true,
-    actions: [{ label: 'Open video in a new tab', source: 'video' }],
-    doneLabel: "I've watched the video",
+    actions: [
+      { label: 'Watch the fill-up guide', url: 'https://lp.asrmediapro.com/cam-onboarding-fillup', primary: true },
+      { label: 'Open video in a new tab', source: 'video' },
+    ],
+    doneLabel: "I've watched the guide",
   },
   fill_worksheet: {
     eyebrow: 'About you and your business',

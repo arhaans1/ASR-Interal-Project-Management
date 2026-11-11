@@ -7,6 +7,7 @@ import { PortalCategory, PortalClient, Task } from '@/types/database';
 import { summarizeProject } from '@/lib/progress';
 import OnboardingFlow from '@/components/portal/OnboardingFlow';
 import ProjectDashboard from '@/components/portal/ProjectDashboard';
+import WelcomeWalkthrough from '@/components/portal/WelcomeWalkthrough';
 
 type View = 'onboarding' | 'dashboard' | 'support';
 
@@ -28,6 +29,9 @@ export default function ClientPortalPage() {
     const [view, setView] = useState<View | null>(null);
     const [pendingTaskId, setPendingTaskId] = useState<string | null>(null);
     const [notice, setNotice] = useState('');
+    // The welcome walkthrough: 'required' the first time, 'replay' when opened again by choice
+    const [walkthrough, setWalkthrough] = useState<'required' | 'replay' | null>(null);
+    const walkthroughDecided = useRef(false);
     const scrollRef = useRef<HTMLDivElement>(null);
     const savingRef = useRef(false);
 
@@ -80,6 +84,21 @@ export default function ClientPortalPage() {
         setView(summary.hasOnboarding && !summary.onboardingComplete ? 'onboarding' : 'dashboard');
     }, [data, view, summary.hasOnboarding, summary.onboardingComplete]);
 
+    // A client's first visit opens with the welcome walkthrough, full screen. It counts as
+    // watched once its step is ticked; cards without that step remember it in the browser.
+    const welcomeStep = summary.onboardingTasks.find((t) => t.task_key === 'watch_welcome') ?? null;
+    const seenKey = `asr_walkthrough_seen_${clientId}`;
+
+    useEffect(() => {
+        if (!data || walkthroughDecided.current) return;
+        walkthroughDecided.current = true;
+        if (isTeamPreview || !summary.hasOnboarding || summary.onboardingComplete) return;
+
+        let seenHere = false;
+        try { seenHere = localStorage.getItem(seenKey) === '1'; } catch { }
+        if (welcomeStep ? !welcomeStep.completed : !seenHere) setWalkthrough('required');
+    }, [data, isTeamPreview, summary.hasOnboarding, summary.onboardingComplete, welcomeStep, seenKey]);
+
     const changeView = (next: View) => {
         setView(next);
         scrollRef.current?.scrollTo({ top: 0 });
@@ -120,6 +139,13 @@ export default function ClientPortalPage() {
             setPendingTaskId(null);
             savingRef.current = false;
         }
+    };
+
+    const finishWalkthrough = () => {
+        const wasRequired = walkthrough === 'required';
+        setWalkthrough(null);
+        try { localStorage.setItem(seenKey, '1'); } catch { }
+        if (wasRequired && welcomeStep && !welcomeStep.completed) handleToggle(welcomeStep, true);
     };
 
     const handleLogout = async () => {
@@ -179,6 +205,16 @@ export default function ClientPortalPage() {
                 </div>
             )}
 
+            {walkthrough && (
+                <WelcomeWalkthrough
+                    firstName={client.name.trim().split(/\s+/)[0]}
+                    funnelType={client.funnel_type}
+                    mustFinish={walkthrough === 'required'}
+                    onFinish={finishWalkthrough}
+                    onClose={() => setWalkthrough(null)}
+                />
+            )}
+
             <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/85 backdrop-blur-xl">
                 <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
                     <div className="flex min-w-0 items-center gap-3">
@@ -227,6 +263,7 @@ export default function ClientPortalPage() {
                         pendingTaskId={pendingTaskId}
                         onToggle={handleToggle}
                         onOpenDashboard={() => changeView('dashboard')}
+                        onPlayWalkthrough={() => setWalkthrough(isTeamPreview || !welcomeStep || welcomeStep.completed ? 'replay' : 'required')}
                     />
                 )}
 

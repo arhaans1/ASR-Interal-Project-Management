@@ -31,9 +31,15 @@ Only admins can manage users. **My Tasks** opens the Team Members card whose nam
 
 Admins choose which sections show in the sidebar, their order, and can add new ones, in Team Settings › Sidebar. Hiding a section keeps its cards. Active, Launched, Team Members and Archived can be hidden but not removed. Needs `supabase-migration-workspace-settings.sql`.
 
+### Welcome walkthrough
+
+The first time a client signs in, a full-screen animated walkthrough plays (about 100 seconds): what they need to do, what we build, and the timeline. They cannot move on until it has played through; that ticks "Watch the welcome walkthrough" and unlocks the other onboarding steps. It can be replayed from the onboarding page.
+
+The scenes and captions are in `src/lib/walkthrough.ts`. To add a voiceover, record one MP3 per scene and put them in `public/onboarding/voiceover/` as described in `docs/welcome-walkthrough-script.md`.
+
 ### Task board
 
-One column in project order. The phase in hand is open at the top, later phases wait closed below it, and finished phases turn green and move to **Completed** at the bottom. The **All / ASR / Client** switch shows either side's tasks with the number still pending.
+One column in project order. The phase in hand is open at the top, later phases wait closed below it, and finished phases turn green and move to **Completed** at the bottom. The **All / ASR / Client** switch shows either side's tasks with the number still pending. On cards made from a funnel template, phases after the one in hand are locked until it is complete.
 
 ### Security
 

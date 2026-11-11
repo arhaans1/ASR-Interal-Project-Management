@@ -281,6 +281,8 @@ export default function ClientDetail({
           {/* Tasks Section - Takes 8 columns (2/3) */}
           <div className="lg:col-span-8">
             <TaskSection
+              // Cards built from a funnel template run one phase at a time
+              sequential={Boolean(client.funnel_type)}
               categories={categories}
               onCreateCategory={onCreateCategory}
               onUpdateCategory={onUpdateCategory}
