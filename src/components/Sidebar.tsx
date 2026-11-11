@@ -1,3 +1,4 @@
+import BrandLogo from "@/components/BrandLogo";
 import { useState, useRef, useEffect } from 'react';
 import { Client } from '@/types/database';
 import { ChevronRight, Plus, Users, Layout, Rocket, Archive, Copy, MessageSquare, BellRing, Folder, ListChecks } from 'lucide-react';
@@ -168,9 +169,7 @@ export default function Sidebar({
         {/* Header */}
         <div className="p-6 pb-2">
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center shadow-sm">
-              <span className="text-white font-bold text-xl">A</span>
-            </div>
+            <BrandLogo theme="light" size={56} priority className="h-14 w-14 -ml-1" />
             <div>
               <h1 className="font-bold text-lg text-slate-900 tracking-tight leading-tight">ASR Media Pro</h1>
               <p className="text-xs text-slate-500 font-medium">Project Manager</p>

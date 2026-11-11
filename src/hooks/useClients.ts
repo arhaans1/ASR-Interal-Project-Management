@@ -157,14 +157,18 @@ export function useClients() {
 
   const deleteClient = async (id: string): Promise<boolean> => {
     try {
-      const { error } = await supabase.from('clients').delete().eq('id', id);
-
-      if (error) throw error;
+      // The server removes the client and everything on its card from the database
+      const res = await fetch(`/api/clients/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'Failed to delete client');
+      }
       setClients((prev) => prev.filter((client) => client.id !== id));
       return true;
     } catch (err: any) {
-      const errorMessage = err?.message || (typeof err === 'string' ? err : 'Failed to delete client');
+      const errorMessage = err?.message || 'Failed to delete client';
       setError(errorMessage);
+      alert(`Could not delete the client: ${errorMessage}`);
       return false;
     }
   };
