@@ -92,11 +92,18 @@ export default function ClientPortalPage() {
     useEffect(() => {
         if (!data || walkthroughDecided.current) return;
         walkthroughDecided.current = true;
-        if (isTeamPreview || !summary.hasOnboarding || summary.onboardingComplete) return;
+        if (isTeamPreview) return;
 
         let seenHere = false;
         try { seenHere = localStorage.getItem(seenKey) === '1'; } catch { }
-        if (welcomeStep ? !welcomeStep.completed : !seenHere) setWalkthrough('required');
+
+        if (summary.hasOnboarding && !summary.onboardingComplete) {
+            // Onboarding open: they must watch it, and watching it ticks its step
+            if (welcomeStep ? !welcomeStep.completed : !seenHere) setWalkthrough('required');
+        } else if (!seenHere) {
+            // Older cards, or onboarding already done: welcome them once, and let them close it
+            setWalkthrough('replay');
+        }
     }, [data, isTeamPreview, summary.hasOnboarding, summary.onboardingComplete, welcomeStep, seenKey]);
 
     const changeView = (next: View) => {
@@ -211,7 +218,10 @@ export default function ClientPortalPage() {
                     funnelType={client.funnel_type}
                     mustFinish={walkthrough === 'required'}
                     onFinish={finishWalkthrough}
-                    onClose={() => setWalkthrough(null)}
+                    onClose={() => {
+                        setWalkthrough(null);
+                        try { localStorage.setItem(seenKey, '1'); } catch { }
+                    }}
                 />
             )}
 

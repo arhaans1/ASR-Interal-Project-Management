@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Client, ClientStatus, Category, FunnelType, Task } from '@/types/database';
-import { applyFunnelTemplate } from '@/lib/funnelSetup';
 
 // The extra fields on a client card. Only sent to the database when they are set,
 // so plain client cards keep working exactly as before.
@@ -32,7 +31,20 @@ export async function setClientPassword(clientId: string, password: string): Pro
   }
 }
 
-export { applyFunnelTemplate };
+// Pre-list the template tasks for a funnel type on a client's board. The server adds them,
+// so they always match the live version of the templates. With `replace`, the card's
+// current categories and tasks are removed first.
+export async function applyFunnelTemplate(clientId: string, funnelType: FunnelType, replace = false): Promise<void> {
+  const res = await fetch(`/api/clients/${clientId}/template`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ funnelType, replace }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || 'Could not add the template tasks');
+  }
+}
 
 export function useClients() {
   const [clients, setClients] = useState<Client[]>([]);
