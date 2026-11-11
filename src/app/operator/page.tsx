@@ -241,7 +241,7 @@ export default function OperatorWorkspacePage() {
                                 className: stageStyles[summary.stage.key],
                             };
                             // The next date this project is working towards
-                            const nextDue = summary.phases.find((p) => p.status !== 'done' && p.dueDate);
+                            const nextDue = summary.phases.find((p) => p.status !== 'done' && p.status !== 'awaiting' && p.dueDate);
 
                             return (
                                 <li key={client.id} className={`rounded-2xl border bg-white transition-shadow ${open ? 'border-slate-300 shadow-lg shadow-slate-950/5' : 'border-slate-200/80 shadow-sm'}`}>
@@ -266,7 +266,7 @@ export default function OperatorWorkspacePage() {
                                                 {nextDue && (
                                                     <span className={`ml-2 inline-flex items-center gap-1 ${nextDue.overdue ? 'font-semibold text-red-600' : ''}`}>
                                                         <CalendarClock className="h-3.5 w-3.5" />
-                                                        {nextDue.name} {nextDue.overdue ? 'was due' : 'due'} {formatDate(nextDue.dueDate)}
+                                                        {nextDue.name}: {nextDue.dueKind === 'submit' ? 'submit for approval by' : nextDue.overdue ? 'was due' : 'due'} {formatDate(nextDue.dueDate)}
                                                     </span>
                                                 )}
                                             </span>

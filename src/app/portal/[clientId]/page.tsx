@@ -35,7 +35,7 @@ export default function ClientPortalPage() {
         try {
             const res = await fetch(`/api/portal/${clientId}`, { cache: 'no-store' });
             if (res.status === 401) {
-                router.push('/login');
+                router.push('/client-login');
                 return;
             }
             const body = await res.json();
@@ -124,7 +124,7 @@ export default function ClientPortalPage() {
 
     const handleLogout = async () => {
         await fetch('/api/auth/logout', { method: 'POST' });
-        router.push('/login');
+        router.push(isTeamPreview ? '/login' : '/client-login');
     };
 
     if (loading) {

@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useClients, applyFunnelTemplate } from '@/hooks/useClients';
-import { useCategories } from '@/hooks/useCategories';
+import { useCategories, prefetchCategories } from '@/hooks/useCategories';
 import { Client } from '@/types/database';
 import Sidebar from '@/components/Sidebar';
 import ClientDetail from '@/components/ClientDetail';
@@ -55,6 +55,22 @@ export default function Home() {
     refreshCategories,
   } = useCategories(selectedClient?.id || null);
 
+  // Load the boards of the clients people actually open, in one background request,
+  // so clicking a card shows its tasks straight away.
+  useEffect(() => {
+    const ids = clients.filter((c) => c.status !== 'Archived').map((c) => c.id);
+    if (ids.length === 0) return;
+    const timer = setTimeout(() => prefetchCategories(ids), 300);
+    return () => clearTimeout(timer);
+  }, [clients]);
+
+  // How many cards sit in each sidebar section (shown in Team Settings)
+  const sectionCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    clients.forEach((c) => { counts[c.status] = (counts[c.status] || 0) + 1; });
+    return counts;
+  }, [clients]);
+
   // Update selected client when clients change
   useEffect(() => {
     if (selectedClient) {
@@ -82,7 +98,7 @@ export default function Home() {
   };
 
   const handleModalSubmit = async (values: ClientFormValues) => {
-    const { name, businessName, status, username, password, applyTemplate, ...extras } = values;
+    const { name, businessName, status, username, password, templateMode, ...extras } = values;
 
     if (modalMode === 'create') {
       const newClient = await createClient(name, businessName, status, username, password, extras);
@@ -111,9 +127,9 @@ export default function Home() {
         ...(usesExtras ? extras : {}),
       });
 
-      if (applyTemplate && extras.funnel_type) {
+      if (templateMode !== 'none' && extras.funnel_type) {
         try {
-          await applyFunnelTemplate(selectedClient.id, extras.funnel_type);
+          await applyFunnelTemplate(selectedClient.id, extras.funnel_type, templateMode === 'replace');
           await refreshCategories();
         } catch (err: any) {
           alert('Could not add the template tasks: ' + (err?.message || 'unknown error'));
@@ -291,6 +307,7 @@ export default function Home() {
       <TeamManagementModal
         isOpen={isTeamModalOpen}
         onClose={() => setIsTeamModalOpen(false)}
+        sectionCounts={sectionCounts}
       />
     </div>
   );

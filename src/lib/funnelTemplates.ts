@@ -66,32 +66,19 @@ const CLIENT_ONBOARDING: TemplateCategory = {
   ],
 };
 
-// CAM timeline: research, strategy and the course outline are due 3 business days after
-// onboarding. The client then reviews and approves the outline, and everything else is
-// due 5 business days after that approval.
+// CAM timeline: research is due 3 business days after onboarding, and the course outline
+// goes to the client for approval in that same window. Everything else is due 5 business
+// days after the client approves. Launch waits on the client's recordings, so it has no date.
 const CAM_TEMPLATE: TemplateCategory[] = [
   CLIENT_ONBOARDING,
   {
-    name: 'Research, Strategy & Course Outline',
+    name: 'Research & Strategy',
     due_after: 'onboarding',
     due_days: 3,
     tasks: [
       asr('Conduct market research'),
       asr('Conduct audience and customer research'),
-      asr('Develop positioning'),
-      asr('Create the CAM offer architecture'),
-      asr('Create the course outline (modules, value bombs, and bonuses)'),
-    ],
-  },
-  {
-    name: 'Client Approval',
-    tasks: [
-      {
-        name: 'Review and approve the course outline',
-        owner: 'client',
-        is_approval: true,
-        task_key: 'approve_course_outline',
-      },
+      asr('Competitor research'),
     ],
   },
   {
@@ -99,9 +86,15 @@ const CAM_TEMPLATE: TemplateCategory[] = [
     due_after: 'approval',
     due_days: 5,
     tasks: [
-      asr('Create the recording-ready course package'),
-      asr('Create module PowerPoints'),
-      asr('Create all bonus assets'),
+      asr('Create the course outline (modules, value bombs, and bonuses)'),
+      {
+        name: 'Review and approve the course outline',
+        owner: 'client',
+        is_approval: true,
+        task_key: 'approve_course_outline',
+      },
+      asr('Create course PPT decks'),
+      asr('Create bonus assets'),
     ],
   },
   {
@@ -109,11 +102,11 @@ const CAM_TEMPLATE: TemplateCategory[] = [
     due_after: 'approval',
     due_days: 5,
     tasks: [
-      asr('Write the complete sales-page copy'),
-      asr('Create lifecycle email / WhatsApp nurture'),
-      asr('Create product mockups and page graphics'),
-      asr('Create image ads'),
-      asr('Create video-ad scripts'),
+      asr('Sales page copy'),
+      asr('Nurture sequences'),
+      asr('Product mockups and LMS banners'),
+      asr('Image ad copy and video ad scripts'),
+      asr('Image ad design'),
     ],
   },
   {
@@ -121,16 +114,21 @@ const CAM_TEMPLATE: TemplateCategory[] = [
     due_after: 'approval',
     due_days: 5,
     tasks: [
-      asr('Set up Community & LMS'),
-      asr('Build the funnel pages & payment gateway integration'),
-      asr('Complete QA and submit everything'),
+      asr('Set up LMS and community'),
+      asr('Build the entire sales funnel'),
+      asr('Build the entire assessment call booking funnel'),
+      asr('Payment gateway integration'),
+      asr('Quality and analysis check'),
     ],
   },
   {
     name: 'Recording & Launch',
     tasks: [
-      clientTask('record_video_ads', 'Record and edit your video ads'),
+      clientTask('record_vsl', 'Record your VSL'),
       clientTask('record_course_videos', 'Record your course videos'),
+      clientTask('record_video_ads', 'Record your video ads'),
+      asr('Set up the pixel'),
+      asr('Set up the ad campaign'),
       asr('Launch ad campaigns'),
     ],
   },
@@ -364,6 +362,14 @@ export const STEP_GUIDES: Record<string, StepGuide> = {
     actions: [{ label: 'Open your Drive folder', source: 'drive', primary: true }],
     where: '05 Strategy and Copy',
     doneLabel: 'I approve the copy and script',
+  },
+  record_vsl: {
+    eyebrow: 'Recording',
+    summary:
+      'Record the VSL script we have written for you: horizontal 16:9, with a clip-on mic and your face well lit. Follow Part 2 of the Recording Guidelines in your folder, then upload the video.',
+    actions: [{ label: 'Open your Drive folder', source: 'drive', primary: true }],
+    where: '03 Funnel',
+    doneLabel: "I've uploaded my VSL",
   },
   record_video_ads: {
     eyebrow: 'Recording',

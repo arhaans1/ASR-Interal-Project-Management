@@ -2,24 +2,24 @@
 
 import { useMemo, useState } from 'react';
 import {
-  Plus,
+  CalendarClock,
   Check,
-  X,
-  Edit2,
-  Trash2,
-  ListTodo,
   CheckCircle2,
+  ChevronDown,
   Circle,
+  Edit2,
   GripVertical,
+  ListTodo,
+  Plus,
+  Trash2,
   User as UserIcon,
   UserCheck,
-  CalendarClock,
+  X,
 } from 'lucide-react';
-import { formatDate, Phase, summarizeProject } from '@/lib/progress';
 import { CategoryWithTasks } from '@/hooks/useCategories';
 import { Task } from '@/types/database';
+import { formatDate, isClientTask, Phase, summarizeProject } from '@/lib/progress';
 import TaskAssignModal from './TaskAssignModal';
-import { supabase } from '@/lib/supabase';
 
 interface TaskSectionProps {
   categories: CategoryWithTasks[];
@@ -36,12 +36,19 @@ interface TaskSectionProps {
   isReadOnly?: boolean;
 }
 
-// Helper to get alternating gradients for cards
-const getCategoryGradient = (index: number) => {
-  // Consistent Monochrome Hover with Strong "Glow" (Deep Shadow)
-  return 'bg-slate-50/70 border-slate-200/80 hover:border-slate-300 hover:bg-white hover:shadow-md';
+// Whose tasks are on show
+type OwnerFilter = 'all' | 'team' | 'client';
+
+const avatarColors = ['bg-red-500', 'bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500', 'bg-teal-500'];
+const avatarColor = (name: string) => {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return avatarColors[Math.abs(hash) % avatarColors.length];
 };
 
+// The board: one column, in the order the project runs. The phase being worked on is open
+// at the top, later phases wait closed beneath it, and finished phases turn green and drop
+// into "Completed" at the bottom.
 export default function TaskSection({
   categories,
   onCreateCategory,
@@ -56,18 +63,19 @@ export default function TaskSection({
   onMoveTask,
   isReadOnly = false,
 }: TaskSectionProps) {
-  // Stage and due date of each category, from the project's timeline rules
+  const summary = useMemo(() => summarizeProject(categories), [categories]);
   const phaseById = useMemo(() => {
     const map: Record<string, Phase> = {};
-    summarizeProject(categories).phases.forEach((phase) => { map[phase.id] = phase; });
+    summary.phases.forEach((phase) => { map[phase.id] = phase; });
     return map;
-  }, [categories]);
+  }, [summary]);
+
+  const [filter, setFilter] = useState<OwnerFilter>('all');
+  // Rows the person opened or closed by hand. Everything else follows the project.
+  const [openOverride, setOpenOverride] = useState<Record<string, boolean>>({});
 
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
-
-  // No longer tracking expanded state - always open
-
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [editingCategoryName, setEditingCategoryName] = useState('');
   const [creatingTaskInCategory, setCreatingTaskInCategory] = useState<string | null>(null);
@@ -75,144 +83,68 @@ export default function TaskSection({
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTaskName, setEditingTaskName] = useState('');
 
-  // Assignment Modal State
+  // Assigning a task to a team member
   const [assignModalOpen, setAssignModalOpen] = useState(false);
-  const [assigningTaskId, setAssigningTaskId] = useState<string | null>(null);
-  const [assigningTaskName, setAssigningTaskName] = useState('');
-  const [currentAssigneeId, setCurrentAssigneeId] = useState<string | null>(null);
+  const [assigningTask, setAssigningTask] = useState<Task | null>(null);
+  // Assignments made just now, shown before the next refresh brings them in
+  const [localAssignees, setLocalAssignees] = useState<Record<string, string>>({});
 
-  // Toast State
-  const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
-  const openAssignModal = (task: Task) => {
-    setAssigningTaskId(task.id);
-    setAssigningTaskName(task.name);
-    setCurrentAssigneeId(task.assigned_to || null);
-    setAssignModalOpen(true);
+  // ---- What goes where -----------------------------------------------------
+
+  const matchesFilter = (task: Task) =>
+    filter === 'all' || (filter === 'client' ? isClientTask(task) : !isClientTask(task));
+
+  // Finished, as far as the tasks on show go: under "Client", a phase is done once the
+  // client's part of it is.
+  const isDone = (category: CategoryWithTasks) => {
+    const tasks = category.tasks.filter(matchesFilter);
+    return tasks.length > 0 && tasks.every((t) => t.completed);
   };
 
-  const handleAssign = async (targetUserId: string, targetUserName: string) => {
-    if (!assigningTaskId || !assigningTaskName) return;
+  const numbered = categories.map((category, index) => ({ category, number: index + 1 }));
+  const shown = numbered.filter(({ category }) => filter === 'all' || category.tasks.some(matchesFilter));
+  const openRows = shown.filter(({ category }) => !isDone(category));
+  const doneRows = shown.filter(({ category }) => isDone(category));
 
+  // The phase in hand: the first one that is not finished
+  const focusId = openRows[0]?.category.id ?? null;
+  const isOpen = (category: CategoryWithTasks) => openOverride[category.id] ?? category.id === focusId;
+  const toggleOpen = (category: CategoryWithTasks) =>
+    setOpenOverride((prev) => ({ ...prev, [category.id]: !isOpen(category) }));
+
+  const teamPending = summary.teamPending.length;
+  const clientPending = categories.flatMap((c) => c.tasks).filter((t) => isClientTask(t) && !t.completed).length;
+  const hasClientTasks = categories.some((c) => c.tasks.some(isClientTask));
+  const canRearrange = !isReadOnly && filter === 'all';
+
+  // ---- Actions -------------------------------------------------------------
+
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setTimeout(() => setToastMessage(''), 3000);
+  };
+
+  const handleAssign = async (boardId: string, memberName: string) => {
+    if (!assigningTask) return;
     try {
-      // 1. Update LOCAL task with new assignee
-      // We find the category of the task
-      let taskCategory = '';
-      categories.forEach(c => {
-        if (c.tasks.find(t => t.id === assigningTaskId)) taskCategory = c.id;
+      // The server marks the task and puts a copy on that person's board.
+      const res = await fetch('/api/tasks/assign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskId: assigningTask.id, boardId }),
       });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Failed to assign task');
 
-      if (taskCategory) {
-        // DIRECT UPDATE: Bypass onUpdateTask to avoid prop-drilling issues
-        await supabase
-          .from('tasks')
-          .update({ assigned_to: targetUserId })
-          .eq('id', assigningTaskId);
-
-        // 2. LOGIC: Copy to Target User Board
-        // A. Find Target User's "Tasks" Category
-        const { data: targetCategories } = await supabase
-          .from('categories')
-          .select('id, name')
-          .eq('client_id', targetUserId) // Team Member is a "Client" -> client_id = user_id
-          .order('order_index');
-
-        let targetCategoryId = '';
-
-        if (targetCategories && targetCategories.length > 0) {
-          const tasksCat = targetCategories.find(c => c.name === 'Tasks');
-          if (tasksCat) targetCategoryId = tasksCat.id;
-          else targetCategoryId = targetCategories[0].id; // Fallback to first category
-        } else {
-          // Create 'Tasks' category? 
-          const { data: newCat } = await supabase
-            .from('categories')
-            .insert({ client_id: targetUserId, name: 'Tasks', order_index: 0 })
-            .select()
-            .single();
-          if (newCat) targetCategoryId = newCat.id;
-        }
-
-        if (targetCategoryId) {
-          // Determine Origin Client ID
-          // The task is currently in a category belonging to 'currentAssigneeId' (if assigned) or the board owner.
-          // Actually, we are viewing a board. The board belongs to `categories[0].client_id`.
-          // If we are on the main board, that IS the origin.
-          const originClientId = categories.length > 0 ? categories[0].client_id : null;
-
-          await supabase.from('tasks').insert({
-            category_id: targetCategoryId,
-            name: assigningTaskName,
-            completed: false,
-            order_index: 9999, // append
-            origin_client_id: originClientId // Add source tracking
-          });
-        }
-
-        // 3. LOGIC: Delete from Old User Board (if re-assigned)
-        if (currentAssigneeId && currentAssigneeId !== targetUserId) {
-          // Find tasks in OLD user's board with same name
-          const { data: oldCats } = await supabase.from('categories').select('id').eq('client_id', currentAssigneeId);
-          if (oldCats && oldCats.length > 0) {
-            const oldCatIds = oldCats.map(c => c.id);
-            await supabase.from('tasks').delete()
-              .in('category_id', oldCatIds)
-              .eq('name', assigningTaskName);
-          }
-        }
-      }
-
-
-      // Update local state by mutating the categories (or calling a prop if available, but direct mutation is faster for UI responsiveness here given the complexity)
-      // Since 'categories' is a prop, we can't mutate it directly to affect the parent.
-      // However, we can perhaps force a re-render or just accept that the prop will update eventually if we had a refresher.
-      // But user wants NO reload.
-      // Best bet: We assume the layout persists. 
-      // We need to trigger a re-render. 
-      // Actually, since we modified the DB, we *should* ideally call a refresh function passed from parent? 
-      // `TaskSection` doesn't have a `onRefresh` prop. 
-      // Let's rely on `window.dispatchEvent` or just add a simple local state to force update or just show the toast. 
-      // The user just said "Task assigned successfully". The UI updating the initial is nice but maybe secondary to not flashing?
-      // Actually we CAN update the UI optimistically if we track a local override map, but that's complex.
-      // Simplest: Just show Toast. The initial might correspond to the old state until next soft refresh, but if we don't reload, it won't update.
-      // Wait, `onUpdateTask` (the prop) updates the parent state in `useCategories`. 
-      // But we BYPASSED it.
-      // So parent doesn't know.
-      // We should call `onUpdateTask` with the `assigned_to` payload safely, IF we fixed the parent.
-      // But we bypassed it to be safe.
-      // Compromise: We show the Success Toast. We *also* try to call onUpdateTask with a special "flag" or just rely on the fact that we handled the DB.
-      // Actually, we can just call `onUpdateTask` with the proper object now that we fixed the parent? 
-      // The user confirmed "It's working now" before the redirect complaint.
-      // So the bypass worked.
-
+      setLocalAssignees((prev) => ({ ...prev, [assigningTask.id]: memberName }));
       setAssignModalOpen(false);
-
-      // Let's add a local "toast" state.
-      setToastMessage(`Task assigned to ${targetUserName}`);
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
-
-      // Optimistic update (optional, but good UX):
-      // We can't easily touch 'categories' prop.
-      // We'll just leave it. If the user navigates away and back, it updates.
-
-      // window.location.reload(); // REMOVED
-
+      showToast(`Task assigned to ${memberName}`);
     } catch (e) {
-      console.error("Assignment failed", e);
-      alert("Failed to assign task");
+      console.error('Assignment failed', e);
+      alert('Failed to assign task');
     }
   };
-
-  const getInitials = (name: string) => name ? name.slice(0, 1).toUpperCase() : '?';
-  const getRandomColor = (name: string) => {
-    const colors = ['bg-red-500', 'bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500', 'bg-teal-500'];
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    return colors[Math.abs(hash) % colors.length];
-  };
-
 
   const handleCreateCategory = async () => {
     if (newCategoryName.trim()) {
@@ -225,15 +157,17 @@ export default function TaskSection({
   const handleUpdateCategory = async (categoryId: string) => {
     if (editingCategoryName.trim()) {
       await onUpdateCategory(categoryId, editingCategoryName.trim());
-      setEditingCategoryId(null);
-      setEditingCategoryName('');
     }
+    setEditingCategoryId(null);
+    setEditingCategoryName('');
   };
 
   const handleCreateTask = async (categoryId: string) => {
     if (newTaskName.trim()) {
       await onCreateTask(categoryId, newTaskName.trim());
       setNewTaskName('');
+      // Stay in "add" mode so several tasks can be typed one after another
+    } else {
       setCreatingTaskInCategory(null);
     }
   };
@@ -241,19 +175,12 @@ export default function TaskSection({
   const handleUpdateTask = async (categoryId: string, taskId: string) => {
     if (editingTaskName.trim()) {
       await onUpdateTask(categoryId, taskId, { name: editingTaskName.trim() });
-      setEditingTaskId(null);
-      setEditingTaskName('');
     }
+    setEditingTaskId(null);
+    setEditingTaskName('');
   };
 
-  const startEditingCategory = (category: CategoryWithTasks) => {
-    setEditingCategoryId(category.id);
-    setEditingCategoryName(category.name);
-  };
-
-  // Who does a task: the team (default), the client, or the client as part of onboarding.
-  // Client tasks can be ticked from the client portal; onboarding ones must be done before
-  // the client's dashboard opens.
+  // Who does a task: the team (default), the client as an onboarding step, or the client.
   const cycleOwner = (categoryId: string, task: Task) => {
     const next =
       task.owner !== 'client'
@@ -271,480 +198,524 @@ export default function TaskSection({
         ? 'Client onboarding step. Click to make it a regular client task.'
         : 'Client task. Click to hand it back to the team.';
 
-  const startEditingTask = (task: Task) => {
-    setEditingTaskId(task.id);
-    setEditingTaskName(task.name);
+  // ---- Pieces --------------------------------------------------------------
+
+  const renderTask = (category: CategoryWithTasks, task: Task) => {
+    const assignee = localAssignees[task.id] ?? task.assigned_user_name ?? null;
+    const editing = editingTaskId === task.id;
+
+    return (
+      <li
+        key={task.id}
+        className={`group/task flex items-start gap-3 rounded-xl border bg-white px-3 py-2.5 transition-colors ${task.completed ? 'border-slate-200/60' : 'border-slate-200 hover:border-slate-300'} ${!editing && canRearrange ? 'cursor-grab active:cursor-grabbing' : ''}`}
+        draggable={!editing && canRearrange}
+        onDragStart={(e) => {
+          e.stopPropagation();
+          e.dataTransfer.setData('taskId', task.id);
+          e.dataTransfer.setData('sourceCategoryId', category.id);
+          e.dataTransfer.effectAllowed = 'move';
+        }}
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const draggedTaskId = e.dataTransfer.getData('taskId');
+          const sourceCategoryId = e.dataTransfer.getData('sourceCategoryId');
+          if (!draggedTaskId || !canRearrange) return;
+
+          const targetIndex = category.tasks.findIndex((t) => t.id === task.id);
+          if (sourceCategoryId === category.id) {
+            const draggedIndex = category.tasks.findIndex((t) => t.id === draggedTaskId);
+            if (draggedIndex !== -1 && targetIndex !== -1 && draggedIndex !== targetIndex) {
+              onReorderTask(category.id, draggedTaskId, targetIndex);
+            }
+          } else if (sourceCategoryId && targetIndex !== -1) {
+            onMoveTask(sourceCategoryId, category.id, draggedTaskId, targetIndex);
+          }
+        }}
+        onDoubleClick={() => {
+          if (!isReadOnly && !editing) {
+            setEditingTaskId(task.id);
+            setEditingTaskName(task.name);
+          }
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => !isReadOnly && onToggleTask(category.id, task.id, !task.completed)}
+          disabled={isReadOnly}
+          aria-label={task.completed ? `Mark "${task.name}" as not done` : `Mark "${task.name}" as done`}
+          className={`mt-0.5 shrink-0 transition-colors ${task.completed ? 'text-emerald-500' : 'text-slate-300 hover:text-emerald-500'} ${isReadOnly ? 'cursor-default' : ''}`}
+        >
+          {task.completed ? <CheckCircle2 className="h-5 w-5 fill-emerald-50" /> : <Circle className="h-5 w-5" />}
+        </button>
+
+        {editing ? (
+          <div className="flex min-w-0 flex-1 items-start gap-2">
+            <textarea
+              value={editingTaskName}
+              onChange={(e) => setEditingTaskName(e.target.value)}
+              className="min-h-[72px] w-full flex-1 resize-y rounded-xl border border-indigo-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleUpdateTask(category.id, task.id);
+                }
+                if (e.key === 'Escape') setEditingTaskId(null);
+              }}
+              onBlur={() => handleUpdateTask(category.id, task.id)}
+            />
+          </div>
+        ) : (
+          <>
+            <span className={`min-w-0 flex-1 whitespace-pre-wrap break-words text-sm font-medium leading-snug ${task.completed ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-800'}`}>
+              {task.name.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
+                /^https?:\/\//.test(part) ? (
+                  <a
+                    key={i}
+                    href={part}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="break-all text-indigo-600 hover:underline"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {part}
+                  </a>
+                ) : (
+                  part
+                )
+              )}
+            </span>
+
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+              {task.owner === 'client' && (
+                <span
+                  className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${task.is_onboarding
+                    ? 'bg-violet-50 text-violet-700 ring-1 ring-violet-200'
+                    : task.is_approval
+                      ? 'bg-amber-50 text-amber-800 ring-1 ring-amber-200'
+                      : 'bg-sky-50 text-sky-700 ring-1 ring-sky-200'
+                    }`}
+                  title="The client ticks this in their portal. You can tick it for them."
+                >
+                  {task.is_onboarding ? 'Client · Onboarding' : task.is_approval ? 'Client · Approval' : 'Client'}
+                </span>
+              )}
+
+              {task.origin_client_name && (
+                <span className="max-w-[160px] truncate rounded-md bg-rose-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-rose-600 ring-1 ring-rose-200">
+                  {task.origin_client_name}
+                </span>
+              )}
+
+              {task.completed && task.completed_at && (
+                <span className="text-xs text-slate-400">{formatDate(task.completed_at)}</span>
+              )}
+
+              {assignee && (
+                <span
+                  className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white ${avatarColor(assignee)}`}
+                  title={`Assigned to ${assignee}`}
+                >
+                  {assignee.slice(0, 1).toUpperCase()}
+                </span>
+              )}
+
+              {/* Tools stay out of the way until the row is pointed at or focused */}
+              {!isReadOnly && (
+                <div className="flex items-center opacity-0 transition-opacity focus-within:opacity-100 group-hover/task:opacity-100">
+                  <button
+                    type="button"
+                    onClick={() => cycleOwner(category.id, task)}
+                    className={`rounded-lg p-1 transition-colors hover:bg-violet-50 ${task.owner === 'client' ? 'text-violet-600' : 'text-slate-400 hover:text-violet-600'}`}
+                    title={ownerTitle(task)}
+                    aria-label={ownerTitle(task)}
+                  >
+                    <UserCheck className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setAssigningTask(task); setAssignModalOpen(true); }}
+                    className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-indigo-50 hover:text-indigo-600"
+                    title={assignee ? `Assigned to ${assignee}. Click to reassign.` : 'Assign to a team member'}
+                    aria-label="Assign to a team member"
+                  >
+                    <UserIcon className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setEditingTaskId(task.id); setEditingTaskName(task.name); }}
+                    className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                    aria-label={`Rename "${task.name}"`}
+                  >
+                    <Edit2 className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDeleteTask(category.id, task.id)}
+                    className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
+                    aria-label={`Delete "${task.name}"`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </li>
+    );
+  };
+
+  const renderRow = ({ category, number }: { category: CategoryWithTasks; number: number }) => {
+    const done = isDone(category);
+    const open = isOpen(category);
+    const phase = phaseById[category.id];
+    const tasks = category.tasks.filter(matchesFilter);
+    const total = tasks.length;
+    const completed = tasks.filter((t) => t.completed).length;
+    const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
+    const inHand = category.id === focusId;
+    const clientOpen = category.tasks.filter((t) => isClientTask(t) && !t.completed).length;
+
+    return (
+      <li
+        key={category.id}
+        className={`rounded-2xl border transition-colors ${done
+          ? 'border-emerald-200 bg-emerald-50/50'
+          : inHand
+            ? 'border-slate-300 bg-white shadow-sm'
+            : 'border-slate-200/80 bg-slate-50/60'
+          }`}
+        draggable={canRearrange}
+        onDragStart={(e) => {
+          if ((window as any).__isDragHandleDown !== true) {
+            e.preventDefault();
+            return;
+          }
+          e.dataTransfer.setData('categoryId', category.id);
+          e.dataTransfer.effectAllowed = 'move';
+        }}
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          (window as any).__isDragHandleDown = false;
+          if (!canRearrange) return;
+
+          const draggedId = e.dataTransfer.getData('categoryId');
+          if (draggedId && draggedId !== category.id) {
+            onReorderCategory(draggedId, categories.findIndex((c) => c.id === category.id));
+          }
+
+          const draggedTaskId = e.dataTransfer.getData('taskId');
+          const sourceCategoryId = e.dataTransfer.getData('sourceCategoryId');
+          if (draggedTaskId && sourceCategoryId && sourceCategoryId !== category.id) {
+            onMoveTask(sourceCategoryId, category.id, draggedTaskId, category.tasks.length);
+          }
+        }}
+      >
+        {/* Row header */}
+        <div className="group/row flex items-center gap-3 px-4 py-3">
+          {canRearrange && (
+            <div
+              className="-ml-1 cursor-grab text-slate-300 hover:text-slate-500 active:cursor-grabbing"
+              title="Drag to reorder"
+              onMouseDown={() => { (window as any).__isDragHandleDown = true; }}
+              onMouseUp={() => { (window as any).__isDragHandleDown = false; }}
+              onMouseLeave={() => { (window as any).__isDragHandleDown = false; }}
+            >
+              <GripVertical className="h-4 w-4" />
+            </div>
+          )}
+
+          <span
+            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${done
+              ? 'bg-emerald-500 text-white'
+              : phase?.status === 'awaiting'
+                ? 'bg-amber-500 text-white'
+                : inHand
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-white text-slate-500 ring-1 ring-slate-200'
+              }`}
+          >
+            {done ? <Check className="h-4 w-4" strokeWidth={3} /> : number}
+          </span>
+
+          {editingCategoryId === category.id ? (
+            <input
+              type="text"
+              value={editingCategoryName}
+              onChange={(e) => setEditingCategoryName(e.target.value)}
+              className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm font-semibold outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
+              aria-label="Category name"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleUpdateCategory(category.id);
+                if (e.key === 'Escape') setEditingCategoryId(null);
+              }}
+              onBlur={() => handleUpdateCategory(category.id)}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => toggleOpen(category)}
+              aria-expanded={open}
+              className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-left"
+            >
+              <span className={`text-base font-bold tracking-tight ${done ? 'text-emerald-900' : 'text-slate-900'}`}>
+                {category.name}
+              </span>
+              <span className={`text-sm font-medium tabular-nums ${done ? 'text-emerald-700' : 'text-slate-500'}`}>
+                {completed} of {total}
+              </span>
+
+              {phase?.status === 'awaiting' && (
+                <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-800">
+                  Pending client approval
+                </span>
+              )}
+              {!done && clientOpen > 0 && phase?.status !== 'awaiting' && (
+                <span className="rounded-md bg-sky-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-sky-700 ring-1 ring-sky-200">
+                  Client · {clientOpen} open
+                </span>
+              )}
+              {!done && phase && phase.status !== 'awaiting' && (phase.dueDate || phase.dueHint) && (
+                <span className={`inline-flex items-center gap-1 text-xs font-semibold ${phase.overdue ? 'text-red-600' : 'text-slate-500'}`}>
+                  <CalendarClock className="h-3.5 w-3.5" />
+                  {phase.dueKind === 'submit' ? 'Submit for approval ' : phase.overdue ? 'Was due ' : 'Due '}
+                  {phase.dueDate ? (phase.dueKind === 'submit' ? `by ${formatDate(phase.dueDate)}` : formatDate(phase.dueDate)) : phase.dueHint}
+                </span>
+              )}
+              {done && phase?.completedAt && (
+                <span className="text-xs font-medium text-emerald-700">Completed {formatDate(phase.completedAt)}</span>
+              )}
+            </button>
+          )}
+
+          {!done && total > 0 && (
+            <div className="hidden w-28 shrink-0 items-center gap-2 sm:flex" aria-hidden>
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200/70">
+                <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${percent}%` }} />
+              </div>
+              <span className="w-8 text-right text-xs font-bold tabular-nums text-slate-500">{percent}%</span>
+            </div>
+          )}
+
+          {!isReadOnly && editingCategoryId !== category.id && (
+            <div className="flex shrink-0 items-center opacity-0 transition-opacity focus-within:opacity-100 group-hover/row:opacity-100">
+              <button
+                type="button"
+                onClick={() => { setEditingCategoryId(category.id); setEditingCategoryName(category.name); }}
+                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-white hover:text-slate-700"
+                aria-label={`Rename ${category.name}`}
+              >
+                <Edit2 className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const count = category.tasks.length;
+                  if (count === 0 || confirm(`Delete "${category.name}" and its ${count} task${count === 1 ? '' : 's'}?`)) {
+                    onDeleteCategory(category.id);
+                  }
+                }}
+                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
+                aria-label={`Delete ${category.name}`}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => toggleOpen(category)}
+            aria-label={open ? `Close ${category.name}` : `Open ${category.name}`}
+            className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-white hover:text-slate-700"
+          >
+            <ChevronDown className={`h-5 w-5 transition-transform ${open ? 'rotate-180' : ''}`} />
+          </button>
+        </div>
+
+        {/* Tasks */}
+        {open && (
+          <div className="px-4 pb-4">
+            <ul className="space-y-1.5">{tasks.map((task) => renderTask(category, task))}</ul>
+
+            {tasks.length === 0 && creatingTaskInCategory !== category.id && (
+              <p className="py-2 text-center text-xs italic text-slate-400">No tasks yet</p>
+            )}
+
+            {!isReadOnly && (
+              creatingTaskInCategory === category.id ? (
+                <div className="mt-2 flex items-center gap-2 rounded-xl border border-indigo-200 bg-white px-3 py-2">
+                  <input
+                    type="text"
+                    value={newTaskName}
+                    onChange={(e) => setNewTaskName(e.target.value)}
+                    placeholder="Task name, then Enter"
+                    aria-label="New task name"
+                    className="min-w-0 flex-1 bg-transparent text-sm font-medium text-slate-800 outline-none placeholder:text-slate-400"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleCreateTask(category.id);
+                      if (e.key === 'Escape') { setCreatingTaskInCategory(null); setNewTaskName(''); }
+                    }}
+                  />
+                  <button type="button" onClick={() => handleCreateTask(category.id)} aria-label="Add task" className="rounded-md p-1 text-indigo-600 hover:bg-indigo-50"><Check className="h-4 w-4" /></button>
+                  <button type="button" onClick={() => { setCreatingTaskInCategory(null); setNewTaskName(''); }} aria-label="Cancel" className="rounded-md p-1 text-slate-400 hover:bg-slate-100"><X className="h-4 w-4" /></button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => { setCreatingTaskInCategory(category.id); setNewTaskName(''); }}
+                  className="mt-2 flex w-full items-center justify-center gap-1 rounded-xl py-2 text-xs font-semibold text-slate-400 transition-colors hover:bg-white hover:text-slate-900"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Add task
+                </button>
+              )
+            )}
+          </div>
+        )}
+      </li>
+    );
   };
 
   return (
     <div className="glass-panel prominent-shadow rounded-2xl h-full flex flex-col relative overflow-hidden">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-slate-200/80 flex items-center justify-between">
-        <div className="flex-1 flex items-center gap-6 mr-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-slate-900 text-white rounded-xl">
-              <ListTodo className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-slate-900 tracking-tight leading-tight">Tasks</h2>
-              <p className="text-xs text-slate-500 font-medium">{categories.length} categories</p>
-            </div>
+      <div className="relative flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-slate-200/80 px-6 py-4">
+        <div className="mr-auto flex items-center gap-3">
+          <div className="rounded-xl bg-slate-900 p-2 text-white">
+            <ListTodo className="h-5 w-5" />
           </div>
-
-          {/* Global Progress Bar */}
-          {categories.length > 0 && (() => {
-            const totalTasks = categories.reduce((acc, cat) => acc + cat.tasks.length, 0);
-            const completedTasks = categories.reduce((acc, cat) => acc + cat.tasks.filter(t => t.completed).length, 0);
-            const progress = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
-
-            return (
-              <div className="flex-1 max-w-lg ml-6 flex items-center gap-4">
-                <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-emerald-500 rounded-full transition-all duration-700 ease-out"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-                <span className="text-sm font-bold text-slate-900 tabular-nums min-w-[3ch]">{progress}%</span>
-                <span className="text-xs font-medium text-slate-500 whitespace-nowrap hidden 2xl:inline">{completedTasks} of {totalTasks} done</span>
-              </div>
-            );
-          })()}
+          <div>
+            <h2 className="text-lg font-bold leading-tight tracking-tight text-slate-900">Tasks</h2>
+            <p className="text-xs font-medium text-slate-500">
+              {summary.done} of {summary.total} done
+              {summary.total > 0 && <span className="font-bold text-slate-900"> · {summary.percent}%</span>}
+            </p>
+          </div>
         </div>
+
+        {/* Overall progress runs along the bottom edge of the header */}
+        {summary.total > 0 && (
+          <div className="absolute inset-x-0 -bottom-px h-[3px] bg-slate-100" role="progressbar" aria-valuenow={summary.percent} aria-valuemin={0} aria-valuemax={100} aria-label="Overall progress">
+            <div className="h-full bg-emerald-500 transition-all duration-700 ease-out" style={{ width: `${summary.percent}%` }} />
+          </div>
+        )}
+
+        {/* Whose tasks: everything, ours, or the client's */}
+        {hasClientTasks && (
+          <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1" role="group" aria-label="Show tasks for">
+            {([
+              { id: 'all', label: 'All' },
+              { id: 'team', label: 'ASR', count: teamPending },
+              { id: 'client', label: 'Client', count: clientPending },
+            ] as { id: OwnerFilter; label: string; count?: number }[]).map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setFilter(option.id)}
+                aria-pressed={filter === option.id}
+                title={option.count !== undefined ? `${option.count} pending` : undefined}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-all ${filter === option.id
+                  ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-900/5'
+                  : 'text-slate-500 hover:text-slate-900'
+                  }`}
+              >
+                {option.label}
+                {option.count !== undefined && (
+                  <span className={`rounded-full px-1.5 text-[11px] font-bold tabular-nums ${option.count > 0
+                    ? option.id === 'client' ? 'bg-sky-100 text-sky-700' : 'bg-indigo-100 text-indigo-700'
+                    : 'bg-slate-200 text-slate-500'
+                    }`}>
+                    {option.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
 
         {!isReadOnly && (
           <button
+            type="button"
             onClick={() => setIsCreatingCategory(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 font-semibold text-sm transition-colors shadow-sm"
+            className="flex items-center gap-1.5 whitespace-nowrap rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="h-4 w-4" />
             New Category
           </button>
         )}
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6 pr-2">
-        {/* New Category Input */}
+      <div className="flex-1 overflow-y-auto p-5">
         {isCreatingCategory && !isReadOnly && (
-          <div className="flex items-center gap-2 p-4 mb-4 bg-gray-50 rounded-2xl border border-gray-200 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="mb-3 flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
             <input
               type="text"
               value={newCategoryName}
               onChange={(e) => setNewCategoryName(e.target.value)}
-              placeholder="New Category Name..."
-              className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-slate-500/20 focus:border-slate-900 outline-none"
+              placeholder="New category name..."
+              aria-label="New category name"
+              className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-500/20"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleCreateCategory();
                 if (e.key === 'Escape') setIsCreatingCategory(false);
               }}
             />
-            <div className="flex items-center gap-1">
-              <button
-                onClick={handleCreateCategory}
-                className="p-2 bg-slate-900 text-white rounded-lg hover:bg-black transition-colors shadow-sm"
-              >
-                <Check className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => {
-                  setIsCreatingCategory(false);
-                  setNewCategoryName('');
-                }}
-                className="p-2 bg-white border border-gray-200 text-gray-500 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+            <button type="button" onClick={handleCreateCategory} aria-label="Create category" className="rounded-lg bg-slate-900 p-2 text-white shadow-sm transition-colors hover:bg-black">
+              <Check className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => { setIsCreatingCategory(false); setNewCategoryName(''); }}
+              aria-label="Cancel"
+              className="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 shadow-sm transition-colors hover:bg-slate-50"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
         )}
 
-        {/* Categories Grid */}
         {categories.length === 0 && !isCreatingCategory ? (
-          <div className="text-center py-20 bg-gray-50/50 rounded-3xl border-2 border-dashed border-gray-100">
-            <ListTodo className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-            <p className="text-gray-500 font-medium">No active tasks</p>
-            <p className="text-sm text-gray-400 mt-1">Add a category to get started</p>
+          <div className="rounded-3xl border-2 border-dashed border-slate-200 bg-slate-50/50 py-20 text-center">
+            <ListTodo className="mx-auto mb-3 h-12 w-12 text-slate-200" />
+            <p className="font-medium text-slate-500">No tasks yet</p>
+            <p className="mt-1 text-sm text-slate-400">Add a category to get started</p>
+          </div>
+        ) : shown.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 py-14 text-center text-sm text-slate-500">
+            {filter === 'client' ? 'No client tasks on this card.' : 'No ASR tasks on this card.'}
           </div>
         ) : (
-          <div className="columns-1 xl:columns-2 gap-4 pb-4 space-y-4">
-            {categories.map((category, index) => {
-              const completedCount = category.tasks.filter(t => t.completed).length;
-              const totalCount = category.tasks.length;
-              const progress = totalCount === 0 ? 0 : Math.round((completedCount / totalCount) * 100);
+          <>
+            {openRows.length > 0 ? (
+              <ul className="space-y-2.5">{openRows.map(renderRow)}</ul>
+            ) : (
+              <div className="flex items-center gap-3 rounded-2xl bg-emerald-50 px-4 py-4 text-sm font-semibold text-emerald-900 ring-1 ring-emerald-200">
+                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                {filter === 'all' ? 'Everything on this card is done.' : filter === 'client' ? 'Nothing is pending from the client.' : 'Nothing is pending on our end.'}
+              </div>
+            )}
 
-              return (
-                <div
-                  key={category.id}
-                  className={`break-inside-avoid rounded-2xl border transition-all duration-200 flex flex-col h-fit ${getCategoryGradient(index)}`}
-                  draggable={!isReadOnly}
-
-                  onDragStart={(e) => {
-                    // We will implement the ref check logic using a module-level variable or a ref if possible
-                    // safely assuming single-threaded JS UI
-                    if ((window as any).__isDragHandleDown !== true) {
-                      e.preventDefault();
-                      return;
-                    }
-                    e.dataTransfer.setData('categoryId', category.id);
-                    e.dataTransfer.effectAllowed = 'move';
-                  }}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    // Reset
-                    (window as any).__isDragHandleDown = false;
-
-                    const draggedId = e.dataTransfer.getData('categoryId');
-                    if (draggedId && draggedId !== category.id) {
-                      const draggedIndex = categories.findIndex(c => c.id === draggedId);
-                      const targetIndex = index;
-                      if (draggedIndex !== targetIndex) {
-                        onReorderCategory(draggedId, targetIndex);
-                      }
-                    }
-
-                    const draggedTaskId = e.dataTransfer.getData('taskId');
-                    const sourceCategoryId = e.dataTransfer.getData('sourceCategoryId');
-                    if (draggedTaskId && sourceCategoryId && sourceCategoryId !== category.id) {
-                      const newIndex = category.tasks.length;
-                      onMoveTask(sourceCategoryId, category.id, draggedTaskId, newIndex);
-                    }
-                  }}
-                >
-                  {/* Category Header */}
-                  <div className="p-4 flex items-start justify-between gap-3">
-                    {!isReadOnly && (
-                      <div
-                        className="drag-handle mt-1 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500"
-                        onMouseDown={() => { (window as any).__isDragHandleDown = true; }}
-                        onMouseUp={() => { (window as any).__isDragHandleDown = false; }}
-                        onMouseLeave={() => { (window as any).__isDragHandleDown = false; }}
-                      >
-                        <GripVertical className="w-4 h-4" />
-                      </div>
-                    )}
-                    {editingCategoryId === category.id ? (
-                      <div className="flex-1 flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={editingCategoryName}
-                          onChange={(e) => setEditingCategoryName(e.target.value)}
-                          className="flex-1 px-2 py-1 bg-white/50 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-                          autoFocus
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleUpdateCategory(category.id);
-                            if (e.key === 'Escape') setEditingCategoryId(null);
-                          }}
-                          onBlur={() => handleUpdateCategory(category.id)}
-                        />
-                        <button
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => handleUpdateCategory(category.id)}
-                          className="text-green-600 hover:text-green-700 p-1"
-                        >
-                          <Check className="w-4 h-4" />
-                        </button>
-                        <button
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => setEditingCategoryId(null)}
-                          className="text-gray-400 hover:text-gray-600 p-1"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ) : (
-                      <div
-                        className="flex-1"
-                        onDoubleClick={() => !isReadOnly && startEditingCategory(category)}
-                      >
-                        <h3 className="font-bold text-slate-900 text-base tracking-tight leading-tight mb-1">
-                          {category.name}
-                        </h3>
-                        <div className="text-xs font-medium text-gray-500">
-                          {completedCount} of {totalCount} completed
-                        </div>
-                        {(() => {
-                          const phase = phaseById[category.id];
-                          if (!phase || phase.status === 'done') return null;
-                          return (
-                            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                              {phase.status === 'awaiting' && (
-                                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800">
-                                  Pending client approval
-                                </span>
-                              )}
-                              {(phase.dueDate || phase.dueHint) && (
-                                <span className={`inline-flex items-center gap-1 text-xs font-semibold ${phase.overdue ? 'text-red-600' : 'text-slate-600'}`}>
-                                  <CalendarClock className="w-3.5 h-3.5" />
-                                  {phase.dueDate ? `${phase.overdue ? 'Was due' : 'Due'} ${formatDate(phase.dueDate)}` : `Due ${phase.dueHint}`}
-                                </span>
-                              )}
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    )}
-
-                    {/* Edit controls for category */}
-                    {!isReadOnly && (
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => startEditingCategory(category)}
-                          className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-white/50 rounded-lg transition-colors"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => onDeleteCategory(category.id)}
-                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Progress Bar */}
-                  <div className="px-4 mb-3">
-                    <div className="h-1.5 w-full bg-gray-200/50 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-emerald-500 rounded-full transition-all duration-500 ease-out"
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-                    <div className="flex justify-end mt-1">
-                      <span className="text-[10px] font-bold text-gray-400">{progress}%</span>
-                    </div>
-                  </div>
-
-                  {/* Tasks List */}
-                  <div className="px-2 pb-2 space-y-1">
-                    {category.tasks.map((task) => (
-                      <div
-                        key={task.id}
-                        className={`group/task relative flex flex-wrap items-center justify-between gap-y-2 gap-x-3 px-3 py-2 bg-white rounded-xl border border-slate-200/70 hover:border-slate-300 transition-colors duration-150 ${editingTaskId !== task.id && !isReadOnly ? 'cursor-move' : ''}`}
-                        draggable={editingTaskId !== task.id && !isReadOnly}
-                        onDragStart={(e) => {
-                          e.stopPropagation();
-                          e.dataTransfer.setData('taskId', task.id);
-                          e.dataTransfer.setData('sourceCategoryId', category.id);
-                          e.dataTransfer.effectAllowed = 'move';
-                        }}
-                        onDragOver={(e) => e.preventDefault()}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          const draggedTaskId = e.dataTransfer.getData('taskId');
-                          const sourceCategoryId = e.dataTransfer.getData('sourceCategoryId');
-
-                          if (!draggedTaskId) return;
-
-                          if (sourceCategoryId === category.id) {
-                            if (draggedTaskId !== task.id) {
-                              const draggedIndex = category.tasks.findIndex(t => t.id === draggedTaskId);
-                              const targetIndex = category.tasks.findIndex(t => t.id === task.id);
-
-                              if (draggedIndex !== -1 && targetIndex !== -1 && draggedIndex !== targetIndex) {
-                                onReorderTask(category.id, draggedTaskId, targetIndex);
-                              }
-                            }
-                          } else if (sourceCategoryId) {
-                            const targetIndex = category.tasks.findIndex(t => t.id === task.id);
-                            if (targetIndex !== -1) {
-                              onMoveTask(sourceCategoryId, category.id, draggedTaskId, targetIndex);
-                            }
-                          }
-                        }}
-                        onDoubleClick={() => !isReadOnly && startEditingTask(task)}
-                      >
-                        <div className="flex items-start gap-3 flex-1 basis-[160px] min-w-[200px]">
-                          <button
-                            onClick={() => !isReadOnly && onToggleTask(category.id, task.id, !task.completed)}
-                            disabled={isReadOnly}
-                            className={`flex-shrink-0 mt-0.5 transition-all duration-300 ${task.completed ? 'text-emerald-500 scale-105' : 'text-gray-300 hover:text-emerald-400'} ${isReadOnly ? 'cursor-default' : ''}`}
-                          >
-                            {task.completed ? (
-                              <CheckCircle2 className="w-5 h-5 fill-emerald-50" />
-                            ) : (
-                              <Circle className="w-5 h-5" />
-                            )}
-                          </button>
-
-                          {editingTaskId === task.id ? (
-                            <div className="flex-1 flex items-center gap-2 z-10 w-full">
-                              <textarea
-                                value={editingTaskName}
-                                onChange={(e) => setEditingTaskName(e.target.value)}
-                                className="flex-1 px-3 py-2 bg-white border border-indigo-200 rounded-xl text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none resize-y min-h-[80px] shadow-sm w-full"
-                                autoFocus
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter' && !e.shiftKey) {
-                                    e.preventDefault();
-                                    handleUpdateTask(category.id, task.id);
-                                  }
-                                  if (e.key === 'Escape') setEditingTaskId(null);
-                                }}
-                                onBlur={() => {
-                                  handleUpdateTask(category.id, task.id);
-                                }}
-                              />
-                              <div className="flex flex-col gap-1 flex-shrink-0">
-                                <button
-                                  onMouseDown={(e) => e.preventDefault()}
-                                  onClick={() => handleUpdateTask(category.id, task.id)}
-                                  className="text-green-600 hover:text-green-700 p-1 bg-green-50 rounded"
-                                >
-                                  <Check className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onMouseDown={(e) => e.preventDefault()}
-                                  onClick={() => setEditingTaskId(null)}
-                                  className="text-gray-400 hover:text-gray-600 p-1 bg-gray-50 rounded"
-                                >
-                                  <X className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <span
-                              className={`flex-1 text-sm font-medium transition-all duration-200 whitespace-pre-wrap break-words min-w-[100px] leading-snug ${task.completed ? 'text-gray-400 line-through decoration-gray-300' : 'text-gray-700'
-                                }`}
-                            >
-                              {task.name.split(/(https?:\/\/[^\s]+)/g).map((part, i) => {
-                                if (part.match(/https?:\/\/[^\s]+/)) {
-                                  return (
-                                    <a
-                                      key={i}
-                                      href={part}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-blue-500 hover:underline relative z-20 hover:text-blue-600 break-all"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      {part}
-                                    </a>
-                                  );
-                                }
-                                return part;
-                              })}
-                            </span>
-                          )}
-                        </div>
-
-                        {editingTaskId !== task.id && (
-                          <div className="flex items-center gap-2 flex-wrap flex-shrink-0 ml-auto justify-end transition-opacity">
-                            {/* Client-owned task tag */}
-                            {task.owner === 'client' && (
-                              <span
-                                className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider flex-shrink-0 ${task.is_onboarding
-                                  ? 'bg-violet-50 text-violet-700 ring-1 ring-violet-200'
-                                  : 'bg-sky-50 text-sky-700 ring-1 ring-sky-200'
-                                  }`}
-                                title={task.is_onboarding ? 'The client ticks this during onboarding' : 'The client ticks this in their portal'}
-                              >
-                                {task.is_onboarding ? 'Client · Onboarding' : task.is_approval ? 'Client · Approval' : 'Client'}
-                              </span>
-                            )}
-
-                            {/* Origin Client Tag */}
-                            {task.origin_client_name && (
-                              <div className="flex items-center gap-1.5 px-3 py-1 bg-rose-50 border border-rose-200 rounded-lg flex-shrink-0 max-w-full shadow-sm">
-                                <span className="text-[10px] uppercase font-bold tracking-wider text-rose-600 truncate max-w-[150px]">
-                                  {task.origin_client_name}
-                                </span>
-                              </div>
-                            )}
-
-                            <div className={`flex items-center gap-1 flex-shrink-0 ${isReadOnly ? 'hidden' : ''}`}>
-                              {/* Team / Client owner toggle */}
-                              <button
-                                onClick={() => cycleOwner(category.id, task)}
-                                className={`p-1 rounded-lg transition-colors border border-transparent ${task.owner === 'client'
-                                  ? 'text-violet-600 hover:bg-violet-50'
-                                  : 'text-gray-400 hover:text-violet-600 hover:bg-violet-50'
-                                  }`}
-                                title={ownerTitle(task)}
-                                aria-label={ownerTitle(task)}
-                              >
-                                <UserCheck className="w-3.5 h-3.5" />
-                              </button>
-
-                              {/* Assign User Button */}
-                              <button
-                                onClick={() => openAssignModal(task)}
-                                className="p-1 px-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors flex items-center justify-center h-7 gap-1 border border-transparent hover:border-indigo-100"
-                                title={task.assigned_user_name ? `Assigned to ${task.assigned_user_name}` : "Assign to Team Member"}
-                              >
-                                {task.assigned_user_name ? (
-                                  <div className={`w-5 h-5 rounded-full text-[10px] text-white flex items-center justify-center font-bold ${getRandomColor(task.assigned_user_name)}`}>
-                                    {getInitials(task.assigned_user_name)}
-                                  </div>
-                                ) : (
-                                  <UserIcon className="w-3.5 h-3.5" />
-                                )}
-                              </button>
-
-                              <button
-                                onClick={() => startEditingTask(task)}
-                                className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors border border-transparent"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => onDeleteTask(category.id, task.id)}
-                                className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors border border-transparent"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-
-                    {/* Add Task Button (Small) */}
-                    {!creatingTaskInCategory && !isReadOnly && (
-                      <button
-                        onClick={() => setCreatingTaskInCategory(category.id)}
-                        className="w-full py-2 flex items-center justify-center gap-1 text-xs font-semibold text-gray-400 hover:text-slate-900 hover:bg-white/50 rounded-xl transition-colors mt-2"
-                      >
-                        <Plus className="w-3 h-3" />
-                        Add Task
-                      </button>
-                    )}
-
-                    {/* New Task Input (Inline) */}
-                    {creatingTaskInCategory === category.id && (
-                      <div className="flex items-center gap-2 px-3 py-2 bg-indigo-50/50 rounded-xl border border-indigo-100 animate-in fade-in slide-in-from-top-1 duration-200">
-                        <input
-                          type="text"
-                          value={newTaskName}
-                          onChange={(e) => setNewTaskName(e.target.value)}
-                          placeholder="Task name..."
-                          className="flex-1 bg-transparent border-none outline-none text-sm text-gray-800 placeholder-indigo-300/70 font-medium"
-                          autoFocus
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleCreateTask(category.id);
-                            if (e.key === 'Escape') setCreatingTaskInCategory(null);
-                          }}
-                        />
-                        <button onClick={() => handleCreateTask(category.id)} className="p-1 text-indigo-600 hover:bg-indigo-100 rounded-md"><Check className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => setCreatingTaskInCategory(null)} className="p-1 text-gray-400 hover:bg-gray-100 rounded-md"><X className="w-3.5 h-3.5" /></button>
-                      </div>
-                    )}
-
-                    {category.tasks.length === 0 && !creatingTaskInCategory && (
-                      <div className="text-center pb-2">
-                        <span className="text-xs text-gray-400/80 italic">No tasks yet</span>
-                      </div>
-                    )}
-                  </div>
+            {doneRows.length > 0 && (
+              <section className="mt-6" aria-label="Completed">
+                <div className="mb-2.5 flex items-center gap-3">
+                  <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-700">
+                    Completed · {doneRows.length}
+                  </span>
+                  <span className="h-px flex-1 bg-emerald-200" />
                 </div>
-              );
-            })}
-          </div>
+                <ul className="space-y-2">{doneRows.map(renderRow)}</ul>
+              </section>
+            )}
+          </>
         )}
       </div>
 
@@ -752,24 +723,17 @@ export default function TaskSection({
         isOpen={assignModalOpen}
         onClose={() => setAssignModalOpen(false)}
         onAssign={handleAssign}
-        currentAssigneeId={currentAssigneeId}
-        taskId={assigningTaskId || ''}
+        currentAssigneeId={assigningTask?.assigned_to || null}
+        taskId={assigningTask?.id || ''}
       />
 
-      {/* Glassmorphism Toast Notification */}
-      {showToast && (
-        <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-5 duration-300">
-          <div className="bg-slate-900 text-white px-5 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3">
-            <div className="bg-emerald-500/20 p-2 rounded-full">
-              <Check className="w-5 h-5 text-emerald-400" />
+      {toastMessage && (
+        <div role="status" className="fixed bottom-6 right-6 z-50 animate-in">
+          <div className="flex items-center gap-3 rounded-2xl bg-slate-900 px-5 py-3.5 text-white shadow-2xl">
+            <div className="rounded-full bg-emerald-500/20 p-2">
+              <Check className="h-4 w-4 text-emerald-400" />
             </div>
-            <div>
-              <h4 className="font-semibold text-sm">Success</h4>
-              <p className="text-xs text-slate-300">{toastMessage}</p>
-            </div>
-            <button onClick={() => setShowToast(false)} className="ml-4 text-slate-400 hover:text-white">
-              <X className="w-4 h-4" />
-            </button>
+            <p className="text-sm font-semibold">{toastMessage}</p>
           </div>
         </div>
       )}

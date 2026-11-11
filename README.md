@@ -18,11 +18,22 @@ One login page, three kinds of account:
 
 | Account | Created in | Lands on | Sees |
 | --- | --- | --- | --- |
-| Team member | Team Settings › Manage Team | `/` | Every client card, tasks, chat and settings |
-| Operator | Team Settings › Manage Team, role "Operator" | `/operator` | Everything a team member sees, plus their own operator dashboard: the clients assigned to them, with what is pending from the client and from our side. A switcher at the top moves between the two |
-| Client | The client card (username + password) | `/portal/<id>` | Their onboarding, then their project dashboard |
+| Admin | Team Settings › Manage Team | `/` | Everything: every client card, every team member's task board, users and settings |
+| Team member | Team Settings › Manage Team | `/` | Client cards, and only their own task board under **My Tasks** |
+| Operator (a tick box on either of the above) | Team Settings › Manage Team | `/operator` | Also gets the "My clients" dashboard for the projects assigned to them, with a switcher between the two |
+| Client | The client card (username + password) | `/portal/<id>`, after signing in at `/client-login` | Their onboarding, then their project dashboard |
 
-Users and their roles can be edited in Team Settings › Manage Team. Team members cannot open the operator dashboard.
+Every client uses the same address, `/client-login`, and lands on their own portal. **Share Portal** on a client card copies that address.
+
+Only admins can manage users. **My Tasks** opens the Team Members card whose name matches the person's username. Team members cannot open each other's cards: the server leaves them out of everything it sends.
+
+### Sidebar sections
+
+Admins choose which sections show in the sidebar, their order, and can add new ones, in Team Settings › Sidebar. Hiding a section keeps its cards. Active, Launched, Team Members and Archived can be hidden but not removed. Needs `supabase-migration-workspace-settings.sql`.
+
+### Task board
+
+One column in project order. The phase in hand is open at the top, later phases wait closed below it, and finished phases turn green and move to **Completed** at the bottom. The **All / ASR / Client** switch shows either side's tasks with the number still pending.
 
 ### Security
 
@@ -42,9 +53,9 @@ Users and their roles can be edited in Team Settings › Manage Team. Team membe
 
 Phases can carry a due date that is counted in business days (Saturdays and Sundays skipped) from a point in the project. On the CAM template:
 
-1. **Research, Strategy & Course Outline** is due 3 business days after the client finishes onboarding.
-2. When that phase is done, the project shows **Pending client approval** until "Review and approve the course outline" is ticked (by the client in their portal, or by the team on their behalf).
-3. **Course Creation, Copy & Creatives and Build & Setup** are due 5 business days after that approval.
+1. **Research & Strategy** is due 3 business days after the client finishes onboarding, and the course outline is submitted for approval in that same window.
+2. Once the outline is submitted, the project shows **Pending client approval** until "Review and approve the course outline" is ticked (by the client in their portal, or by the team on their behalf).
+3. **Course Creation, Copy & Creatives and Build & Setup** are due 5 business days after that approval. Recording & Launch waits on the client's recordings and has no date.
 
 Dates are worked out from when things were actually ticked, so they move with the client. VSL and Webinar follow the same rules: copy and script due 3 business days after onboarding, a client approval step, then ad creatives and the funnel build due 5 business days after approval.
 
@@ -63,7 +74,8 @@ Run these once each, in order, in the Supabase SQL Editor. They only add columns
 
 1. `supabase-migration-client-onboarding.sql`
 2. `supabase-migration-timelines.sql`
-3. `supabase-migration-lockdown.sql` — only after the app version that uses `/api/db` is deployed (see Security)
+3. `supabase-migration-workspace-settings.sql`
+4. `supabase-migration-lockdown.sql` — only after the app version that uses `/api/db` is deployed (see Security)
 
 ## Tech Stack
 
