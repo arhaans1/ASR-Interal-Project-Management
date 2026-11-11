@@ -1,47 +1,60 @@
-
 import { createSession } from '@/lib/auth';
+import { isSessionSecretConfigured } from '@/lib/session';
+import { hashPassword, verifyPassword } from '@/lib/passwords';
 import { supabase } from '@/lib/supabase';
 import { NextResponse } from 'next/server';
+
+// Find the row whose stored password matches. Rows still holding a plain password
+// are switched to a hash the first time they sign in.
+async function findMatch(table: 'users' | 'clients', username: string, password: string) {
+    const { data: rows, error } = await supabase.from(table).select('*').eq('username', username);
+    if (error) throw error;
+
+    for (const row of rows || []) {
+        const { ok, needsUpgrade } = verifyPassword(password, row.password);
+        if (!ok) continue;
+        if (needsUpgrade) {
+            await supabase.from(table).update({ password: hashPassword(password) }).eq('id', row.id);
+        }
+        return row;
+    }
+    return null;
+}
 
 export async function POST(request: Request) {
     try {
         const body = await request.json();
         const { username, password } = body;
 
-        if (!username || !password) {
+        if (!username || !password || typeof username !== 'string' || typeof password !== 'string') {
             return NextResponse.json(
                 { error: 'Username and password are required' },
                 { status: 400 }
             );
         }
 
-        // 1. Check Admin Users first
-        const { data: adminUser, error: adminError } = await supabase
-            .from('users')
-            .select('*')
-            .eq('username', username)
-            .eq('password', password)
-            .single();
+        if (!isSessionSecretConfigured()) {
+            return NextResponse.json(
+                { error: 'Sign-in is not configured: set SESSION_SECRET in the server environment.' },
+                { status: 500 }
+            );
+        }
 
-        if (adminUser) {
-            // Operators get their own workspace; every other team account is an admin.
-            const role = adminUser.role === 'operator' ? 'operator' : 'admin';
+        // 1. Team accounts first
+        const teamUser = await findMatch('users', username, password);
+        if (teamUser) {
+            // Operators get their own workspace as well as the team workspace.
+            const role = teamUser.role === 'operator' ? 'operator' : 'admin';
             await createSession({
-                userId: adminUser.id,
+                userId: teamUser.id,
                 role,
-                username: adminUser.username,
+                username: teamUser.username,
             });
             return NextResponse.json({ success: true, role });
         }
 
-        // 2. Check Client Users
-        const { data: clientUser, error: clientError } = await supabase
-            .from('clients')
-            .select('*')
-            .eq('username', username)
-            .eq('password', password) // In production, hash this!
-            .single();
-
+        // 2. Client portal logins
+        const clientUser = await findMatch('clients', username, password);
         if (clientUser) {
             await createSession({
                 userId: clientUser.id,

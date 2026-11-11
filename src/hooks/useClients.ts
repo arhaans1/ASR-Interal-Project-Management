@@ -18,6 +18,20 @@ export interface ClientExtras {
 const definedExtras = (extras: ClientExtras) =>
   Object.fromEntries(Object.entries(extras).filter(([, v]) => v !== undefined && v !== null && v !== ''));
 
+// Portal passwords are hashed on the server, so they are set through the API rather
+// than written to the table from the browser.
+export async function setClientPassword(clientId: string, password: string): Promise<void> {
+  const res = await fetch(`/api/clients/${clientId}/credentials`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || 'Could not set the portal password');
+  }
+}
+
 // Pre-list the template tasks for a funnel type on a client's board.
 export async function applyFunnelTemplate(clientId: string, funnelType: FunnelType): Promise<void> {
   const template = FUNNEL_TEMPLATES[funnelType];
@@ -32,7 +46,15 @@ export async function applyFunnelTemplate(clientId: string, funnelType: FunnelTy
 
   const { data: newCategories, error: catError } = await supabase
     .from('categories')
-    .insert(template.map((cat, i) => ({ client_id: clientId, name: cat.name, order_index: offset + i })))
+    .insert(
+      template.map((cat, i) => ({
+        client_id: clientId,
+        name: cat.name,
+        order_index: offset + i,
+        due_after: cat.due_after ?? null,
+        due_days: cat.due_days ?? null,
+      }))
+    )
     .select();
   if (catError) throw catError;
 
@@ -46,6 +68,7 @@ export async function applyFunnelTemplate(clientId: string, funnelType: FunnelTy
       order_index,
       owner: task.owner,
       is_onboarding: Boolean(task.is_onboarding),
+      is_approval: Boolean(task.is_approval),
       task_key: task.task_key ?? null,
     }));
   });
@@ -103,7 +126,6 @@ export function useClients() {
           important_links: '',
           notes: '',
           username: username || null,
-          password: password || null,
           ...definedExtras(extras),
         })
         .select()
@@ -115,6 +137,9 @@ export function useClients() {
       }
 
       const clientData = data as Client;
+      if (password) {
+        await setClientPassword(clientData.id, password);
+      }
       if (extras.funnel_type) {
         await applyFunnelTemplate(clientData.id, extras.funnel_type);
       }
@@ -134,17 +159,23 @@ export function useClients() {
     updates: Partial<Omit<Client, 'id' | 'created_at'>>
   ): Promise<boolean> => {
     try {
-      // If password is provided, we should probably hash it in production.
-      // For now, simple text as requested.
+      // A new password goes through the server, where it is hashed.
+      const { password, ...fields } = updates;
+
       const { error } = await supabase
         .from('clients')
-        .update(updates)
+        .update(fields)
         .eq('id', id);
 
       if (error) throw error;
+      if (password) {
+        await setClientPassword(id, password);
+      }
       setClients((prev) =>
         prev.map((client) =>
-          client.id === id ? { ...client, ...updates } : client
+          client.id === id
+            ? { ...client, ...fields, ...(password ? { password: 'set' } : {}) }
+            : client
         )
       );
       return true;
@@ -232,6 +263,8 @@ export function useClients() {
         client_id: clonedClient.id,
         name: cat.name,
         order_index: cat.order_index,
+        // Keep the timeline rule when the source board has one
+        ...(cat.due_after ? { due_after: cat.due_after, due_days: cat.due_days } : {}),
       }));
 
       if (categoriesToInsert.length > 0) {
@@ -268,6 +301,7 @@ export function useClients() {
                 ...(task.owner === 'client'
                   ? { owner: 'client', is_onboarding: Boolean(task.is_onboarding), task_key: task.task_key ?? null }
                   : {}),
+                ...(task.is_approval ? { is_approval: true } : {}),
               });
             });
           }

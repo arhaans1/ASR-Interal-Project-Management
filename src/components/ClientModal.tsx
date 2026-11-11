@@ -65,7 +65,7 @@ export default function ClientModal({
       setName(client.name);
       setBusinessName(client.business_name);
       setUsername(client.username || '');
-      setPassword(client.password || ''); // Note: In real app, don't populate password back
+      setPassword(''); // Stored passwords are hashed and never shown; type a new one to change it
       setStatus(client.status);
       setFunnelType(client.funnel_type || null);
       setOperatorId(client.operator_id || '');
@@ -299,13 +299,13 @@ export default function ClientModal({
                   />
                 </div>
                 <div>
-                  <label htmlFor="client-password" className={labelClass}>Password</label>
+                  <label htmlFor="client-password" className={labelClass}>{mode === 'edit' && client?.password ? 'New password' : 'Password'}</label>
                   <input
                     id="client-password"
                     type="text"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="password"
+                    placeholder={mode === 'edit' && client?.password ? 'Leave blank to keep current' : 'password'}
                     autoComplete="off"
                     className={inputClass}
                   />

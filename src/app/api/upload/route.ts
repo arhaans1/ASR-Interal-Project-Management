@@ -1,9 +1,13 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getTeamSession } from '@/lib/auth';
 
 export async function POST(request: Request) {
     try {
+        if (!(await getTeamSession())) {
+            return NextResponse.json({ error: 'Not allowed' }, { status: 403 });
+        }
         const formData = await request.formData();
         const file = formData.get('file') as File;
 

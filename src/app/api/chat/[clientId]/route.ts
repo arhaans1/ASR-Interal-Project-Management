@@ -1,6 +1,7 @@
 
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { getTeamSession } from '@/lib/auth';
 
 interface Context {
     params: Promise<{ clientId: string }>;
@@ -12,6 +13,9 @@ export async function GET(
     { params }: Context
 ) {
     try {
+        if (!(await getTeamSession())) {
+            return NextResponse.json({ error: 'Not allowed' }, { status: 403 });
+        }
         const { clientId } = await params;
 
         const { data, error } = await supabase
@@ -36,6 +40,9 @@ export async function POST(
     { params }: Context
 ) {
     try {
+        if (!(await getTeamSession())) {
+            return NextResponse.json({ error: 'Not allowed' }, { status: 403 });
+        }
         const { clientId } = await params;
         const body = await request.json();
         const { user_id, username, content, attachments } = body;

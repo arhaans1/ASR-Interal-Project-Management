@@ -1,88 +1,51 @@
-
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { SESSION_COOKIE_NAME } from './lib/auth';
+import { SESSION_COOKIE_NAME, decodeSession } from './lib/session';
 
-export function middleware(request: NextRequest) {
-    const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME);
+export async function middleware(request: NextRequest) {
     const path = request.nextUrl.pathname;
+    const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
+    // Null unless the cookie carries our signature and has not expired.
+    const session = await decodeSession(token);
 
-    // 1. If trying to access login page while already logged in
+    const redirect = (to: string) => NextResponse.redirect(new URL(to, request.url));
+    const home =
+        session?.role === 'client' && session.clientId
+            ? `/portal/${session.clientId}`
+            : session?.role === 'operator'
+                ? '/operator'
+                : '/';
+
+    // Already signed in: skip the login page
     if (path === '/login') {
-        if (sessionCookie?.value) {
-            try {
-                const session = JSON.parse(atob(sessionCookie.value));
-                if (session.role === 'admin') {
-                    return NextResponse.redirect(new URL('/', request.url));
-                } else if (session.role === 'operator') {
-                    return NextResponse.redirect(new URL('/operator', request.url));
-                } else if (session.role === 'client' && session.clientId) {
-                    return NextResponse.redirect(new URL(`/portal/${session.clientId}`, request.url));
-                }
-            } catch (e) {
-                // Invalid session, proceed to login
-            }
-        }
-        return NextResponse.next();
+        return session ? redirect(home) : NextResponse.next();
     }
 
-    // 2. Protect protected routes
     const isProtectedRoute = path === '/' || path.startsWith('/portal') || path.startsWith('/operator');
+    if (!isProtectedRoute) return NextResponse.next();
 
-    if (isProtectedRoute && !sessionCookie?.value) {
-        return NextResponse.redirect(new URL('/login', request.url));
+    if (!session) {
+        const response = redirect('/login');
+        // Drop cookies that are forged, expired or from before sessions were signed.
+        if (token) response.cookies.delete(SESSION_COOKIE_NAME);
+        return response;
     }
 
-    // 3. Role-based Access Control
-    if (sessionCookie?.value) {
-        try {
-            const session = JSON.parse(atob(sessionCookie.value));
+    // Team workspace: team members and operators
+    if (path === '/' && session.role === 'client') {
+        return redirect(home);
+    }
 
-            // ADMIN ONLY routes
-            if (path === '/') {
-                if (session.role !== 'admin') {
-                    // Operators have their own workspace
-                    if (session.role === 'operator') {
-                        return NextResponse.redirect(new URL('/operator', request.url));
-                    }
-                    // Client trying to access Admin Dashboard -> Redirect to Portal
-                    if (session.role === 'client' && session.clientId) {
-                        return NextResponse.redirect(new URL(`/portal/${session.clientId}`, request.url));
-                    }
-                    return NextResponse.redirect(new URL('/login', request.url));
-                }
-            }
+    // Operator workspace: operators only
+    if (path.startsWith('/operator') && session.role !== 'operator') {
+        return redirect(home);
+    }
 
-            // OPERATOR WORKSPACE: operators see their own clients, admins see everyone's
-            if (path.startsWith('/operator')) {
-                if (session.role === 'client' && session.clientId) {
-                    return NextResponse.redirect(new URL(`/portal/${session.clientId}`, request.url));
-                }
-                if (session.role !== 'admin' && session.role !== 'operator') {
-                    return NextResponse.redirect(new URL('/login', request.url));
-                }
-            }
-
-            // CLIENT PORTAL protection
-            if (path.startsWith('/portal')) {
-                // Extract clientId from path
-                const pathParts = path.split('/');
-                const requestedClientId = pathParts[2]; // /portal/[clientId]
-
-                if (session.role === 'client') {
-                    // Verify client is accessing THEIR OWN portal
-                    if (session.clientId !== requestedClientId) {
-                        return NextResponse.redirect(new URL(`/portal/${session.clientId}`, request.url));
-                    }
-                }
-                // Admins can access any portal (optional, but good for previewing)
-            }
-
-        } catch (e) {
-            // Invalid session -> Logout/Login
-            const response = NextResponse.redirect(new URL('/login', request.url));
-            response.cookies.delete(SESSION_COOKIE_NAME);
-            return response;
+    // Client portal: a client only ever sees their own. The team can open any for preview.
+    if (path.startsWith('/portal') && session.role === 'client') {
+        const requestedClientId = path.split('/')[2];
+        if (session.clientId !== requestedClientId) {
+            return redirect(home);
         }
     }
 
@@ -97,7 +60,6 @@ export const config = {
          * - _next/static (static files)
          * - _next/image (image optimization files)
          * - favicon.ico (favicon file)
-         * - public folder files (images etc)
          */
         '/((?!api|_next/static|_next/image|favicon.ico).*)',
     ],

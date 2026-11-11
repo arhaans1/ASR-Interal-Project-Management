@@ -28,6 +28,50 @@ export default function TeamManagementModal({ isOpen, onClose }: TeamManagementM
     const [newUserRole, setNewUserRole] = useState<UserRole>('admin');
     const [isCreatingUser, setIsCreatingUser] = useState(false);
 
+    // Editing an existing user
+    const [editingUserId, setEditingUserId] = useState<string | null>(null);
+    const [editUsername, setEditUsername] = useState('');
+    const [editPassword, setEditPassword] = useState('');
+    const [editRole, setEditRole] = useState<UserRole>('admin');
+
+    const startEditing = (user: User) => {
+        setEditingUserId(user.id);
+        setEditUsername(user.username);
+        setEditPassword('');
+        setEditRole(user.role === 'operator' ? 'operator' : 'admin');
+        setError('');
+        setSuccess('');
+    };
+
+    const handleSaveUser = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingUserId) return;
+        try {
+            setIsLoading(true);
+            setError('');
+            const res = await fetch(`/api/users/${editingUserId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: editUsername.trim(),
+                    password: editPassword.trim() || undefined,
+                    role: editRole,
+                }),
+            });
+            const data = await res.json();
+            if (data.error) throw new Error(data.error);
+
+            setSuccess(`${data.username} updated. A role change applies the next time they sign in.`);
+            setEditingUserId(null);
+            fetchUsers();
+            fetchCurrentUser();
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     useEffect(() => {
         if (isOpen) {
             fetchCurrentUser();
@@ -200,7 +244,7 @@ export default function TeamManagementModal({ isOpen, onClose }: TeamManagementM
                                     <UserIcon className="w-10 h-10 text-gray-400" />
                                 </div>
                                 <h3 className="text-lg font-bold text-slate-900">{profileUsername}</h3>
-                                <p className="text-sm text-gray-500">{currentUser?.role === 'operator' ? 'Operator' : 'Admin'}</p>
+                                <p className="text-sm text-gray-500">{currentUser?.role === 'operator' ? 'Operator' : 'Team member'}</p>
                             </div>
 
                             <div className="space-y-4">
@@ -262,8 +306,8 @@ export default function TeamManagementModal({ isOpen, onClose }: TeamManagementM
                                         <span className="text-xs font-bold text-gray-500">Role</span>
                                         <div className="grid grid-cols-2 gap-2 mt-1" role="radiogroup" aria-label="Role">
                                             {([
-                                                { value: 'admin', title: 'Team member', hint: 'Full workspace: every client, tasks and settings' },
-                                                { value: 'operator', title: 'Operator', hint: 'Runs assigned client projects end to end' },
+                                                { value: 'admin', title: 'Team member', hint: 'Team workspace: every client, tasks and settings' },
+                                                { value: 'operator', title: 'Operator', hint: 'Team workspace + their own operator dashboard' },
                                             ] as { value: UserRole; title: string; hint: string }[]).map((option) => (
                                                 <button
                                                     key={option.value}
@@ -300,7 +344,51 @@ export default function TeamManagementModal({ isOpen, onClose }: TeamManagementM
 
                             {/* User List */}
                             <div className="space-y-2">
-                                {users.map(user => (
+                                {users.map(user => editingUserId === user.id ? (
+                                    <form key={user.id} onSubmit={handleSaveUser} className="p-4 bg-gray-50 border border-indigo-200 rounded-xl space-y-3">
+                                        <div className="flex justify-between items-center">
+                                            <h4 className="font-bold text-slate-900 text-sm">Edit {user.username}</h4>
+                                            <button type="button" onClick={() => setEditingUserId(null)} aria-label="Cancel editing" className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Role">
+                                            {([
+                                                { value: 'admin', title: 'Team member', hint: 'Team workspace' },
+                                                { value: 'operator', title: 'Operator', hint: 'Team workspace + their own operator dashboard' },
+                                            ] as { value: UserRole; title: string; hint: string }[]).map((option) => (
+                                                <button
+                                                    key={option.value}
+                                                    type="button"
+                                                    role="radio"
+                                                    aria-checked={editRole === option.value}
+                                                    onClick={() => setEditRole(option.value)}
+                                                    className={`text-left p-3 rounded-xl border transition-all ${editRole === option.value
+                                                        ? 'border-indigo-500 bg-white ring-4 ring-indigo-500/10'
+                                                        : 'border-gray-200 bg-white hover:border-gray-300'
+                                                        }`}
+                                                >
+                                                    <div className="text-sm font-bold text-slate-900">{option.title}</div>
+                                                    <div className="text-xs text-gray-500 mt-0.5 leading-snug">{option.hint}</div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label htmlFor="edit-username" className="text-xs font-bold text-gray-500">Username</label>
+                                                <input id="edit-username" required type="text" value={editUsername} onChange={e => setEditUsername(e.target.value)} className="w-full mt-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm" />
+                                            </div>
+                                            <div>
+                                                <label htmlFor="edit-password" className="text-xs font-bold text-gray-500">New password</label>
+                                                <input id="edit-password" type="text" value={editPassword} onChange={e => setEditPassword(e.target.value)} placeholder="Leave blank to keep current" autoComplete="off" className="w-full mt-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm" />
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button type="button" onClick={() => setEditingUserId(null)} className="flex-1 py-2 bg-white border border-gray-200 text-slate-700 rounded-lg text-sm font-bold hover:bg-gray-50">Cancel</button>
+                                            <button disabled={isLoading} type="submit" className="flex-1 py-2 bg-slate-900 text-white rounded-lg text-sm font-bold hover:bg-black disabled:opacity-60">
+                                                {isLoading ? 'Saving...' : 'Save changes'}
+                                            </button>
+                                        </div>
+                                    </form>
+                                ) : (
                                     <div key={user.id} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:border-gray-200 transition-colors">
                                         <div className="flex items-center gap-3">
                                             <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ring-1 ${user.role === 'operator' ? 'bg-violet-50 text-violet-600 ring-violet-100' : 'bg-indigo-50 text-indigo-600 ring-indigo-100'}`}>
@@ -309,21 +397,33 @@ export default function TeamManagementModal({ isOpen, onClose }: TeamManagementM
                                             <div>
                                                 <div className="font-bold text-slate-900 text-sm">{user.username}</div>
                                                 <div className={`text-[10px] font-bold uppercase tracking-wider ${user.role === 'operator' ? 'text-violet-600' : 'text-gray-400'}`}>
-                                                    {user.role === 'operator' ? 'Operator' : 'Admin'}
+                                                    {user.role === 'operator' ? 'Operator' : 'Team member'}
                                                 </div>
                                             </div>
                                         </div>
-                                        {currentUser?.userId !== user.id ? (
+                                        <div className="flex items-center gap-1">
+                                            {currentUser?.userId === user.id && (
+                                                <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded font-medium mr-1">You</span>
+                                            )}
                                             <button
-                                                onClick={() => handleDeleteUser(user.id)}
-                                                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                                title="Remove User"
+                                                onClick={() => startEditing(user)}
+                                                className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                                title="Edit user"
+                                                aria-label={`Edit ${user.username}`}
                                             >
-                                                <Trash2 className="w-4 h-4" />
+                                                <Edit2 className="w-4 h-4" />
                                             </button>
-                                        ) : (
-                                            <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded font-medium">You</span>
-                                        )}
+                                            {currentUser?.userId !== user.id && (
+                                                <button
+                                                    onClick={() => handleDeleteUser(user.id)}
+                                                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                    title="Remove User"
+                                                    aria-label={`Remove ${user.username}`}
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                 ))}
                             </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowUpRight, Check, ChevronDown, CircleDashed, Clock3, FolderOpen, Link as LinkIcon, Loader2, Sparkles, UserRound } from 'lucide-react';
+import { ArrowUpRight, CalendarClock, Check, ChevronDown, CircleDashed, Clock3, FolderOpen, Link as LinkIcon, Loader2, Sparkles, UserRound } from 'lucide-react';
 import { PortalClient, Task } from '@/types/database';
 import { funnelLongName, guideFor } from '@/lib/funnelTemplates';
 import { formatDate, isClientTask, Phase, ProjectSummary } from '@/lib/progress';
@@ -20,11 +20,13 @@ interface ProjectDashboardProps {
 const phaseLabel: Record<Phase['status'], string> = {
     done: 'Completed',
     active: 'In progress',
+    awaiting: 'Waiting for your approval',
     upcoming: 'Upcoming',
 };
 
 export default function ProjectDashboard({ client, summary, operatorName, pendingTaskId, onToggle }: ProjectDashboardProps) {
-    const activePhase = summary.phases.find((p) => p.status === 'active');
+    const awaitingPhase = summary.phases.find((p) => p.status === 'awaiting');
+    const activePhase = awaitingPhase ?? summary.phases.find((p) => p.status === 'active');
     const [openPhases, setOpenPhases] = useState<Record<string, boolean>>({});
     const [openActionId, setOpenActionId] = useState<string | null>(null);
 
@@ -56,6 +58,8 @@ export default function ProjectDashboard({ client, summary, operatorName, pendin
                             <p className="mt-2 text-sm leading-relaxed text-slate-300 sm:text-base">
                                 {allDone
                                     ? 'Everything on your project is complete.'
+                                    : awaitingPhase
+                                        ? <>We have submitted our work and are <span className="font-semibold text-amber-300">waiting for your approval</span> to continue.</>
                                     : activePhase
                                         ? <>Now working on <span className="font-semibold text-white">{activePhase.name}</span> · phase {phasesDone + 1} of {summary.phases.length}</>
                                         : 'Your project is being set up.'}
@@ -66,7 +70,7 @@ export default function ProjectDashboard({ client, summary, operatorName, pendin
                     <dl className="grid grid-cols-3 gap-3 sm:gap-4">
                         {[
                             { label: 'Completed', value: summary.done, tone: 'text-emerald-300' },
-                            { label: 'In progress', value: summary.teamPending.length, tone: 'text-white' },
+                            { label: 'With our team', value: summary.teamPending.length, tone: 'text-white' },
                             { label: 'Needs you', value: summary.clientPending.length, tone: summary.clientPending.length > 0 ? 'text-amber-300' : 'text-white' },
                         ].map((stat) => (
                             <div key={stat.label} className="rounded-2xl bg-white/[0.06] px-4 py-3.5 ring-1 ring-white/10 sm:min-w-[112px]">
@@ -148,6 +152,16 @@ export default function ProjectDashboard({ client, summary, operatorName, pendin
                             </p>
                         </div>
 
+                        {summary.hasTimeline && (
+                            <p className="mt-3 flex gap-2 rounded-xl bg-slate-50 px-3.5 py-3 text-sm leading-relaxed text-slate-600 ring-1 ring-slate-200/80">
+                                <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                                <span>
+                                    Dates move with you. Each one is counted in business days from when you finish onboarding or
+                                    give your approval, so quicker feedback and approvals mean an earlier finish.
+                                </span>
+                            </p>
+                        )}
+
                         {summary.phases.length === 0 ? (
                             <div className="mt-6 rounded-xl border border-dashed border-slate-200 py-10 text-center text-sm text-slate-500">
                                 Your project plan will appear here shortly.
@@ -166,6 +180,8 @@ export default function ProjectDashboard({ client, summary, operatorName, pendin
                                                 <span
                                                     className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${phase.status === 'done'
                                                         ? 'bg-emerald-500 text-white'
+                                                        : phase.status === 'awaiting'
+                                                            ? 'bg-amber-500 text-white ring-4 ring-amber-100'
                                                         : phase.status === 'active'
                                                             ? 'bg-indigo-600 text-white ring-4 ring-indigo-100'
                                                             : 'border-2 border-slate-200 bg-white text-slate-400'
@@ -193,6 +209,8 @@ export default function ProjectDashboard({ client, summary, operatorName, pendin
                                                             <span
                                                                 className={`font-semibold ${phase.status === 'done'
                                                                     ? 'text-emerald-600'
+                                                                    : phase.status === 'awaiting'
+                                                                        ? 'text-amber-600'
                                                                     : phase.status === 'active'
                                                                         ? 'text-indigo-600'
                                                                         : 'text-slate-400'
@@ -206,6 +224,17 @@ export default function ProjectDashboard({ client, summary, operatorName, pendin
                                                                 <>
                                                                     <span aria-hidden>·</span>
                                                                     <span>{formatDate(phase.completedAt)}</span>
+                                                                </>
+                                                            )}
+                                                            {phase.status !== 'done' && (phase.dueDate || phase.dueHint) && (
+                                                                <>
+                                                                    <span aria-hidden>·</span>
+                                                                    <span className="inline-flex items-center gap-1">
+                                                                        <CalendarClock className="h-3.5 w-3.5" />
+                                                                        {phase.dueDate
+                                                                            ? `Expected by ${formatDate(phase.dueDate)}`
+                                                                            : `Expected ${phase.dueHint!.replace('client approval', 'your approval')}`}
+                                                                    </span>
                                                                 </>
                                                             )}
                                                         </span>

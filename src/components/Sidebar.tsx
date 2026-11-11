@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { Client } from '@/types/database';
-import { ChevronRight, Plus, Users, Layout, Rocket, Archive, Copy, MessageSquare, BellRing, UserCog } from 'lucide-react';
+import { ChevronRight, Plus, Users, Layout, Rocket, Archive, Copy, MessageSquare, BellRing } from 'lucide-react';
 import { useGlobalChatNotifications } from '@/hooks/useGlobalChatNotifications';
+import WorkspaceSwitcher from './WorkspaceSwitcher';
 
 interface SidebarProps {
   clients: Client[];
@@ -17,6 +18,15 @@ export default function Sidebar({
   onAddNew,
 }: SidebarProps) {
   const { unreadCounts, permissionDenied } = useGlobalChatNotifications(clients);
+
+  // Operators also have their own workspace and get a switcher for it
+  const [isOperator, setIsOperator] = useState(false);
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setIsOperator(data?.user?.role === 'operator'))
+      .catch(() => { });
+  }, []);
 
   // State for expanded sections
   const [expandedSections, setExpandedSections] = useState({
@@ -170,6 +180,12 @@ export default function Sidebar({
             </div>
           </div>
 
+          {isOperator && (
+            <div className="mb-3 -mt-4">
+              <WorkspaceSwitcher current="team" />
+            </div>
+          )}
+
           <button
             onClick={onAddNew}
             className="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl transition-colors shadow-sm flex items-center justify-center gap-2 text-sm font-semibold"
@@ -272,18 +288,6 @@ export default function Sidebar({
 
         {/* Footer */}
         <div className="p-4 border-t border-slate-200/80">
-          <a
-            href="/operator"
-            className="w-full flex items-center justify-between px-3 py-2 text-gray-400 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all group mb-1"
-          >
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 bg-gray-100 rounded-lg group-hover:bg-violet-100 transition-colors">
-                <UserCog className="w-3.5 h-3.5 text-gray-500 group-hover:text-violet-600" />
-              </div>
-              <span className="text-xs font-bold text-gray-500 group-hover:text-slate-900 uppercase tracking-wide">Operators Overview</span>
-            </div>
-            <ChevronRight className="w-3 h-3 text-gray-300 group-hover:text-slate-900 transition-transform group-hover:translate-x-0.5" />
-          </a>
           <button
             onClick={() => window.dispatchEvent(new CustomEvent('openTeamSettings'))}
             className="w-full flex items-center justify-between px-3 py-2 text-gray-400 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all group mb-4"
