@@ -5,3 +5,8 @@ export const WELCOME_VIDEO_URL =
 
 // Bunny's player.js lets the page hear when the video ends
 export const BUNNY_PLAYERJS_URL = 'https://assets.mediadelivery.net/playerjs/player-0.1.0.min.js';
+
+// A client is never locked in: Continue opens at the end of the video, or this many seconds
+// after they press play, whichever comes first. If the player cannot be tracked at all, it
+// opens this long after the pop-up appeared.
+export const UNLOCK_AFTER_SECONDS = 80;

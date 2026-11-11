@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, CheckCircle2, Loader2, X } from 'lucide-react';
 import BrandLogo from '@/components/BrandLogo';
-import { BUNNY_PLAYERJS_URL, WELCOME_VIDEO_URL } from '@/lib/welcomeVideo';
+import { BUNNY_PLAYERJS_URL, UNLOCK_AFTER_SECONDS, WELCOME_VIDEO_URL } from '@/lib/welcomeVideo';
 
 // Full-screen welcome video. When `mustFinish` is set the client cannot close it or
 // continue until the video has played to the end.
@@ -16,10 +16,6 @@ declare global {
 interface PlayerJsPlayer {
     on: (event: string, handler: (data?: any) => void) => void;
 }
-
-// How long to wait for the player to report in before letting the client carry on anyway,
-// so a blocked script or a slow network can never lock someone out of their portal.
-const PLAYER_TIMEOUT_MS = 12000;
 
 interface WelcomeVideoProps {
     firstName?: string;
@@ -48,16 +44,20 @@ export default function WelcomeVideo({ firstName, mustFinish, onFinish, onClose 
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const [finished, setFinished] = useState(false);
     const [playerReady, setPlayerReady] = useState(false);
-    const [fallback, setFallback] = useState(false);
+    // Continue also opens UNLOCK_AFTER_SECONDS after play was pressed (or after the pop-up
+    // opened, if the player cannot be tracked), so nobody is locked in.
+    const [timeUp, setTimeUp] = useState(false);
+    const [untracked, setUntracked] = useState(false);
 
-    // Hear when the video ends
+    // Hear when the video plays and ends
     useEffect(() => {
         let cancelled = false;
         let readySeen = false;
+        let playTimer: number | undefined;
 
-        const timer = window.setTimeout(() => {
-            if (!readySeen && !cancelled) setFallback(true);
-        }, PLAYER_TIMEOUT_MS);
+        const openTimer = window.setTimeout(() => {
+            if (!readySeen && !cancelled) { setUntracked(true); setTimeUp(true); }
+        }, UNLOCK_AFTER_SECONDS * 1000);
 
         loadPlayerJs()
             .then(() => {
@@ -67,6 +67,9 @@ export default function WelcomeVideo({ firstName, mustFinish, onFinish, onClose 
                 player.on('ready', () => {
                     readySeen = true;
                     setPlayerReady(true);
+                    player.on('play', () => {
+                        if (playTimer === undefined) playTimer = window.setTimeout(() => setTimeUp(true), UNLOCK_AFTER_SECONDS * 1000);
+                    });
                     player.on('ended', () => setFinished(true));
                     // Some players stop a hair before the end; treat the last 2% as watched
                     player.on('timeupdate', (data?: { seconds?: number; duration?: number }) => {
@@ -74,11 +77,12 @@ export default function WelcomeVideo({ firstName, mustFinish, onFinish, onClose 
                     });
                 });
             })
-            .catch(() => !cancelled && setFallback(true));
+            .catch(() => { /* untracked: the timer started when the pop-up opened will unlock it */ });
 
         return () => {
             cancelled = true;
-            window.clearTimeout(timer);
+            window.clearTimeout(openTimer);
+            window.clearTimeout(playTimer);
         };
     }, []);
 
@@ -98,7 +102,7 @@ export default function WelcomeVideo({ firstName, mustFinish, onFinish, onClose 
         return () => { document.body.style.overflow = previous; };
     }, []);
 
-    const canContinue = !mustFinish || finished || fallback;
+    const canContinue = !mustFinish || finished || timeUp;
 
     return (
         <div
@@ -173,11 +177,11 @@ export default function WelcomeVideo({ firstName, mustFinish, onFinish, onClose 
                     {mustFinish && !canContinue && (
                         <p className="flex items-center gap-2 text-xs text-slate-400">
                             {!playerReady && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                            Available once the video has finished
+                            Opens when the video finishes
                         </p>
                     )}
-                    {mustFinish && fallback && !finished && (
-                        <p className="text-xs text-slate-400">We couldn&rsquo;t track the video, so you can continue. Please do watch it.</p>
+                    {mustFinish && untracked && !finished && (
+                        <p className="text-xs text-slate-400">You can continue now. Please do watch the full video.</p>
                     )}
                 </div>
             </main>
