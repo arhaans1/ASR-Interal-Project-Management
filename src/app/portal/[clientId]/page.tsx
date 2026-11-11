@@ -8,7 +8,7 @@ import { PortalCategory, PortalClient, Task } from '@/types/database';
 import { summarizeProject } from '@/lib/progress';
 import OnboardingFlow from '@/components/portal/OnboardingFlow';
 import ProjectDashboard from '@/components/portal/ProjectDashboard';
-import WelcomeWalkthrough from '@/components/portal/WelcomeWalkthrough';
+import WelcomeVideo from '@/components/portal/WelcomeVideo';
 
 type View = 'onboarding' | 'dashboard' | 'support';
 
@@ -30,7 +30,7 @@ export default function ClientPortalPage() {
     const [view, setView] = useState<View | null>(null);
     const [pendingTaskId, setPendingTaskId] = useState<string | null>(null);
     const [notice, setNotice] = useState('');
-    // The welcome walkthrough: 'required' the first time, 'replay' when opened again by choice
+    // The welcome video: 'required' the first time, 'replay' when opened again by choice
     const [walkthrough, setWalkthrough] = useState<'required' | 'replay' | null>(null);
     const walkthroughDecided = useRef(false);
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -85,10 +85,10 @@ export default function ClientPortalPage() {
         setView(summary.hasOnboarding && !summary.onboardingComplete ? 'onboarding' : 'dashboard');
     }, [data, view, summary.hasOnboarding, summary.onboardingComplete]);
 
-    // A client's first visit opens with the welcome walkthrough, full screen. It counts as
+    // A client's first visit opens with the welcome video, full screen. It counts as
     // watched once its step is ticked; cards without that step remember it in the browser.
     const welcomeStep = summary.onboardingTasks.find((t) => t.task_key === 'watch_welcome') ?? null;
-    const seenKey = `asr_walkthrough_seen_${clientId}`;
+    const seenKey = `asr_welcome_video_seen_${clientId}`;
 
     useEffect(() => {
         if (!data || walkthroughDecided.current) return;
@@ -214,9 +214,8 @@ export default function ClientPortalPage() {
             )}
 
             {walkthrough && (
-                <WelcomeWalkthrough
+                <WelcomeVideo
                     firstName={client.name.trim().split(/\s+/)[0]}
-                    funnelType={client.funnel_type}
                     mustFinish={walkthrough === 'required'}
                     onFinish={finishWalkthrough}
                     onClose={() => {

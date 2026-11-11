@@ -32,7 +32,7 @@ export default function OnboardingFlow({
     const percent = steps.length === 0 ? 0 : Math.round((done / steps.length) * 100);
     const firstName = client.name.trim().split(/\s+/)[0];
 
-    // The welcome walkthrough comes first: every other step stays locked until it has been
+    // The welcome video comes first: every other step stays locked until it has been
     // watched. Cards from before the walkthrough existed start with their video instead.
     const videoStep = steps.find((s) => s.task_key === 'watch_welcome') ?? steps.find((s) => s.task_key === 'watch_video');
     const isLocked = (step: Task) => Boolean(videoStep && !videoStep.completed && step.id !== videoStep.id);
@@ -90,7 +90,7 @@ export default function OnboardingFlow({
                                 className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white ring-1 ring-white/20 transition-colors hover:bg-white/15"
                             >
                                 <PlayCircle className="h-4 w-4" />
-                                Replay the walkthrough
+                                Replay the welcome video
                             </button>
                             {summary.onboardingComplete && (
                                 <button
@@ -176,7 +176,7 @@ export default function OnboardingFlow({
                                                 Done{step.completed_at ? ` · ${formatDate(step.completed_at)}` : ''}
                                             </span>
                                         ) : locked ? (
-                                            <span className="hidden shrink-0 text-xs font-medium text-slate-400 sm:block">Watch the walkthrough first</span>
+                                            <span className="hidden shrink-0 text-xs font-medium text-slate-400 sm:block">Watch the welcome video first</span>
                                         ) : nextStep?.id === step.id && !open ? (
                                             <span className="shrink-0 rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-600">Next up</span>
                                         ) : null}
@@ -202,14 +202,14 @@ export default function OnboardingFlow({
                                                         Mark as not done
                                                     </button>
                                                 ) : step.task_key === 'watch_welcome' ? (
-                                                    // Ticked by itself when the walkthrough has been watched to the end
+                                                    // Ticked by itself when the welcome video has been watched to the end
                                                     <button
                                                         type="button"
                                                         onClick={onPlayWalkthrough}
                                                         className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800"
                                                     >
                                                         <PlayCircle className="h-4 w-4" />
-                                                        Play the walkthrough
+                                                        Play the welcome video
                                                     </button>
                                                 ) : (
                                                     <button
