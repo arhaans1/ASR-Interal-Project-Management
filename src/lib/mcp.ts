@@ -4,6 +4,7 @@ import { formatDate, isClientTask, summarizeProject } from '@/lib/progress';
 import { FUNNEL_TEMPLATES, funnelLabel } from '@/lib/funnelTemplates';
 import { applyFunnelTemplate } from '@/lib/funnelSetup';
 import { hashPassword } from '@/lib/passwords';
+import { isUsernameTaken } from '@/lib/usernames';
 import { FunnelType, PortalCategory, PortalClient, Task } from '@/types/database';
 
 // The MCP server: lets an AI assistant (Claude, ChatGPT, Grok, ...) read project status,
@@ -302,11 +303,7 @@ async function createClientCard(args: Record<string, any>) {
     const operator = pickOne(operators, String(args.operator ?? ''), (u) => u.id, (u) => [u.username], 'operator');
 
     // Sign-in looks the username up in team accounts first, then clients, so it must be unique across both.
-    const [{ data: userClash }, { data: clientClash }] = await Promise.all([
-        supabase.from('users').select('id').ilike('username', username),
-        supabase.from('clients').select('id').ilike('username', username),
-    ]);
-    if ((userClash || []).length > 0 || (clientClash || []).length > 0) {
+    if (await isUsernameTaken(username)) {
         throw new ToolError(`The username "${username}" is already taken. Choose a different one.`);
     }
 

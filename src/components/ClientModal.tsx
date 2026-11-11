@@ -54,6 +54,8 @@ export default function ClientModal({
   const [formUrl, setFormUrl] = useState('');
   const [templateChoice, setTemplateChoice] = useState<'none' | 'add' | 'replace'>('none');
   const [operators, setOperators] = useState<User[]>([]);
+  const [usernameError, setUsernameError] = useState('');
+  const [checking, setChecking] = useState(false);
 
   // Sections come from Team Settings. A card keeps its current one even if that is hidden.
   const { settings } = useWorkspace();
@@ -87,6 +89,7 @@ export default function ClientModal({
       setFormUrl('');
     }
     setTemplateChoice('none');
+    setUsernameError('');
   }, [client, mode, isOpen]);
 
   // Operators to choose from
@@ -103,9 +106,37 @@ export default function ClientModal({
   const templateMode: 'none' | 'add' | 'replace' =
     !funnelType || !isProject ? 'none' : mode === 'create' ? 'add' : templateChoice;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (name.trim() && businessName.trim()) {
+      // A portal username belongs to one person only, or sign-in could open the wrong project.
+      // An unchanged username on an existing card is left alone.
+      const wanted = username.trim();
+      if (wanted && !(mode === 'edit' && wanted === (client?.username || ''))) {
+        setChecking(true);
+        setUsernameError('');
+        try {
+          const res = await fetch(
+            `/api/clients/username?username=${encodeURIComponent(wanted)}${mode === 'edit' && client ? `&exclude=${client.id}` : ''}`,
+            { cache: 'no-store' }
+          );
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            setUsernameError('Could not check the username. Please try again.');
+            return;
+          }
+          if (body.taken) {
+            setUsernameError(`"${wanted}" is already used by another client or team member. Choose a different username.`);
+            return;
+          }
+        } catch {
+          setUsernameError('Could not check the username. Please try again.');
+          return;
+        } finally {
+          setChecking(false);
+        }
+      }
+
       if (
         templateMode === 'replace' &&
         !confirm(`Replace every category and task on ${name.trim()}'s card with the ${funnelType} template? Current tasks and their ticks will be deleted.`)
@@ -307,10 +338,11 @@ export default function ClientModal({
                     id="client-username"
                     type="text"
                     value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    onChange={(e) => { setUsername(e.target.value); setUsernameError(''); }}
                     placeholder="username"
                     autoComplete="off"
-                    className={inputClass}
+                    aria-invalid={Boolean(usernameError)}
+                    className={`${inputClass} ${usernameError ? 'border-red-400 focus:border-red-500 focus:ring-red-500/10' : ''}`}
                   />
                 </div>
                 <div>
@@ -326,6 +358,9 @@ export default function ClientModal({
                   />
                 </div>
               </div>
+              {usernameError && (
+                <p role="alert" className="mt-2 text-xs font-medium text-red-600">{usernameError}</p>
+              )}
             </section>
 
             {/* Onboarding links */}
@@ -369,7 +404,8 @@ export default function ClientModal({
             </button>
             <button
               type="submit"
-              className="flex-1 px-5 py-2.5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-semibold shadow-sm"
+              disabled={checking}
+              className="flex-1 px-5 py-2.5 bg-slate-900 disabled:opacity-60 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-semibold shadow-sm"
             >
               {mode === 'create' ? 'Create client' : 'Save changes'}
             </button>
