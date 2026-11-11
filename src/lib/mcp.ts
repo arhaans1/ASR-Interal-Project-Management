@@ -1,11 +1,13 @@
 import { supabase } from '@/lib/supabase';
 import { fetchCategories, toPortalClient } from '@/lib/portalData';
 import { formatDate, isClientTask, summarizeProject } from '@/lib/progress';
-import { funnelLabel } from '@/lib/funnelTemplates';
-import { PortalCategory, PortalClient, Task } from '@/types/database';
+import { FUNNEL_TEMPLATES, funnelLabel } from '@/lib/funnelTemplates';
+import { applyFunnelTemplate } from '@/lib/funnelSetup';
+import { hashPassword } from '@/lib/passwords';
+import { FunnelType, PortalCategory, PortalClient, Task } from '@/types/database';
 
-// The MCP server: lets an AI assistant (Claude, ChatGPT, ...) read project status and
-// tick tasks. Plain JSON-RPC over HTTP POST ("Streamable HTTP", stateless).
+// The MCP server: lets an AI assistant (Claude, ChatGPT, Grok, ...) read project status,
+// tick tasks and create new client cards. Plain JSON-RPC over HTTP POST ("Streamable HTTP", stateless).
 
 const SERVER_INFO = { name: 'asr-project-management', version: '1.0.0' };
 const PROTOCOL_VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05'];
@@ -81,6 +83,34 @@ const TOOLS = [
                 completed: { type: 'boolean', description: 'true to mark complete, false to reopen. Default true.' },
             },
             required: ['project', 'task'],
+        },
+    },
+    {
+        name: 'list_operators',
+        description:
+            'List the team members who can run a client project (operators). Use it to find the exact operator name before calling create_client.',
+        inputSchema: { type: 'object', properties: {} },
+    },
+    {
+        name: 'create_client',
+        description:
+            'Create a new client project card, exactly like the "New client" form: the client name and business, the client\'s portal login (username and password), the operator who runs it, the funnel type and the three onboarding links. ' +
+            'The funnel\'s full task list is added to the card automatically (about 9 onboarding steps plus the work phases). The client can sign in to the portal straight away with the username and password given. ' +
+            'Call list_operators first and pass an exact operator name. If you do not know a link, leave it out rather than guessing. Returns the new card.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                name: { type: 'string', description: 'Client\'s name, e.g. "Kailash Pinjani".' },
+                business_name: { type: 'string', description: 'Client\'s business name.' },
+                username: { type: 'string', description: 'Portal login username. Must not already be used by another client or team member.' },
+                password: { type: 'string', description: 'Portal login password, at least 8 characters.' },
+                operator: { type: 'string', description: 'Operator name (or id) who runs this project. See list_operators.' },
+                funnel_type: { type: 'string', enum: ['CAM', 'VSL', 'Webinar'], description: 'Funnel type. Default CAM (Community Ascension Model).' },
+                drive_folder_url: { type: 'string', description: 'Client\'s Google Drive folder link (https://drive.google.com/...).' },
+                onboarding_video_url: { type: 'string', description: 'Link to the "Start Here" / worksheet fill-up video (Drive, YouTube, Loom or Vimeo).' },
+                onboarding_form_url: { type: 'string', description: 'Link to the On-Boarding Worksheet (Google Doc).' },
+            },
+            required: ['name', 'business_name', 'username', 'password', 'operator'],
         },
     },
 ];
@@ -220,7 +250,108 @@ async function callTool(name: string, args: Record<string, any>) {
         };
     }
 
+    if (name === 'list_operators') {
+        return (await loadOperators()).map((u) => ({ id: u.id, name: u.username }));
+    }
+
+    if (name === 'create_client') return createClientCard(args);
+
     throw new ToolError(`Unknown tool: ${name}`);
+}
+
+async function loadOperators(): Promise<{ id: string; username: string }[]> {
+    const { data, error } = await supabase.from('users').select('id, username, role').in('role', ['operator', 'member_operator']);
+    if (error) throw error;
+    return (data || []) as { id: string; username: string }[];
+}
+
+const cleanText = (value: unknown, label: string, max = 200) => {
+    const text = typeof value === 'string' ? value.trim() : '';
+    if (!text) throw new ToolError(`${label} is required.`);
+    if (text.length > max) throw new ToolError(`${label} is too long (max ${max} characters).`);
+    return text;
+};
+
+const cleanUrl = (value: unknown, label: string): string | null => {
+    if (value === undefined || value === null || String(value).trim() === '') return null;
+    const text = String(value).trim();
+    try {
+        const url = new URL(text);
+        if (url.protocol === 'https:' || url.protocol === 'http:') return url.toString();
+    } catch { /* falls through */ }
+    throw new ToolError(`${label} must be a full link starting with https://`);
+};
+
+async function createClientCard(args: Record<string, any>) {
+    const name = cleanText(args.name, 'name');
+    const businessName = cleanText(args.business_name, 'business_name');
+    const username = cleanText(args.username, 'username', 60);
+    const password = typeof args.password === 'string' ? args.password.trim() : '';
+    if (password.length < 8) throw new ToolError('password must be at least 8 characters.');
+    if (password.length > 200) throw new ToolError('password is too long.');
+
+    const funnel = (args.funnel_type ?? 'CAM') as FunnelType;
+    if (!(funnel in FUNNEL_TEMPLATES)) throw new ToolError('funnel_type must be CAM, VSL or Webinar.');
+
+    const drive = cleanUrl(args.drive_folder_url, 'drive_folder_url');
+    const video = cleanUrl(args.onboarding_video_url, 'onboarding_video_url');
+    const form = cleanUrl(args.onboarding_form_url, 'onboarding_form_url');
+
+    const operators = await loadOperators();
+    if (operators.length === 0) throw new ToolError('There are no operators yet. Create one in Team Settings › Manage Team first.');
+    const operator = pickOne(operators, String(args.operator ?? ''), (u) => u.id, (u) => [u.username], 'operator');
+
+    // Sign-in looks the username up in team accounts first, then clients, so it must be unique across both.
+    const [{ data: userClash }, { data: clientClash }] = await Promise.all([
+        supabase.from('users').select('id').ilike('username', username),
+        supabase.from('clients').select('id').ilike('username', username),
+    ]);
+    if ((userClash || []).length > 0 || (clientClash || []).length > 0) {
+        throw new ToolError(`The username "${username}" is already taken. Choose a different one.`);
+    }
+
+    const { data: created, error } = await supabase
+        .from('clients')
+        .insert({
+            name,
+            business_name: businessName,
+            status: 'Active',
+            important_links: '',
+            notes: '',
+            username,
+            password: hashPassword(password),
+            funnel_type: funnel,
+            operator_id: operator.id,
+            ...(drive ? { drive_folder_url: drive } : {}),
+            ...(video ? { onboarding_video_url: video } : {}),
+            ...(form ? { onboarding_form_url: form } : {}),
+        })
+        .select('id')
+        .single();
+    if (error) throw error;
+
+    try {
+        await applyFunnelTemplate(created.id, funnel);
+    } catch (err) {
+        // Do not leave a half-made card behind.
+        await supabase.from('clients').delete().eq('id', created.id);
+        throw err;
+    }
+
+    const { clients, operatorName } = await loadProjects(true);
+    const client = clients.find((c) => c.id === created.id);
+    if (!client) throw new Error('Created client could not be read back.');
+    const categories = await fetchCategories([client.id]);
+
+    return {
+        result: `Created ${name} (${businessName}) on a ${funnelLabel(funnel)} project, run by ${operator.username}. They can sign in to the client portal with username "${username}" and the password you set.`,
+        links_set: {
+            drive_folder: Boolean(drive),
+            onboarding_video: Boolean(video),
+            onboarding_worksheet: Boolean(form),
+        },
+        project: describeProject(client, categories, operatorName(client.operator_id), false),
+    };
 }
 
 // ---------------------------------------------------------------------------
@@ -249,7 +380,7 @@ async function handleMessage(message: RpcMessage) {
                 capabilities: { tools: {} },
                 serverInfo: SERVER_INFO,
                 instructions:
-                    'Project status for ASR Media Pro client projects. Find the project with list_projects, read it with get_project, and record progress with update_task. Always confirm the project and task names from the tool results before updating.',
+                    'Project status for ASR Media Pro client projects. Find the project with list_projects, read it with get_project, and record progress with update_task. Always confirm the project and task names from the tool results before updating. To onboard a new client, call list_operators, then create_client.',
             });
         }
         case 'ping':
