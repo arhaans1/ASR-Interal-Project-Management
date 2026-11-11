@@ -55,7 +55,7 @@ const clientTask = (task_key: string, name: string): TemplateTask => ({
 const CLIENT_ONBOARDING: TemplateCategory = {
   name: 'Client Onboarding',
   tasks: [
-    step('watch_welcome', 'Watch the welcome walkthrough'),
+    step('watch_welcome', 'Watch the welcome video'),
     step('watch_video', 'Watch the worksheet fill-up guide'),
     step('fill_worksheet', 'Fill in the On-Boarding Worksheet'),
     step('upload_logo', 'Upload your logo'),
@@ -250,8 +250,8 @@ export const STEP_GUIDES: Record<string, StepGuide> = {
   watch_welcome: {
     eyebrow: 'Start here',
     summary:
-      'A short walkthrough of how we will work together: what we need from you, what we build, and the timeline. It opens by itself the first time you sign in, and you can replay it any time.',
-    doneLabel: "I've watched the walkthrough",
+      'A short video on how we will work together: what we need from you, what we build, and the timeline. It opens by itself the first time you sign in, and you can replay it any time.',
+    doneLabel: "I've watched the video",
   },
   watch_video: {
     eyebrow: 'Before you fill the worksheet',
