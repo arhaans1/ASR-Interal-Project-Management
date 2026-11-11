@@ -1,8 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { supabase } from '@/lib/supabase';
-import { Client } from '@/types/database';
 import { User, Check, Search, X } from 'lucide-react';
 
 interface TaskAssignModalProps {
@@ -19,7 +17,7 @@ export default function TaskAssignModal({
     onAssign,
     currentAssigneeId,
 }: TaskAssignModalProps) {
-    const [teamMembers, setTeamMembers] = useState<Client[]>([]);
+    const [teamMembers, setTeamMembers] = useState<{ id: string; name: string }[]>([]);
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState('');
     const modalRef = useRef<HTMLDivElement>(null);
@@ -49,14 +47,10 @@ export default function TaskAssignModal({
     const fetchTeamMembers = async () => {
         setLoading(true);
         try {
-            const { data, error } = await supabase
-                .from('clients')
-                .select('*')
-                .eq('status', 'Team Members')
-                .order('name');
-
-            if (error) throw error;
-            setTeamMembers(data || []);
+            // Names only: what is on each person's board stays private.
+            const res = await fetch('/api/team-boards');
+            if (!res.ok) throw new Error('Failed to load the team');
+            setTeamMembers(await res.json());
         } catch (err) {
             console.error('Failed to fetch team members', err);
         } finally {

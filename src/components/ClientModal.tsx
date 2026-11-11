@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { X, ChevronDown, FolderOpen, PlayCircle, FileText, ListChecks } from 'lucide-react';
 import { Client, ClientStatus, FunnelType, User } from '@/types/database';
+import { useWorkspace } from '@/hooks/useWorkspace';
 import { FUNNEL_TYPES, FUNNEL_TEMPLATES, templateTaskCount } from '@/lib/funnelTemplates';
 
 export interface ClientFormValues {
@@ -16,7 +17,8 @@ export interface ClientFormValues {
   drive_folder_url: string | null;
   onboarding_video_url: string | null;
   onboarding_form_url: string | null;
-  applyTemplate: boolean;
+  // What to do with the funnel's task template: nothing, add it, or swap the card's tasks for it
+  templateMode: 'none' | 'add' | 'replace';
 }
 
 interface ClientModalProps {
@@ -27,13 +29,6 @@ interface ClientModalProps {
   mode: 'create' | 'edit';
 }
 
-const statusOptions: ClientStatus[] = [
-  'Active',
-  'Launched',
-  'Team Members',
-  'Templates',
-  'Archived',
-];
 
 const inputClass =
   'w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none';
@@ -57,8 +52,15 @@ export default function ClientModal({
   const [driveUrl, setDriveUrl] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
   const [formUrl, setFormUrl] = useState('');
-  const [addTemplate, setAddTemplate] = useState(false);
+  const [templateChoice, setTemplateChoice] = useState<'none' | 'add' | 'replace'>('none');
   const [operators, setOperators] = useState<User[]>([]);
+
+  // Sections come from Team Settings. A card keeps its current one even if that is hidden.
+  const { settings } = useWorkspace();
+  const statusOptions = settings.sections
+    .filter((section) => !section.hidden || section.name === status)
+    .map((section) => section.name);
+  if (status && !statusOptions.includes(status)) statusOptions.push(status);
 
   useEffect(() => {
     if (client && mode === 'edit') {
@@ -84,7 +86,7 @@ export default function ClientModal({
       setVideoUrl('');
       setFormUrl('');
     }
-    setAddTemplate(false);
+    setTemplateChoice('none');
   }, [client, mode, isOpen]);
 
   // Operators to choose from
@@ -92,17 +94,24 @@ export default function ClientModal({
     if (!isOpen) return;
     fetch('/api/users')
       .then((res) => (res.ok ? res.json() : []))
-      .then((users: User[]) => setOperators((users || []).filter((u) => u.role === 'operator')))
+      .then((users: User[]) => setOperators((users || []).filter((u) => u.role === 'operator' || u.role === 'member_operator')))
       .catch(() => setOperators([]));
   }, [isOpen]);
 
   const isProject = status !== 'Team Members';
-  // New cards always get the template. Existing cards only when asked, so current tasks are never doubled up.
-  const applyTemplate = Boolean(funnelType) && isProject && (mode === 'create' || addTemplate);
+  // New cards always get the template. Existing cards only when asked.
+  const templateMode: 'none' | 'add' | 'replace' =
+    !funnelType || !isProject ? 'none' : mode === 'create' ? 'add' : templateChoice;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (name.trim() && businessName.trim()) {
+      if (
+        templateMode === 'replace' &&
+        !confirm(`Replace every category and task on ${name.trim()}'s card with the ${funnelType} template? Current tasks and their ticks will be deleted.`)
+      ) {
+        return;
+      }
       onSubmit({
         name: name.trim(),
         businessName: businessName.trim(),
@@ -114,7 +123,7 @@ export default function ClientModal({
         drive_folder_url: driveUrl.trim() || null,
         onboarding_video_url: videoUrl.trim() || null,
         onboarding_form_url: formUrl.trim() || null,
-        applyTemplate,
+        templateMode,
       });
       onClose();
     }
@@ -237,15 +246,21 @@ export default function ClientModal({
                             {templateTaskCount(funnelType)} tasks will be pre-listed on this card
                           </p>
                         ) : (
-                          <label className="flex items-center gap-2 font-semibold text-indigo-950 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={addTemplate}
-                              onChange={(e) => setAddTemplate(e.target.checked)}
-                              className="w-4 h-4 rounded accent-indigo-600"
-                            />
-                            Add the {templateTaskCount(funnelType)} template tasks to this card
-                          </label>
+                          <div>
+                            <label htmlFor="client-template" className="font-semibold text-indigo-950">
+                              {templateTaskCount(funnelType)}-task {funnelType} template
+                            </label>
+                            <select
+                              id="client-template"
+                              value={templateChoice}
+                              onChange={(e) => setTemplateChoice(e.target.value as 'none' | 'add' | 'replace')}
+                              className="mt-1.5 w-full px-3 py-2 bg-white border border-indigo-200 rounded-lg text-sm text-slate-900 outline-none focus:border-indigo-500"
+                            >
+                              <option value="none">Keep this card&rsquo;s tasks as they are</option>
+                              <option value="add">Add the template tasks below the current ones</option>
+                              <option value="replace">Replace all current tasks with the template</option>
+                            </select>
+                          </div>
                         )}
                         <p className="text-indigo-900/70 mt-1 leading-relaxed">
                           {template.map((c) => `${c.name} (${c.tasks.length})`).join(' · ')}

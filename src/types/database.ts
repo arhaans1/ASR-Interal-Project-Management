@@ -1,8 +1,10 @@
-export type ClientStatus = 'Active' | 'Launched' | 'Archived' | 'Team Members' | 'Templates';
+// A client's status is the sidebar section it sits in. Sections can be added in Team Settings.
+export type ClientStatus = string;
 
 export type FunnelType = 'VSL' | 'Webinar' | 'CAM';
 
-export type UserRole = 'admin' | 'operator';
+// admin | operator (admin + operator dashboard) | member | member_operator. See lib/access.ts
+export type UserRole = 'admin' | 'operator' | 'member' | 'member_operator';
 
 export type TaskOwner = 'team' | 'client';
 

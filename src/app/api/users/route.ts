@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { getTeamSession } from '@/lib/auth';
+import { getAdminAccess, getTeamAccess } from '@/lib/access';
 import { hashPassword } from '@/lib/passwords';
+
+const STORED_ROLES = ['admin', 'operator', 'member', 'member_operator'];
 
 // GET: List all team accounts (never their passwords)
 export async function GET() {
     try {
-        if (!(await getTeamSession())) {
+        // Everyone on the team can see who is on it (operators are picked on client cards).
+        if (!(await getTeamAccess())) {
             return NextResponse.json({ error: 'Not allowed' }, { status: 403 });
         }
 
@@ -28,13 +31,13 @@ export async function GET() {
 // POST: Create a team member or an operator
 export async function POST(request: Request) {
     try {
-        if (!(await getTeamSession())) {
-            return NextResponse.json({ error: 'Not allowed' }, { status: 403 });
+        if (!(await getAdminAccess())) {
+            return NextResponse.json({ error: 'Only admins can add users' }, { status: 403 });
         }
 
         const body = await request.json();
         const { username, password } = body;
-        const role = body.role === 'operator' ? 'operator' : 'admin';
+        const role = STORED_ROLES.includes(body.role) ? body.role : 'member';
 
         if (!username || !password) {
             return NextResponse.json({ error: 'Username and password are required' }, { status: 400 });

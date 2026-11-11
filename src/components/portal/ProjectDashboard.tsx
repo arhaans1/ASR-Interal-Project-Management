@@ -231,9 +231,11 @@ export default function ProjectDashboard({ client, summary, operatorName, pendin
                                                                     <span aria-hidden>·</span>
                                                                     <span className="inline-flex items-center gap-1">
                                                                         <CalendarClock className="h-3.5 w-3.5" />
-                                                                        {phase.dueDate
-                                                                            ? `Expected by ${formatDate(phase.dueDate)}`
-                                                                            : `Expected ${phase.dueHint!.replace('client approval', 'your approval')}`}
+                                                                        {phase.status === 'awaiting'
+                                                                            ? 'Dates are set once you approve'
+                                                                            : phase.dueDate
+                                                                                ? `${phase.dueKind === 'submit' ? 'Ready for your review by' : 'Expected by'} ${formatDate(phase.dueDate)}`
+                                                                                : `${phase.dueKind === 'submit' ? 'Ready for your review' : 'Expected'} ${phase.dueHint!.replace('client approval', 'your approval')}`}
                                                                     </span>
                                                                 </>
                                                             )}

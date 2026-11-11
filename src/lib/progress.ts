@@ -21,6 +21,8 @@ export interface Phase {
   completedAt: string | null; // when the last task in a finished phase was ticked
   dueDate: string | null; // known once the point it counts from has been reached
   dueHint: string | null; // shown until then, e.g. "3 business days after onboarding is complete"
+  // 'submit' = the date our work goes to the client for approval; 'due' = the phase is finished
+  dueKind: 'due' | 'submit';
   overdue: boolean;
   tasks: Task[];
 }
@@ -113,16 +115,17 @@ export function summarizeProject(categories: CategoryLike[], now: Date = new Dat
   const readyApprovalIds = new Set<string>();
   let everythingBeforeDone = true;
   for (const category of ordered) {
-    if (everythingBeforeDone) {
-      category.tasks.filter((t) => isApprovalTask(t) && !t.completed).forEach((t) => readyApprovalIds.add(t.id));
+    for (const task of category.tasks) {
+      if (isApprovalTask(task) && !task.completed && everythingBeforeDone) readyApprovalIds.add(task.id);
+      if (!task.completed) everythingBeforeDone = false;
     }
-    if (category.tasks.some((t) => !t.completed)) everythingBeforeDone = false;
   }
   const isWaitingApproval = (t: Task) => isApprovalTask(t) && !t.completed;
   const isBlockedApproval = (t: Task) => isWaitingApproval(t) && !readyApprovalIds.has(t.id);
 
   const today = indiaDay(now.toISOString());
   let activeAssigned = false;
+  let submitDays: number | null = null; // the onboarding window most recently seen
   const phases: Phase[] = ordered
     .filter((c) => c.tasks.length > 0)
     .map((c) => {
@@ -131,12 +134,12 @@ export function summarizeProject(categories: CategoryLike[], now: Date = new Dat
       let status: PhaseStatus = 'upcoming';
       if (open.length === 0) {
         status = 'done';
+      } else if (open.some((t) => readyApprovalIds.has(t.id))) {
+        // Our work is in and the client's sign-off is what this phase is waiting for
+        status = 'awaiting';
+        activeAssigned = true;
       } else if (open.every(isWaitingApproval)) {
-        // Only the client's sign-off is left in this phase
-        if (open.some((t) => readyApprovalIds.has(t.id))) {
-          status = 'awaiting';
-          activeAssigned = true;
-        }
+        // Only a sign-off is left here, and there is nothing to sign off yet
       } else if (phaseDone > 0 || !activeAssigned) {
         // Work has started here, or it is simply the next phase in line.
         status = 'active';
@@ -146,7 +149,19 @@ export function summarizeProject(categories: CategoryLike[], now: Date = new Dat
       const anchor = c.due_after === 'onboarding' || c.due_after === 'approval' ? c.due_after : null;
       const days = typeof c.due_days === 'number' ? c.due_days : null;
       const anchorDate = anchor === 'onboarding' ? onboardingCompletedAt : anchor === 'approval' ? approvalCompletedAt : null;
-      const dueDate = anchor && days !== null && anchorDate ? addBusinessDays(anchorDate, days) : null;
+      if (anchor === 'onboarding' && days !== null) submitDays = days;
+
+      // A phase that still holds an open approval is first working towards handing its
+      // work to the client. That happens in the same window as the phase before it.
+      const awaitingSignOff = anchor === 'approval' && c.tasks.some(isWaitingApproval) && submitDays !== null;
+      let dueDate = anchor && days !== null && anchorDate ? addBusinessDays(anchorDate, days) : null;
+      let dueHint = anchor && days !== null && !dueDate ? dueHintFor(anchor, days) : null;
+      let dueKind: Phase['dueKind'] = 'due';
+      if (awaitingSignOff) {
+        dueKind = 'submit';
+        dueDate = onboardingCompletedAt ? addBusinessDays(onboardingCompletedAt, submitDays!) : null;
+        dueHint = dueDate ? null : dueHintFor('onboarding', submitDays!);
+      }
 
       return {
         id: c.id,
@@ -156,11 +171,15 @@ export function summarizeProject(categories: CategoryLike[], now: Date = new Dat
         status,
         completedAt: status === 'done' ? latest(c.tasks.map((t) => t.completed_at)) : null,
         dueDate,
-        dueHint: anchor && days !== null && !dueDate ? dueHintFor(anchor, days) : null,
-        overdue: Boolean(dueDate && status !== 'done' && indiaDay(dueDate) < today),
+        dueHint,
+        dueKind,
+        // Once it is with the client, a late approval is not ours to chase as overdue
+        overdue: Boolean(dueDate && status !== 'done' && status !== 'awaiting' && indiaDay(dueDate) < today),
         tasks: c.tasks,
       };
     });
+
+  const notYetReached = new Set(phases.filter((p) => p.status === 'upcoming').flatMap((p) => p.tasks.map((t) => t.id)));
 
   const recentlyCompleted = ordered
     .flatMap((c) => c.tasks.map((t) => ({ ...t, phaseName: c.name })))
@@ -190,8 +209,11 @@ export function summarizeProject(categories: CategoryLike[], now: Date = new Dat
     onboardingComplete,
     onboardingCompletedAt,
     approvalCompletedAt,
-    // An approval is not "waiting on the client" until there is something to approve.
-    clientPending: all.filter((t) => !t.completed && isClientTask(t) && !isBlockedApproval(t)),
+    // "Waiting on the client" means they can act now: an approval only once there is something
+    // to approve, and other tasks only once the project has reached their phase.
+    clientPending: all.filter(
+      (t) => !t.completed && isClientTask(t) && !isBlockedApproval(t) && (isOnboardingTask(t) || !notYetReached.has(t.id))
+    ),
     teamPending: all.filter((t) => !t.completed && !isClientTask(t)),
     phases,
     stage,

@@ -33,8 +33,21 @@ export async function setClientPassword(clientId: string, password: string): Pro
 }
 
 // Pre-list the template tasks for a funnel type on a client's board.
-export async function applyFunnelTemplate(clientId: string, funnelType: FunnelType): Promise<void> {
+// With `replace`, the card's current categories and tasks are removed first.
+export async function applyFunnelTemplate(clientId: string, funnelType: FunnelType, replace = false): Promise<void> {
   const template = FUNNEL_TEMPLATES[funnelType];
+
+  if (replace) {
+    const { data: current, error: currentError } = await supabase.from('categories').select('id').eq('client_id', clientId);
+    if (currentError) throw currentError;
+    const ids = (current || []).map((c: any) => c.id);
+    if (ids.length > 0) {
+      const { error: taskError } = await supabase.from('tasks').delete().in('category_id', ids);
+      if (taskError) throw taskError;
+      const { error: catError } = await supabase.from('categories').delete().eq('client_id', clientId);
+      if (catError) throw catError;
+    }
+  }
 
   const { data: existing, error: existingError } = await supabase
     .from('categories')

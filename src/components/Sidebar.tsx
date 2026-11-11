@@ -1,9 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { Client } from '@/types/database';
-import { ChevronRight, Plus, Users, Layout, Rocket, Archive, Copy, MessageSquare, BellRing } from 'lucide-react';
+import { ChevronRight, Plus, Users, Layout, Rocket, Archive, Copy, MessageSquare, BellRing, Folder, ListChecks } from 'lucide-react';
 import { useGlobalChatNotifications } from '@/hooks/useGlobalChatNotifications';
 import WorkspaceSwitcher from './WorkspaceSwitcher';
 import { prefetchCategories } from '@/hooks/useCategories';
+import { useWorkspace } from '@/hooks/useWorkspace';
+
+const TEAM_SECTION = 'Team Members';
+const SECTION_ICONS: Record<string, typeof Layout> = { Active: Layout, Launched: Rocket, [TEAM_SECTION]: Users, Templates: Copy, Archived: Archive };
 
 interface SidebarProps {
   clients: Client[];
@@ -20,25 +24,15 @@ export default function Sidebar({
 }: SidebarProps) {
   const { unreadCounts, permissionDenied } = useGlobalChatNotifications(clients);
 
-  // Operators also have their own workspace and get a switcher for it
-  const [isOperator, setIsOperator] = useState(false);
-  useEffect(() => {
-    fetch('/api/auth/me')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => setIsOperator(data?.user?.role === 'operator'))
-      .catch(() => { });
-  }, []);
+  // Who is signed in, and which sections the workspace shows
+  const { user, settings } = useWorkspace();
+  const isOperator = Boolean(user?.isOperator);
+  const isAdmin = Boolean(user?.isAdmin);
 
-  // State for expanded sections
-  const [expandedSections, setExpandedSections] = useState({
-    active: false,
-    launched: false,
-    team: false,
-    templates: false,
-    archived: false,
-  });
+  // Which sections are open
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
 
-  const toggleSection = (section: keyof typeof expandedSections) => {
+  const toggleSection = (section: string) => {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
@@ -60,17 +54,17 @@ export default function Sidebar({
     }
   };
 
-  // Filter clients into groups
-  const activeClients = clients.filter(c => c.status === 'Active');
-  const launchedClients = clients.filter(c => c.status === 'Launched');
-  const teamClients = clients.filter(c => c.status === 'Team Members');
-  const templateClients = clients.filter(c => c.status === 'Templates');
-  const archivedClients = clients.filter(c => c.status === 'Archived');
-
-  // Find any clients that don't fit into the above categories
-  const uncategorizedClients = clients.filter(c =>
-    !['Active', 'Launched', 'Team Members', 'Templates', 'Archived'].includes(c.status)
+  // Sections in the order set in Team Settings. Hidden ones are left out. Only admins see
+  // the Team Members section; everyone else gets "My Tasks" for their own board.
+  const visibleSections = settings.sections.filter(
+    (section) => !section.hidden && (section.name !== TEAM_SECTION || isAdmin)
   );
+  const knownSections = new Set(settings.sections.map((section) => section.name));
+
+  const myBoard = !isAdmin && user?.boardId ? clients.find((c) => c.id === user.boardId) ?? null : null;
+
+  // Cards whose status matches no section at all
+  const uncategorizedClients = clients.filter(c => !knownSections.has(c.status));
 
   const ClientItem = ({ client }: { client: Client }) => (
     <button
@@ -204,75 +198,47 @@ export default function Sidebar({
           className="flex-1 overflow-y-auto px-4 py-4 space-y-3"
         >
 
-          {/* Active Section */}
-          <div>
-            <SectionHeader
-              title="Active"
-              count={activeClients.length}
-              isExpanded={expandedSections.active}
-              onClick={() => toggleSection('active')}
-              icon={Layout}
-            />
-            <div className={`space-y-1 transition-all duration-300 origin-top ${expandedSections.active ? 'opacity-100 max-h-[1000px] mb-4' : 'opacity-0 max-h-0 overflow-hidden'}`}>
-              {activeClients.map(client => <ClientItem key={client.id} client={client} />)}
-            </div>
-          </div>
+          {/* My Tasks: a team member's own board */}
+          {user && !isAdmin && (
+            myBoard ? (
+              <button
+                onClick={() => onSelectClient(myBoard)}
+                onMouseEnter={() => prefetchCategories([myBoard.id])}
+                className={`w-full text-left px-2.5 py-2.5 rounded-xl transition-colors duration-150 flex items-center gap-3 ${selectedClientId === myBoard.id
+                  ? 'bg-slate-900 text-white shadow-sm'
+                  : 'bg-slate-50 hover:bg-slate-100 text-slate-900'
+                  }`}
+              >
+                <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${selectedClientId === myBoard.id ? 'bg-white/15 text-white' : 'bg-white text-indigo-600 ring-1 ring-slate-200'}`}>
+                  <ListChecks className="w-4 h-4" />
+                </div>
+                <span className="font-semibold text-sm">My Tasks</span>
+              </button>
+            ) : (
+              <div className="px-3 py-2.5 rounded-xl bg-slate-50 text-xs text-slate-500 leading-relaxed">
+                <span className="font-semibold text-slate-700">My Tasks</span> is not set up yet. Ask an admin to create a Team Members card named “{user.username}”.
+              </div>
+            )
+          )}
 
-          {/* Launched Section */}
-          <div>
-            <SectionHeader
-              title="Launched"
-              count={launchedClients.length}
-              isExpanded={expandedSections.launched}
-              onClick={() => toggleSection('launched')}
-              icon={Rocket}
-            />
-            <div className={`space-y-1 transition-all duration-300 origin-top ${expandedSections.launched ? 'opacity-100 max-h-[1000px] mb-4' : 'opacity-0 max-h-0 overflow-hidden'}`}>
-              {launchedClients.map(client => <ClientItem key={client.id} client={client} />)}
-            </div>
-          </div>
-
-          {/* Team Members Section */}
-          <div>
-            <SectionHeader
-              title="Team Members"
-              count={teamClients.length}
-              isExpanded={expandedSections.team}
-              onClick={() => toggleSection('team')}
-              icon={Users}
-            />
-            <div className={`space-y-1 transition-all duration-300 origin-top ${expandedSections.team ? 'opacity-100 max-h-[1000px] mb-4' : 'opacity-0 max-h-0 overflow-hidden'}`}>
-              {teamClients.map(client => <ClientItem key={client.id} client={client} />)}
-            </div>
-          </div>
-
-          {/* Templates Section */}
-          <div>
-            <SectionHeader
-              title="Templates"
-              count={templateClients.length}
-              isExpanded={expandedSections.templates}
-              onClick={() => toggleSection('templates')}
-              icon={Copy}
-            />
-            <div className={`space-y-1 transition-all duration-300 origin-top ${expandedSections.templates ? 'opacity-100 max-h-[1000px] mb-4' : 'opacity-0 max-h-0 overflow-hidden'}`}>
-              {templateClients.map(client => <ClientItem key={client.id} client={client} />)}
-            </div>
-          </div>
-
-          {/* Archived Section */}
-          <div>
-            <SectionHeader
-              title="Archived"
-              count={archivedClients.length}
-              isExpanded={expandedSections.archived}
-              onClick={() => toggleSection('archived')}
-              icon={Archive}
-            />
-            <div className={`space-y-1 transition-all duration-300 origin-top ${expandedSections.archived ? 'opacity-100 max-h-[1000px]' : 'opacity-0 max-h-0 overflow-hidden'}`}>
-              {archivedClients.map(client => <ClientItem key={client.id} client={client} />)}
-            </div>
-          </div>
+          {visibleSections.map((section) => {
+            const sectionClients = clients.filter(c => c.status === section.name);
+            const expanded = Boolean(expandedSections[section.name]);
+            return (
+              <div key={section.name}>
+                <SectionHeader
+                  title={section.name}
+                  count={sectionClients.length}
+                  isExpanded={expanded}
+                  onClick={() => toggleSection(section.name)}
+                  icon={SECTION_ICONS[section.name] ?? Folder}
+                />
+                <div className={`space-y-1 transition-all duration-300 origin-top ${expanded ? 'opacity-100 mb-4' : 'opacity-0 max-h-0 overflow-hidden'}`}>
+                  {sectionClients.map(client => <ClientItem key={client.id} client={client} />)}
+                </div>
+              </div>
+            );
+          })}
 
           {/* Uncategorized Section (Hidden if empty) */}
           {uncategorizedClients.length > 0 && (

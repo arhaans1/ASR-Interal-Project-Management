@@ -139,7 +139,7 @@ async function loadProjects(includeArchived = false) {
 
 function describeProject(client: PortalClient, categories: PortalCategory[], operator: string | null, detailed: boolean) {
     const summary = summarizeProject(categories);
-    const nextDue = summary.phases.find((p) => p.status !== 'done' && p.dueDate);
+    const nextDue = summary.phases.find((p) => p.status !== 'done' && p.status !== 'awaiting' && p.dueDate);
     const phaseStatus = { done: 'Completed', active: 'In progress', awaiting: 'Pending client approval', upcoming: 'Upcoming' };
 
     return {
@@ -154,7 +154,7 @@ function describeProject(client: PortalClient, categories: PortalCategory[], ope
         onboarding: summary.hasOnboarding ? `${summary.onboardingDone} of ${summary.onboardingTasks.length} steps done` : 'No onboarding steps',
         pending_from_client: summary.clientPending.map((t) => t.name),
         pending_on_our_end: summary.teamPending.length,
-        next_due: nextDue ? `${nextDue.name}: ${formatDate(nextDue.dueDate)}${nextDue.overdue ? ' (overdue)' : ''}` : null,
+        next_due: nextDue ? `${nextDue.name}: ${nextDue.dueKind === 'submit' ? 'submit for client approval by ' : ''}${formatDate(nextDue.dueDate)}${nextDue.overdue ? ' (overdue)' : ''}` : null,
         ...(detailed
             ? {
                 phases: summary.phases.map((phase) => ({

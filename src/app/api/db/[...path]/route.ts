@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getTeamSession } from '@/lib/auth';
+import { getTeamAccess, TeamAccess } from '@/lib/access';
 
 // The team workspace's door to the database.
 //
@@ -39,6 +39,31 @@ function hidePasswords(value: unknown): unknown {
     return value;
 }
 
+// Team members do not see other people's task boards: those cards, their lists and their
+// tasks are taken out of every answer. Admins see everything.
+function hideOtherBoards(table: string, value: unknown, access: TeamAccess): unknown {
+    if (access.isAdmin || (access.hiddenBoardIds.length === 0 && access.hiddenCategoryIds.length === 0)) return value;
+
+    const boards = new Set(access.hiddenBoardIds);
+    const lists = new Set(access.hiddenCategoryIds);
+    const hidden = (row: any) =>
+        !row || typeof row !== 'object'
+            ? false
+            : table === 'clients'
+                ? boards.has(row.id)
+                : table === 'categories'
+                    ? boards.has(row.client_id) || lists.has(row.id)
+                    : table === 'tasks'
+                        ? lists.has(row.category_id)
+                        : table === 'quick_notes' || table === 'chat_messages'
+                            ? boards.has(row.client_id)
+                            : false;
+
+    if (Array.isArray(value)) return value.filter((row) => !hidden(row));
+    // A single row was asked for and it is not theirs to see.
+    return hidden(value) ? null : value;
+}
+
 // Passwords are only written by the credentials route, where they are hashed.
 function dropPasswords(value: unknown): unknown {
     if (Array.isArray(value)) return value.map(dropPasswords);
@@ -50,8 +75,8 @@ function dropPasswords(value: unknown): unknown {
 }
 
 async function forward(request: Request, { params }: Context) {
-    const session = await getTeamSession();
-    if (!session) return refuse(401, 'Sign in to continue');
+    const access = await getTeamAccess();
+    if (!access) return refuse(401, 'Sign in to continue');
 
     const { path } = await params;
     const [api, version, table, ...extra] = path;
@@ -110,7 +135,7 @@ async function forward(request: Request, { params }: Context) {
     const text = await upstream.text();
     if ((upstream.headers.get('content-type') || '').includes('json') && text) {
         try {
-            return new Response(JSON.stringify(hidePasswords(JSON.parse(text))), {
+            return new Response(JSON.stringify(hideOtherBoards(table, hidePasswords(JSON.parse(text)), access)), {
                 status: upstream.status,
                 headers: responseHeaders,
             });
