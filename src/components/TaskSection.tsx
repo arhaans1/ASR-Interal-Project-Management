@@ -10,6 +10,7 @@ import {
   Edit2,
   GripVertical,
   ListTodo,
+  Lock,
   Plus,
   Trash2,
   User as UserIcon,
@@ -34,6 +35,8 @@ interface TaskSectionProps {
   onReorderTask: (categoryId: string, taskId: string, newOrderIndex: number) => Promise<boolean>;
   onMoveTask: (sourceCategoryId: string, targetCategoryId: string, taskId: string, newOrderIndex: number) => Promise<boolean>;
   isReadOnly?: boolean;
+  // Project cards run one phase at a time: phases after the one in hand stay locked.
+  sequential?: boolean;
 }
 
 // Whose tasks are on show
@@ -62,6 +65,7 @@ export default function TaskSection({
   onReorderTask,
   onMoveTask,
   isReadOnly = false,
+  sequential = false,
 }: TaskSectionProps) {
   const summary = useMemo(() => summarizeProject(categories), [categories]);
   const phaseById = useMemo(() => {
@@ -110,9 +114,15 @@ export default function TaskSection({
 
   // The phase in hand: the first one that is not finished
   const focusId = openRows[0]?.category.id ?? null;
-  const isOpen = (category: CategoryWithTasks) => openOverride[category.id] ?? category.id === focusId;
-  const toggleOpen = (category: CategoryWithTasks) =>
+  // On a project card, every unfinished phase after the one in hand is locked until its turn.
+  const isLocked = (category: CategoryWithTasks) =>
+    sequential && category.id !== focusId && !isDone(category);
+  const isOpen = (category: CategoryWithTasks) =>
+    !isLocked(category) && (openOverride[category.id] ?? category.id === focusId);
+  const toggleOpen = (category: CategoryWithTasks) => {
+    if (isLocked(category)) return;
     setOpenOverride((prev) => ({ ...prev, [category.id]: !isOpen(category) }));
+  };
 
   const teamPending = summary.teamPending.length;
   const clientPending = categories.flatMap((c) => c.tasks).filter((t) => isClientTask(t) && !t.completed).length;
@@ -371,6 +381,7 @@ export default function TaskSection({
   const renderRow = ({ category, number }: { category: CategoryWithTasks; number: number }) => {
     const done = isDone(category);
     const open = isOpen(category);
+    const locked = isLocked(category);
     const phase = phaseById[category.id];
     const tasks = category.tasks.filter(matchesFilter);
     const total = tasks.length;
@@ -410,7 +421,7 @@ export default function TaskSection({
 
           const draggedTaskId = e.dataTransfer.getData('taskId');
           const sourceCategoryId = e.dataTransfer.getData('sourceCategoryId');
-          if (draggedTaskId && sourceCategoryId && sourceCategoryId !== category.id) {
+          if (draggedTaskId && sourceCategoryId && sourceCategoryId !== category.id && !locked) {
             onMoveTask(sourceCategoryId, category.id, draggedTaskId, category.tasks.length);
           }
         }}
@@ -461,9 +472,11 @@ export default function TaskSection({
               type="button"
               onClick={() => toggleOpen(category)}
               aria-expanded={open}
-              className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-left"
+              aria-disabled={locked}
+              title={locked ? 'Locked until the phase above is complete' : undefined}
+              className={`flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-left ${locked ? 'cursor-not-allowed' : ''}`}
             >
-              <span className={`text-base font-bold tracking-tight ${done ? 'text-emerald-900' : 'text-slate-900'}`}>
+              <span className={`text-base font-bold tracking-tight ${done ? 'text-emerald-900' : locked ? 'text-slate-500' : 'text-slate-900'}`}>
                 {category.name}
               </span>
               <span className={`text-sm font-medium tabular-nums ${done ? 'text-emerald-700' : 'text-slate-500'}`}>
@@ -528,14 +541,20 @@ export default function TaskSection({
             </div>
           )}
 
-          <button
-            type="button"
-            onClick={() => toggleOpen(category)}
-            aria-label={open ? `Close ${category.name}` : `Open ${category.name}`}
-            className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-white hover:text-slate-700"
-          >
-            <ChevronDown className={`h-5 w-5 transition-transform ${open ? 'rotate-180' : ''}`} />
-          </button>
+          {locked ? (
+            <span className="shrink-0 p-1 text-slate-400" title="Locked until the phase above is complete">
+              <Lock className="h-4 w-4" aria-label="Locked" />
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => toggleOpen(category)}
+              aria-label={open ? `Close ${category.name}` : `Open ${category.name}`}
+              className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-white hover:text-slate-700"
+            >
+              <ChevronDown className={`h-5 w-5 transition-transform ${open ? 'rotate-180' : ''}`} />
+            </button>
+          )}
         </div>
 
         {/* Tasks */}

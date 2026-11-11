@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowUpRight, Check, Copy, FolderOpen, Info, PlayCircle } from 'lucide-react';
+import { ArrowUpRight, Check, Copy, FolderOpen, Info } from 'lucide-react';
 import { PortalClient, Task } from '@/types/database';
 import { guideFor, StepAction, toEmbedUrl } from '@/lib/funnelTemplates';
 
@@ -54,11 +54,6 @@ export default function StepDetail({ task, client }: StepDetailProps) {
                             allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
                             allowFullScreen
                         />
-                    </div>
-                ) : !client.onboarding_video_url ? (
-                    <div className="flex items-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
-                        <PlayCircle className="h-5 w-5 shrink-0 text-slate-400" />
-                        Your video is in the main folder of your Drive, named &ldquo;Start Here - Video&rdquo;.
                     </div>
                 ) : null
             )}

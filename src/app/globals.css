@@ -113,6 +113,71 @@ body {
   animation: rise-in 0.2s ease-out both;
 }
 
+/* Welcome walkthrough: pieces rise in one after another, and everything holds when paused */
+@keyframes wt-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes wt-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes wt-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@keyframes wt-grow {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.wt-rise {
+  animation: wt-rise 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.wt-pop {
+  animation: wt-pop 0.45s ease-out both;
+}
+
+.wt-blink {
+  animation: wt-blink 1.2s ease-in-out infinite;
+}
+
+.wt-grow {
+  animation: wt-grow 3.2s ease-out 0.4s both;
+}
+
+.wt-paused .wt-rise,
+.wt-paused .wt-pop,
+.wt-paused .wt-blink,
+.wt-paused .wt-grow {
+  animation-play-state: paused;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

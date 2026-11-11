@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ArrowRight, ArrowUpRight, Check, ChevronDown, FolderOpen, Loader2, Lock, PartyPopper, UserRound } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, PlayCircle, Check, ChevronDown, FolderOpen, Loader2, Lock, PartyPopper, UserRound } from 'lucide-react';
 import { PortalClient, Task } from '@/types/database';
 import { funnelLongName, guideFor } from '@/lib/funnelTemplates';
 import { formatDate, ProjectSummary } from '@/lib/progress';
@@ -15,6 +15,7 @@ interface OnboardingFlowProps {
     pendingTaskId: string | null;
     onToggle: (task: Task, completed: boolean) => void;
     onOpenDashboard: () => void;
+    onPlayWalkthrough: () => void;
 }
 
 export default function OnboardingFlow({
@@ -24,14 +25,16 @@ export default function OnboardingFlow({
     pendingTaskId,
     onToggle,
     onOpenDashboard,
+    onPlayWalkthrough,
 }: OnboardingFlowProps) {
     const steps = summary.onboardingTasks;
     const done = summary.onboardingDone;
     const percent = steps.length === 0 ? 0 : Math.round((done / steps.length) * 100);
     const firstName = client.name.trim().split(/\s+/)[0];
 
-    // The video comes first: every other step stays locked until it has been watched.
-    const videoStep = steps.find((s) => s.task_key === 'watch_video');
+    // The welcome walkthrough comes first: every other step stays locked until it has been
+    // watched. Cards from before the walkthrough existed start with their video instead.
+    const videoStep = steps.find((s) => s.task_key === 'watch_welcome') ?? steps.find((s) => s.task_key === 'watch_video');
     const isLocked = (step: Task) => Boolean(videoStep && !videoStep.completed && step.id !== videoStep.id);
 
     const nextStep = steps.find((s) => !s.completed && !isLocked(s)) ?? null;
@@ -81,6 +84,14 @@ export default function OnboardingFlow({
                                     <ArrowUpRight className="h-4 w-4 text-slate-400" />
                                 </a>
                             )}
+                            <button
+                                type="button"
+                                onClick={onPlayWalkthrough}
+                                className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white ring-1 ring-white/20 transition-colors hover:bg-white/15"
+                            >
+                                <PlayCircle className="h-4 w-4" />
+                                Replay the walkthrough
+                            </button>
                             {summary.onboardingComplete && (
                                 <button
                                     type="button"
@@ -165,7 +176,7 @@ export default function OnboardingFlow({
                                                 Done{step.completed_at ? ` · ${formatDate(step.completed_at)}` : ''}
                                             </span>
                                         ) : locked ? (
-                                            <span className="hidden shrink-0 text-xs font-medium text-slate-400 sm:block">Watch the video first</span>
+                                            <span className="hidden shrink-0 text-xs font-medium text-slate-400 sm:block">Watch the walkthrough first</span>
                                         ) : nextStep?.id === step.id && !open ? (
                                             <span className="shrink-0 rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-600">Next up</span>
                                         ) : null}
@@ -189,6 +200,16 @@ export default function OnboardingFlow({
                                                     >
                                                         {busy && <Loader2 className="h-4 w-4 animate-spin" />}
                                                         Mark as not done
+                                                    </button>
+                                                ) : step.task_key === 'watch_welcome' ? (
+                                                    // Ticked by itself when the walkthrough has been watched to the end
+                                                    <button
+                                                        type="button"
+                                                        onClick={onPlayWalkthrough}
+                                                        className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800"
+                                                    >
+                                                        <PlayCircle className="h-4 w-4" />
+                                                        Play the walkthrough
                                                     </button>
                                                 ) : (
                                                     <button
