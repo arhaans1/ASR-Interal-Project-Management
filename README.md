@@ -20,7 +20,9 @@ One login page, three kinds of account:
 | --- | --- | --- | --- |
 | Team member | Team Settings › Manage Team | `/` | Every client card, tasks, chat and settings |
 | Operator | Team Settings › Manage Team, role "Operator" | `/operator` | Everything a team member sees, plus their own operator dashboard: the clients assigned to them, with what is pending from the client and from our side. A switcher at the top moves between the two |
-| Client | The client card (username + password) | `/portal/<id>` | Their onboarding, then their project dashboard |
+| Client | The client card (username + password) | `/portal/<id>`, after signing in at `/client-login` | Their onboarding, then their project dashboard |
+
+Every client uses the same address, `/client-login`, and lands on their own portal. **Share Portal** on a client card copies that address.
 
 Users and their roles can be edited in Team Settings › Manage Team. Team members cannot open the operator dashboard.
 

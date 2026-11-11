@@ -17,7 +17,7 @@ export async function middleware(request: NextRequest) {
                 : '/';
 
     // Already signed in: skip the login page
-    if (path === '/login') {
+    if (path === '/login' || path === '/client-login') {
         return session ? redirect(home) : NextResponse.next();
     }
 
@@ -25,7 +25,8 @@ export async function middleware(request: NextRequest) {
     if (!isProtectedRoute) return NextResponse.next();
 
     if (!session) {
-        const response = redirect('/login');
+        // Clients are sent to their own sign-in page
+        const response = redirect(path.startsWith('/portal') ? '/client-login' : '/login');
         // Drop cookies that are forged, expired or from before sessions were signed.
         if (token) response.cookies.delete(SESSION_COOKIE_NAME);
         return response;

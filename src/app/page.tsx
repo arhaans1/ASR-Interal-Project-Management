@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useClients, applyFunnelTemplate } from '@/hooks/useClients';
-import { useCategories } from '@/hooks/useCategories';
+import { useCategories, prefetchCategories } from '@/hooks/useCategories';
 import { Client } from '@/types/database';
 import Sidebar from '@/components/Sidebar';
 import ClientDetail from '@/components/ClientDetail';
@@ -54,6 +54,15 @@ export default function Home() {
     moveTask,
     refreshCategories,
   } = useCategories(selectedClient?.id || null);
+
+  // Load the boards of the clients people actually open, in one background request,
+  // so clicking a card shows its tasks straight away.
+  useEffect(() => {
+    const ids = clients.filter((c) => c.status !== 'Archived').map((c) => c.id);
+    if (ids.length === 0) return;
+    const timer = setTimeout(() => prefetchCategories(ids), 300);
+    return () => clearTimeout(timer);
+  }, [clients]);
 
   // Update selected client when clients change
   useEffect(() => {

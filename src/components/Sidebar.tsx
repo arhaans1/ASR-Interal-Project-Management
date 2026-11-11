@@ -3,6 +3,7 @@ import { Client } from '@/types/database';
 import { ChevronRight, Plus, Users, Layout, Rocket, Archive, Copy, MessageSquare, BellRing } from 'lucide-react';
 import { useGlobalChatNotifications } from '@/hooks/useGlobalChatNotifications';
 import WorkspaceSwitcher from './WorkspaceSwitcher';
+import { prefetchCategories } from '@/hooks/useCategories';
 
 interface SidebarProps {
   clients: Client[];
@@ -74,6 +75,8 @@ export default function Sidebar({
   const ClientItem = ({ client }: { client: Client }) => (
     <button
       onClick={() => onSelectClient(client)}
+      onMouseEnter={() => prefetchCategories([client.id])}
+      onFocus={() => prefetchCategories([client.id])}
       className={`w-full text-left px-2.5 py-2 rounded-xl transition-colors duration-150 group relative overflow-hidden flex items-center gap-3 ${selectedClientId === client.id
         ? 'bg-slate-900 text-white shadow-sm'
         : 'hover:bg-slate-100 hover:text-gray-900'

@@ -238,16 +238,17 @@ export default function ClientDetail({
 
             <button
               onClick={() => {
-                const portalUrl = `${window.location.origin}/portal/${client.id}`;
+                // One address for every client: they sign in and land on their own portal.
+                const portalUrl = `${window.location.origin}/client-login`;
                 navigator.clipboard.writeText(portalUrl);
                 setLinkCopied(true);
                 setTimeout(() => setLinkCopied(false), 2000);
               }}
               className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-colors font-semibold text-sm shadow-sm whitespace-nowrap"
-              title="Copy the client portal link"
+              title="Copy the client login link. The client signs in with the username and password on this card."
             >
               {linkCopied ? <Check className="w-4 h-4 text-emerald-600" /> : <Share2 className="w-4 h-4" />}
-              {linkCopied ? 'Link copied' : 'Share Portal'}
+              {linkCopied ? 'Login link copied' : 'Share Portal'}
             </button>
             <button
               onClick={onClone}
@@ -334,6 +335,7 @@ export default function ClientDetail({
               </div>
               <div className="p-6 pt-2">
                 <TextBox
+                  key={`notes-${client.id}`}
                   value={client.notes}
                   onChange={(value) => onUpdateClient({ notes: value })}
                   placeholder="Add client notes..."
@@ -352,6 +354,7 @@ export default function ClientDetail({
               </div>
               <div className="p-6 pt-2">
                 <TextBox
+                  key={`links-${client.id}`}
                   value={client.important_links}
                   onChange={(value) => onUpdateClient({ important_links: value })}
                   placeholder="Paste links here..."

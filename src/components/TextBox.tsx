@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { Save } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface TextBoxProps {
   title?: string;
@@ -11,69 +10,85 @@ interface TextBoxProps {
   className?: string;
 }
 
-// Function to render rich text (Bold, Italic, Underline, Links)
-function renderRichText(text: string): React.ReactNode[] {
-  if (!text) return [];
+// The box is always editable, like a document: type straight into it, links open on click,
+// and changes save by themselves. Text is stored as plain text with light markers
+// (**bold**, *italic*, <u>underline</u>); web addresses become links automatically.
 
-  const formatRules = [
-    { type: 'bold', regex: /\*\*(.+?)\*\*/ },
-    { type: 'italic', regex: /\*(.+?)\*/ },
-    { type: 'underline', regex: /<u>(.+?)<\/u>/ },
-    { type: 'link', regex: /((?:https?:\/\/|www\.)[^\s]+)/ }
-  ];
+const SAVE_DELAY_MS = 700;
 
-  let bestMatch: RegExpMatchArray | null = null;
-  let bestRule: { type: string; regex: RegExp } | null = null;
-  let minIndex = text.length;
+const escapeHtml = (text: string) =>
+  text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-  formatRules.forEach(rule => {
-    const match = text.match(rule.regex);
-    if (match && match.index! < minIndex) {
-      minIndex = match.index!;
-      bestMatch = match;
-      bestRule = rule;
-    }
+const LINK_CLASS = 'text-indigo-600 hover:text-indigo-800 underline break-all cursor-pointer';
+
+// Stored text -> what is shown in the box
+export function toHtml(text: string): string {
+  if (!text) return '';
+
+  // Links are set aside first so formatting markers inside an address are left alone.
+  const links: string[] = [];
+  let html = escapeHtml(text).replace(/((?:https?:\/\/|www\.)[^\s<]+)/g, (url) => {
+    const href = url.startsWith('www.') ? `https://${url}` : url;
+    links.push(`<a href="${href}" target="_blank" rel="noopener noreferrer" class="${LINK_CLASS}">${url}</a>`);
+    return `\u0000${links.length - 1}\u0000`;
   });
 
-  if (!bestMatch || !bestRule) {
-    return [text];
-  }
+  html = html
+    .replace(/&lt;u&gt;([\s\S]+?)&lt;\/u&gt;/g, '<u>$1</u>')
+    .replace(/\*\*([^\n]+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^\n*]+?)\*/g, '<em>$1</em>')
+    .replace(/\n/g, '<br>');
 
-  const pre = text.substring(0, minIndex);
-  const matchFull = (bestMatch as any)[0];
-  const content = (bestMatch as any)[1]; // Inner content (group 1) for formatting, or full match for link if invalid group
-  const post = text.substring(minIndex + matchFull.length);
+  return html.replace(/\u0000(\d+)\u0000/g, (_, index) => links[Number(index)]);
+}
 
-  // Recursively render pre & post
-  const preNodes = renderRichText(pre);
-  const postNodes = renderRichText(post);
+// What is shown in the box -> stored text
+export function toText(root: Node): string {
+  let out = '';
 
-  let midNode: React.ReactNode;
-  const keyCheck = `${minIndex}-${matchFull.length}`; // Simple unique key part
+  const walk = (node: Node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      out += (node.textContent || '').replace(/ /g, ' ');
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
 
-  if ((bestRule as any).type === 'link') {
-    const href = matchFull.startsWith('www.') ? `https://${matchFull}` : matchFull;
-    midNode = (
-      <a
-        key={`link-${keyCheck}`}
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={(e) => e.stopPropagation()}
-        className="text-indigo-600 hover:text-indigo-800 underline break-all cursor-pointer relative z-20"
-      >
-        {matchFull}
-      </a>
-    );
-  } else if ((bestRule as any).type === 'bold') {
-    midNode = <strong key={`bold-${keyCheck}`} className="font-bold">{renderRichText(content)}</strong>;
-  } else if ((bestRule as any).type === 'italic') {
-    midNode = <em key={`italic-${keyCheck}`} className="italic">{renderRichText(content)}</em>;
-  } else if ((bestRule as any).type === 'underline') {
-    midNode = <u key={`underline-${keyCheck}`} className="underline">{renderRichText(content)}</u>;
-  }
+    const el = node as HTMLElement;
+    const tag = el.tagName;
 
-  return [...preNodes, midNode!, ...postNodes];
+    if (tag === 'BR') {
+      out += '\n';
+      return;
+    }
+    // Browsers wrap pasted or typed lines in blocks: each one starts on a new line.
+    if ((tag === 'DIV' || tag === 'P' || tag === 'LI') && out && !out.endsWith('\n')) {
+      out += '\n';
+    }
+
+    const marker =
+      tag === 'STRONG' || tag === 'B' ? ['**', '**']
+        : tag === 'EM' || tag === 'I' ? ['*', '*']
+          : tag === 'U' ? ['<u>', '</u>']
+            : null;
+
+    if (!marker) {
+      el.childNodes.forEach(walk);
+      return;
+    }
+
+    const before = out;
+    out = '';
+    el.childNodes.forEach(walk);
+    const inner = out;
+    // Markers hug the words, so spaces at the edges stay outside them.
+    const lead = inner.match(/^\s*/)![0];
+    const trail = inner.slice(lead.length).match(/\s*$/)![0];
+    const core = inner.slice(lead.length, inner.length - trail.length);
+    out = before + (core ? `${lead}${marker[0]}${core}${marker[1]}${trail}` : inner);
+  };
+
+  root.childNodes.forEach(walk);
+  return out.replace(/\n+$/, '');
 }
 
 export default function TextBox({
@@ -82,130 +97,141 @@ export default function TextBox({
   placeholder = 'Start typing...',
   className = '',
 }: TextBoxProps) {
-  const [localValue, setLocalValue] = useState(value);
-  const [isEditing, setIsEditing] = useState(false);
-  const [hasChanges, setHasChanges] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savedRef = useRef(value); // what the database has, as far as this box knows
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
 
-  useEffect(() => {
-    setLocalValue(value);
-    setHasChanges(false);
-  }, [value]);
+  const [isEmpty, setIsEmpty] = useState(!value);
+  const [status, setStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
-  // key fix: auto-expand textarea
-  useEffect(() => {
-    if (isEditing && textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+  const render = useCallback((text: string) => {
+    if (editorRef.current) editorRef.current.innerHTML = toHtml(text);
+    setIsEmpty(!text);
+  }, []);
+
+  // Write the box out if it differs from what was last saved.
+  const save = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
     }
-  }, [isEditing, localValue]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setLocalValue(e.target.value);
-    setHasChanges(e.target.value !== value);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Keyboard shortcuts for formatting: Ctrl+B (Bold), Ctrl+I (Italic), Ctrl+U (Underline)
-    if ((e.ctrlKey || e.metaKey) && ['b', 'i', 'u'].includes(e.key.toLowerCase())) {
-      e.preventDefault();
-
-      const start = e.currentTarget.selectionStart;
-      const end = e.currentTarget.selectionEnd;
-      const text = e.currentTarget.value;
-      const selected = text.substring(start, end);
-
-      // Define markers
-      let prefix = '';
-      let suffix = '';
-
-      if (e.key.toLowerCase() === 'b') { prefix = '**'; suffix = '**'; }
-      else if (e.key.toLowerCase() === 'i') { prefix = '*'; suffix = '*'; }
-      else if (e.key.toLowerCase() === 'u') { prefix = '<u>'; suffix = '</u>'; }
-
-      const newText = text.substring(0, start) + prefix + selected + suffix + text.substring(end);
-
-      setLocalValue(newText);
-      setHasChanges(newText !== value);
-
-      // Restore selection to cover the wrapped text (or inside it?)
-      // Let's select the inner text so user can keep typing or editing it
-      setTimeout(() => {
-        if (textareaRef.current) {
-          textareaRef.current.focus();
-          textareaRef.current.setSelectionRange(start + prefix.length, end + prefix.length);
-        }
-      }, 0);
+    if (!editorRef.current) return;
+    const text = toText(editorRef.current);
+    if (text === savedRef.current) {
+      setStatus((s) => (s === 'saving' ? 'idle' : s));
+      return;
     }
-  };
+    savedRef.current = text;
+    onChangeRef.current(text);
+    setStatus('saved');
+  }, []);
 
-  const handleSave = () => {
-    onChange(localValue);
-    setHasChanges(false);
-    setIsEditing(false);
-  };
+  // First paint
+  useEffect(() => {
+    render(value);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const handleBlur = (e: React.FocusEvent) => {
-    // Check if the new focus target is inside the container (e.g. the link or save button)
-    // Actually, save button is outside the textarea.
-    // We want to save on blur, but delay allow save click?
-    // User requested "clicking anywhere boxes should make them editable".
-    // When editing, clicking OUTSIDE should save/close.
+  // The value changed somewhere else: show it, unless the person is typing here right now.
+  useEffect(() => {
+    if (value === savedRef.current) return;
+    savedRef.current = value;
+    if (document.activeElement !== editorRef.current) render(value);
+  }, [value, render]);
 
-    // Simple delay logic is fine for now
-    setTimeout(() => {
-      if (hasChanges) {
-        handleSave();
+  // Leaving the page or switching client: do not lose the last few keystrokes.
+  useEffect(() => {
+    const editor = editorRef.current;
+    return () => {
+      if (timerRef.current && editor) {
+        clearTimeout(timerRef.current);
+        const text = toText(editor);
+        if (text !== savedRef.current) onChangeRef.current(text);
       }
-      setIsEditing(false);
-    }, 200);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (status !== 'saved') return;
+    const timer = setTimeout(() => setStatus('idle'), 1500);
+    return () => clearTimeout(timer);
+  }, [status]);
+
+  const handleInput = () => {
+    if (!editorRef.current) return;
+    setIsEmpty(toText(editorRef.current) === '' && !editorRef.current.textContent);
+    setStatus('saving');
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(save, SAVE_DELAY_MS);
+  };
+
+  const handleBlur = () => {
+    save();
+    // Tidy up: anything typed as a web address becomes a link.
+    render(savedRef.current);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    // A plain line break on Enter keeps the text simple
+    if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      document.execCommand('insertLineBreak');
+    }
+  };
+
+  // Paste as plain text: no fonts, colours or sizes carried in from elsewhere
+  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData('text/plain').replace(/\r\n?/g, '\n');
+    const lines = text.split('\n');
+    lines.forEach((line, i) => {
+      if (i > 0) document.execCommand('insertLineBreak');
+      if (line) document.execCommand('insertText', false, line);
+    });
+  };
+
+  // Links open on click, in a new tab
+  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const link = (e.target as HTMLElement).closest('a');
+    if (link && editorRef.current?.contains(link)) {
+      e.preventDefault();
+      window.open(link.getAttribute('href')!, '_blank', 'noopener,noreferrer');
+    }
   };
 
   return (
-    <div className={`relative group/textbox ${className}`}>
-      {/* Save Indicator - Floating absolute */}
-      {hasChanges && (
-        <button
-          onClick={handleSave}
-          className="absolute -top-2 right-0 z-30 flex items-center gap-1 text-xs bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full font-bold shadow-sm opacity-100 transition-opacity"
-        >
-          <Save className="w-3 h-3" />
-          Save
-        </button>
+    <div className={`relative ${className}`}>
+      {isEmpty && (
+        <span className="pointer-events-none absolute left-0 top-0 text-sm font-medium italic leading-relaxed text-gray-400">
+          {placeholder}
+        </span>
       )}
 
-      <div className="min-h-[100px] h-full w-full">
-        {isEditing ? (
-          <textarea
-            ref={textareaRef}
-            value={localValue}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            placeholder={placeholder}
-            onKeyDown={handleKeyDown}
-            className="w-full h-full resize-none bg-transparent border-0 focus:ring-0 outline-none text-sm text-gray-700 placeholder-gray-400 p-0 font-medium leading-relaxed overflow-hidden"
-            autoFocus
-          />
-        ) : (
-          <div
-            onClick={() => setIsEditing(true)}
-            className="w-full h-full cursor-text text-sm text-gray-700 whitespace-pre-wrap p-0 font-medium leading-relaxed min-h-[100px]"
-          >
-            {localValue ? (
-              <div className="whitespace-pre-wrap break-words">
-                {renderRichText(localValue)}
-              </div>
-            ) : (
-              <span className="text-gray-400 italic">{placeholder}</span>
-            )}
+      <div
+        ref={editorRef}
+        role="textbox"
+        aria-multiline="true"
+        aria-label={placeholder}
+        contentEditable
+        suppressContentEditableWarning
+        spellCheck
+        onInput={handleInput}
+        onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
+        onPaste={handlePaste}
+        onClick={handleClick}
+        className="min-h-[inherit] w-full cursor-text whitespace-pre-wrap break-words text-sm font-medium leading-relaxed text-gray-700 outline-none focus-visible:outline-none"
+        style={{ minHeight: 'inherit' }}
+      />
 
-            {/* Edit hint on hover */}
-            <div className="absolute bottom-0 right-0 opacity-0 group-hover/textbox:opacity-100 transition-opacity pointer-events-none">
-              <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Click to edit</span>
-            </div>
-          </div>
-        )}
-      </div>
+      <span
+        aria-live="polite"
+        className={`pointer-events-none absolute -bottom-4 right-0 text-[11px] font-medium text-slate-400 transition-opacity duration-300 ${status === 'idle' ? 'opacity-0' : 'opacity-100'}`}
+      >
+        {status === 'saving' ? 'Saving…' : 'Saved'}
+      </span>
     </div>
   );
 }

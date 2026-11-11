@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Category, Task } from '@/types/database';
 
@@ -8,82 +8,130 @@ export interface CategoryWithTasks extends Category {
   tasks: Task[];
 }
 
+// ---------------------------------------------------------------------------
+// Boards are kept in memory once loaded, so going back to a client is instant.
+// A fresh copy is still fetched in the background every time one is opened.
+// ---------------------------------------------------------------------------
+
+const boardCache = new Map<string, CategoryWithTasks[]>();
+const inFlight = new Map<string, Promise<void>>();
+
+// One request for the boards of any number of clients: categories with their tasks.
+async function loadBoards(clientIds: string[]): Promise<Map<string, CategoryWithTasks[]>> {
+  const { data, error } = await supabase
+    .from('categories')
+    .select('*, tasks(*, assigned_client:assigned_to(name), origin_client:origin_client_id(name))')
+    .in('client_id', clientIds)
+    .order('order_index');
+
+  if (error) throw error;
+
+  const boards = new Map<string, CategoryWithTasks[]>(clientIds.map((id) => [id, []]));
+  for (const row of (data as any[]) || []) {
+    const { tasks, ...category } = row;
+    boards.get(category.client_id)?.push({
+      ...category,
+      tasks: ((tasks as any[]) || [])
+        .map(({ assigned_client, origin_client, ...task }) => ({
+          ...task,
+          assigned_user_name: assigned_client?.name || null,
+          origin_client_name: origin_client?.name || null,
+        }))
+        .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)) as Task[],
+    });
+  }
+  return boards;
+}
+
+// Load boards ahead of time (on hover, or right after the client list arrives) so
+// they are already there when the card is clicked. Failures are ignored: the board
+// simply loads on click instead.
+export function prefetchCategories(clientIds: string[]): Promise<void> {
+  const wanted = clientIds.filter((id) => !boardCache.has(id) && !inFlight.has(id));
+  if (wanted.length === 0) return Promise.resolve();
+
+  const request = loadBoards(wanted)
+    .then((boards) => {
+      boards.forEach((board, id) => {
+        if (!boardCache.has(id)) boardCache.set(id, board);
+      });
+    })
+    .catch(() => { })
+    .finally(() => wanted.forEach((id) => inFlight.delete(id)));
+
+  wanted.forEach((id) => inFlight.set(id, request));
+  return request;
+}
+
 export function useCategories(clientId: string | null) {
-  const [categories, setCategories] = useState<CategoryWithTasks[]>([]);
-  const [loading, setLoading] = useState(false);
+  // The board on screen, tagged with the client it belongs to.
+  const [board, setBoard] = useState<{ clientId: string | null; categories: CategoryWithTasks[] }>({
+    clientId: null,
+    categories: [],
+  });
+  const [failedFor, setFailedFor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const activeClientRef = useRef(clientId);
+  activeClientRef.current = clientId;
+
+  // Right after switching client, show what is already in memory rather than the previous board.
+  const known = board.clientId === clientId ? board.categories : clientId ? boardCache.get(clientId) : undefined;
+  const categories = useMemo(() => known ?? [], [known]);
+  const loading = Boolean(clientId) && known === undefined && failedFor !== clientId;
+
+  // Every change to the board on screen also updates the copy kept in memory.
+  const setCategories = useCallback(
+    (update: CategoryWithTasks[] | ((prev: CategoryWithTasks[]) => CategoryWithTasks[])) => {
+      const id = activeClientRef.current;
+      if (!id) return;
+      setBoard((prev) => {
+        const current = prev.clientId === id ? prev.categories : boardCache.get(id) ?? [];
+        const next = typeof update === 'function' ? update(current) : update;
+        boardCache.set(id, next);
+        return { clientId: id, categories: next };
+      });
+    },
+    []
+  );
 
   // `silent` refreshes in the background without swapping the board for a spinner.
   const fetchCategories = useCallback(async (silent = false) => {
-    if (!clientId) {
-      setCategories([]);
-      return;
-    }
+    if (!clientId) return;
 
     try {
-      if (!silent) setLoading(true);
-
-      // Step 1: Fetch Categories
-      const { data: categoriesData, error: catError } = await supabase
-        .from('categories')
-        .select('*')
-        .eq('client_id', clientId)
-        .order('order_index');
-
-      if (catError) throw catError;
-
-      const categories = (categoriesData as Category[]) || [];
-
-      if (categories.length === 0) {
-        setCategories([]);
-        return;
+      // A preload for this client may already be on its way.
+      if (!boardCache.has(clientId) && inFlight.has(clientId)) {
+        await inFlight.get(clientId);
+        if (boardCache.has(clientId)) {
+          if (activeClientRef.current === clientId) {
+            setBoard({ clientId, categories: boardCache.get(clientId)! });
+          }
+          return;
+        }
       }
 
-      // Step 2: Fetch Tasks for these categories in one batch
-      const categoryIds = categories.map(c => c.id);
-
-      // We need to fetch assigned_to relation.
-      // Fetch assigned_to relation AND origin_client_id relation.
-      // Supabase Join: assigned_to (id, name), origin_client_id (id, name)
-      const { data: tasksData, error: taskError } = await supabase
-        .from('tasks')
-        .select(`
-            *,
-            assigned_client:assigned_to(name),
-            origin_client:origin_client_id(name)
-        `)
-        .in('category_id', categoryIds)
-        .order('order_index');
-
-      if (taskError) throw taskError;
-
-      // Transform result to match Task interface (flatten assigned_client.name and origin_client.name)
-      const tasks = (tasksData || []).map((t: any) => ({
-        ...t,
-        assigned_user_name: t.assigned_client?.name || null,
-        origin_client_name: t.origin_client?.name || null
-      })) as Task[];
-
-      // Step 3: Merge in memory
-      const categoriesWithTasks: CategoryWithTasks[] = categories.map(category => ({
-        ...category,
-        tasks: tasks.filter(t => t.category_id === category.id)
-      }));
-
-      setCategories(categoriesWithTasks);
+      const fresh = (await loadBoards([clientId])).get(clientId) ?? [];
+      boardCache.set(clientId, fresh);
+      // Ignore the answer if another client was opened while this was loading.
+      if (activeClientRef.current === clientId) {
+        setBoard({ clientId, categories: fresh });
+        setFailedFor(null);
+      }
     } catch (err: any) {
       // A failed background refresh keeps the board as it is.
-      if (silent) return;
+      if (silent || boardCache.has(clientId)) return;
       const errorMessage = typeof err === 'string' ? err : (err?.message || 'Failed to fetch categories');
       setError(errorMessage);
-    } finally {
-      if (!silent) setLoading(false);
+      setFailedFor(clientId);
     }
   }, [clientId]);
 
   useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
+    if (!clientId) return;
+    const cached = boardCache.get(clientId);
+    if (cached) setBoard({ clientId, categories: cached });
+    fetchCategories(Boolean(cached));
+  }, [clientId, fetchCategories]);
 
   // Clients tick tasks in their portal. Pull those ticks in while this board is open.
   useEffect(() => {
