@@ -22,6 +22,7 @@ export interface Client {
   funnel_type?: FunnelType | null;
   operator_id?: string | null;
   drive_folder_url?: string | null;
+  assets_folder_url?: string | null;
   onboarding_video_url?: string | null;
   onboarding_form_url?: string | null;
 }
@@ -74,6 +75,7 @@ export interface PortalClient {
   funnel_type: FunnelType | null;
   operator_id: string | null;
   drive_folder_url: string | null;
+  assets_folder_url: string | null;
   onboarding_video_url: string | null;
   onboarding_form_url: string | null;
   important_links: string;

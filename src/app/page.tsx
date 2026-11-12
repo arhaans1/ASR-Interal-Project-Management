@@ -114,6 +114,7 @@ export default function Home() {
           selectedClient.funnel_type ||
           selectedClient.operator_id ||
           selectedClient.drive_folder_url ||
+          selectedClient.assets_folder_url ||
           selectedClient.onboarding_video_url ||
           selectedClient.onboarding_form_url
         );
