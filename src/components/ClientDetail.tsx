@@ -206,6 +206,17 @@ export default function ClientDetail({
                   Drive folder
                 </a>
               )}
+              {client.assets_folder_url && (
+                <a
+                  href={client.assets_folder_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-slate-600 hover:text-slate-900 underline decoration-slate-300 underline-offset-4"
+                >
+                  <FolderOpen className="w-4 h-4 text-indigo-500" />
+                  Assets folder
+                </a>
+              )}
             </div>
             {summary.hasOnboarding && (
               <div

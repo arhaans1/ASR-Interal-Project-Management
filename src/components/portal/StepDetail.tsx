@@ -13,6 +13,8 @@ interface StepDetailProps {
 const linkFor = (action: StepAction, client: PortalClient): string | null => {
     if (action.url) return action.url;
     if (action.source === 'drive') return client.drive_folder_url;
+    // The assets folder, or the main Drive folder for cards that do not have one set
+    if (action.source === 'assets') return client.assets_folder_url || client.drive_folder_url;
     if (action.source === 'video') return client.onboarding_video_url;
     if (action.source === 'form') return client.onboarding_form_url;
     return null;
@@ -25,7 +27,11 @@ export default function StepDetail({ task, client }: StepDetailProps) {
 
     const embedUrl = guide.embedVideo ? toEmbedUrl(client.onboarding_video_url) : null;
     const actions = (guide.actions || [])
-        .map((action) => ({ ...action, href: linkFor(action, client) }))
+        .map((action) => ({
+            ...action,
+            href: linkFor(action, client),
+            label: action.source === 'assets' && !client.assets_folder_url ? 'Open your Drive folder' : action.label,
+        }))
         // The embedded player already covers the main action; keep "open in a new tab" as a fallback.
         .filter((action) => action.href);
     const missingLink = (guide.actions || []).some((a) => a.primary && !linkFor(a, client));

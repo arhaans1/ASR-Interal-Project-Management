@@ -15,6 +15,7 @@ export interface ClientFormValues {
   funnel_type: FunnelType | null;
   operator_id: string | null;
   drive_folder_url: string | null;
+  assets_folder_url: string | null;
   onboarding_video_url: string | null;
   onboarding_form_url: string | null;
   // What to do with the funnel's task template: nothing, add it, or swap the card's tasks for it
@@ -50,6 +51,7 @@ export default function ClientModal({
   const [funnelType, setFunnelType] = useState<FunnelType | null>(null);
   const [operatorId, setOperatorId] = useState('');
   const [driveUrl, setDriveUrl] = useState('');
+  const [assetsUrl, setAssetsUrl] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
   const [formUrl, setFormUrl] = useState('');
   const [templateChoice, setTemplateChoice] = useState<'none' | 'add' | 'replace'>('none');
@@ -74,6 +76,7 @@ export default function ClientModal({
       setFunnelType(client.funnel_type || null);
       setOperatorId(client.operator_id || '');
       setDriveUrl(client.drive_folder_url || '');
+      setAssetsUrl(client.assets_folder_url || '');
       setVideoUrl(client.onboarding_video_url || '');
       setFormUrl(client.onboarding_form_url || '');
     } else {
@@ -85,6 +88,7 @@ export default function ClientModal({
       setFunnelType(null);
       setOperatorId('');
       setDriveUrl('');
+      setAssetsUrl('');
       setVideoUrl('');
       setFormUrl('');
     }
@@ -152,6 +156,7 @@ export default function ClientModal({
         funnel_type: isProject ? funnelType : null,
         operator_id: isProject && operatorId ? operatorId : null,
         drive_folder_url: driveUrl.trim() || null,
+        assets_folder_url: assetsUrl.trim() || null,
         onboarding_video_url: videoUrl.trim() || null,
         onboarding_form_url: formUrl.trim() || null,
         templateMode,
@@ -370,6 +375,7 @@ export default function ClientModal({
                 <div className="space-y-3">
                   {[
                     { id: 'client-drive', icon: FolderOpen, label: 'Google Drive folder', value: driveUrl, set: setDriveUrl, placeholder: 'https://drive.google.com/drive/folders/…' },
+                    { id: 'client-assets', icon: FolderOpen, label: 'Client assets folder (logos, photos, testimonials)', value: assetsUrl, set: setAssetsUrl, placeholder: 'https://drive.google.com/drive/folders/… (02 Clients Assets)' },
                     { id: 'client-video', icon: PlayCircle, label: 'Start Here video', value: videoUrl, set: setVideoUrl, placeholder: 'Drive, YouTube, Loom or Vimeo link' },
                     { id: 'client-form', icon: FileText, label: 'On-Boarding Worksheet', value: formUrl, set: setFormUrl, placeholder: 'https://docs.google.com/document/d/…' },
                   ].map((field) => (

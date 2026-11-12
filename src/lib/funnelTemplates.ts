@@ -223,7 +223,8 @@ export const templateTaskCount = (type: FunnelType) =>
 // ASR Media Pro's Meta Business Portfolio ID, which clients add as a partner.
 export const META_PARTNER_ID = '510878439923195';
 
-export type StepLinkSource = 'drive' | 'video' | 'form';
+// 'assets' is the client's assets folder; it falls back to their main Drive folder when none is set
+export type StepLinkSource = 'drive' | 'assets' | 'video' | 'form';
 
 export interface StepAction {
   label: string;
@@ -285,7 +286,7 @@ export const STEP_GUIDES: Record<string, StepGuide> = {
     eyebrow: 'Brand assets',
     summary:
       'Upload your logo so we can use it across your ads, pages and community. The highest-quality file you have is best — PNG with a transparent background, or SVG.',
-    actions: [{ label: 'Open your Drive folder', source: 'drive', primary: true }],
+    actions: [{ label: 'Open your assets folder', source: 'assets', primary: true }],
     where: '02 Clients Assets › Logos',
     doneLabel: "I've uploaded my logo",
   },
@@ -293,7 +294,7 @@ export const STEP_GUIDES: Record<string, StepGuide> = {
     eyebrow: 'Brand assets',
     summary:
       'Add clear photos of you for the "About" and "Meet the founder" sections of your pages. A mix of professional and natural shots works well.',
-    actions: [{ label: 'Open your Drive folder', source: 'drive', primary: true }],
+    actions: [{ label: 'Open your assets folder', source: 'assets', primary: true }],
     where: '02 Clients Assets › Coach Images',
     doneLabel: "I've uploaded my photos",
   },
@@ -301,7 +302,7 @@ export const STEP_GUIDES: Record<string, StepGuide> = {
     eyebrow: 'Proof',
     summary:
       'Share as many testimonials and case studies as you can. Any format is fine — screenshots, videos, voice notes or written reviews.',
-    actions: [{ label: 'Open your Drive folder', source: 'drive', primary: true }],
+    actions: [{ label: 'Open your assets folder', source: 'assets', primary: true }],
     where: '02 Clients Assets › Testimonials',
     doneLabel: "I've uploaded my testimonials",
   },

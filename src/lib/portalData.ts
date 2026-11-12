@@ -14,6 +14,7 @@ export function toPortalClient(row: any): PortalClient {
         funnel_type: row.funnel_type ?? null,
         operator_id: row.operator_id ?? null,
         drive_folder_url: row.drive_folder_url ?? null,
+        assets_folder_url: row.assets_folder_url ?? null,
         onboarding_video_url: row.onboarding_video_url ?? null,
         onboarding_form_url: row.onboarding_form_url ?? null,
         important_links: row.important_links ?? '',

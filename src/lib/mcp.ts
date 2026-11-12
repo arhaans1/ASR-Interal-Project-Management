@@ -108,6 +108,7 @@ const TOOLS = [
                 operator: { type: 'string', description: 'Operator name (or id) who runs this project. See list_operators.' },
                 funnel_type: { type: 'string', enum: ['CAM', 'VSL', 'Webinar'], description: 'Funnel type. Default CAM (Community Ascension Model).' },
                 drive_folder_url: { type: 'string', description: 'Client\'s Google Drive folder link (https://drive.google.com/...).' },
+                assets_folder_url: { type: 'string', description: 'Link to the client\'s assets folder ("02 Clients Assets": logos, photos, testimonials). The logo, photo and testimonial upload steps open this. If omitted they open the main Drive folder.' },
                 onboarding_video_url: { type: 'string', description: 'Link to the "Start Here" / worksheet fill-up video (Drive, YouTube, Loom or Vimeo).' },
                 onboarding_form_url: { type: 'string', description: 'Link to the On-Boarding Worksheet (Google Doc).' },
             },
@@ -295,6 +296,7 @@ async function createClientCard(args: Record<string, any>) {
     if (!(funnel in FUNNEL_TEMPLATES)) throw new ToolError('funnel_type must be CAM, VSL or Webinar.');
 
     const drive = cleanUrl(args.drive_folder_url, 'drive_folder_url');
+    const assets = cleanUrl(args.assets_folder_url, 'assets_folder_url');
     const video = cleanUrl(args.onboarding_video_url, 'onboarding_video_url');
     const form = cleanUrl(args.onboarding_form_url, 'onboarding_form_url');
 
@@ -320,6 +322,7 @@ async function createClientCard(args: Record<string, any>) {
             funnel_type: funnel,
             operator_id: operator.id,
             ...(drive ? { drive_folder_url: drive } : {}),
+            ...(assets ? { assets_folder_url: assets } : {}),
             ...(video ? { onboarding_video_url: video } : {}),
             ...(form ? { onboarding_form_url: form } : {}),
         })
@@ -344,6 +347,7 @@ async function createClientCard(args: Record<string, any>) {
         result: `Created ${name} (${businessName}) on a ${funnelLabel(funnel)} project, run by ${operator.username}. They can sign in to the client portal with username "${username}" and the password you set.`,
         links_set: {
             drive_folder: Boolean(drive),
+            assets_folder: Boolean(assets),
             onboarding_video: Boolean(video),
             onboarding_worksheet: Boolean(form),
         },
