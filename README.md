@@ -71,7 +71,7 @@ Dates are worked out from when things were actually ticked, so they move with th
 
 - Set `MCP_API_KEY` (16+ characters) in the server environment. Without it the endpoint is off.
 - Connect with `https://<your-domain>/api/mcp` and the header `Authorization: Bearer <MCP_API_KEY>`, or, for assistants that only take a URL, `https://<your-domain>/api/mcp/<MCP_API_KEY>`. Anyone with that URL can update tasks, so treat it like a password.
-- Tools: `list_projects`, `get_project`, `update_task`, `list_operators`, `create_client`.
+- Tools: `list_projects`, `get_project`, `update_task`, `list_operators`, `create_client`, `update_project_operator`.
 - `create_client` works like the New client form: name, business, portal username and password (8+ characters, username must be unused), operator, funnel type (CAM by default) and the Drive folder, assets folder, Start Here video and worksheet links. The funnel's task list is added automatically and the client can sign in at once.
 - Example: "the course outline for Quantseekho has been submitted" → the assistant ticks the outline task and the stage becomes Pending client approval. "The client approved it" → it ticks the approval task, the stage returns to In progress and the remaining due dates are set.
 
