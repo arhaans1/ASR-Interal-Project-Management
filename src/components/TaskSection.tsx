@@ -383,7 +383,9 @@ export default function TaskSection({
     const open = isOpen(category);
     const locked = isLocked(category);
     const phase = phaseById[category.id];
-    const tasks = category.tasks.filter(matchesFilter);
+    // Pending tasks first, ticked ones below. Each group keeps its saved order, so dragging still works.
+    const visible = category.tasks.filter(matchesFilter);
+    const tasks = [...visible.filter((t) => !t.completed), ...visible.filter((t) => t.completed)];
     const total = tasks.length;
     const completed = tasks.filter((t) => t.completed).length;
     const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
