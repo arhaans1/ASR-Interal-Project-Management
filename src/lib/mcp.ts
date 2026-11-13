@@ -93,6 +93,20 @@ const TOOLS = [
         inputSchema: { type: 'object', properties: {} },
     },
     {
+        name: 'update_project_operator',
+        description:
+            'Change which operator runs an existing client project (reassign it from one operator to another). The project moves to the new operator\'s workspace straight away. ' +
+            'Call list_operators for the exact operator names. Returns the previous and the new operator.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                project: { type: 'string', description: 'Client name, business name, or project id. Partial names work.' },
+                operator: { type: 'string', description: 'Name (or id) of the operator who should run it from now on. See list_operators.' },
+            },
+            required: ['project', 'operator'],
+        },
+    },
+    {
         name: 'create_client',
         description:
             'Create a new client project card, exactly like the "New client" form: the client name and business, the client\'s portal login (username and password), the operator who runs it, the funnel type and the three onboarding links. ' +
@@ -258,6 +272,31 @@ async function callTool(name: string, args: Record<string, any>) {
 
     if (name === 'create_client') return createClientCard(args);
 
+    if (name === 'update_project_operator') {
+        const { clients, operatorName } = await loadProjects(true);
+        const client = pickOne(clients, String(args.project ?? ''), (c) => c.id, (c) => [c.name, c.business_name], 'project');
+
+        const operators = await loadOperators();
+        if (operators.length === 0) throw new ToolError('There are no operators yet. Create one in Team Settings › Manage Team first.');
+        const operator = pickOne(operators, String(args.operator ?? ''), (u) => u.id, (u) => [u.username], 'operator');
+
+        const previous = operatorName(client.operator_id);
+        if (client.operator_id === operator.id) {
+            return { result: `${client.name} is already run by ${operator.username}. Nothing changed.`, project_id: client.id, operator: operator.username };
+        }
+
+        const { data, error } = await supabase.from('clients').update({ operator_id: operator.id }).eq('id', client.id).select('id');
+        if (error) throw error;
+        if (!data || data.length === 0) throw new ToolError(`${client.name} could not be updated. It may have been deleted.`);
+
+        return {
+            result: `${client.name} (${client.business_name}) moved from ${previous ?? 'no operator'} to ${operator.username}.`,
+            project_id: client.id,
+            previous_operator: previous,
+            operator: operator.username,
+        };
+    }
+
     throw new ToolError(`Unknown tool: ${name}`);
 }
 
@@ -381,7 +420,7 @@ async function handleMessage(message: RpcMessage) {
                 capabilities: { tools: {} },
                 serverInfo: SERVER_INFO,
                 instructions:
-                    'Project status for ASR Media Pro client projects. Find the project with list_projects, read it with get_project, and record progress with update_task. Always confirm the project and task names from the tool results before updating. To onboard a new client, call list_operators, then create_client.',
+                    'Project status for ASR Media Pro client projects. Find the project with list_projects, read it with get_project, and record progress with update_task. Always confirm the project and task names from the tool results before updating. To onboard a new client, call list_operators, then create_client. To hand a project to another operator, use update_project_operator.',
             });
         }
         case 'ping':
