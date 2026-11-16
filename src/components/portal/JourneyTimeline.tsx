@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import ScrollArea from '@/components/ScrollArea';
 import { Check, Flag, MapPin, Rocket, ThumbsUp } from 'lucide-react';
 import { PortalClient } from '@/types/database';
 import { funnelLongName } from '@/lib/funnelTemplates';
@@ -39,14 +39,6 @@ export default function JourneyTimeline({ client, summary, journey, audience = '
     const team = audience === 'team';
     const whoWaits = team ? 'Waiting on the client' : 'Waiting on you';
 
-    // On narrow screens the road scrolls sideways: start with "You're here" in view.
-    const roadRef = useRef<HTMLDivElement>(null);
-    useEffect(() => {
-        const road = roadRef.current;
-        if (!road || currentIndex < 0 || road.scrollWidth <= road.clientWidth) return;
-        const columnWidth = road.scrollWidth / n;
-        road.scrollLeft = Math.max(0, columnWidth * (currentIndex + 0.5) - road.clientWidth / 2);
-    }, [currentIndex, n]);
 
     // Consecutive milestones in the same group share one bracket above them
     const groups: { group: MilestoneGroup; start: number; span: number }[] = [];
@@ -131,9 +123,13 @@ export default function JourneyTimeline({ client, summary, journey, audience = '
                 </div>
             </div>
 
-            {/* The road */}
-            <div ref={roadRef} className="relative overflow-x-auto px-5 pb-6 pt-6 sm:px-8 sm:pb-7">
-                <div className="min-w-[760px]">
+            {/* Phones: the road as a vertical list of steps */}
+            <VerticalRoad milestones={milestones} team={team} currentIndex={currentIndex} />
+
+            {/* Wider screens: the road runs across, and says so when it needs a scroll */}
+            <div className="hidden md:block">
+            <ScrollArea className="px-5 pb-6 pt-6 sm:px-8 sm:pb-7" hint="Swipe to see every stage" focusFraction={currentIndex >= 0 ? (currentIndex + 0.5) / n : undefined}>
+                <div className="min-w-[880px]">
                     {/* Group brackets */}
                     <div className="grid" style={cols}>
                         {groups.map((g) => (
@@ -203,6 +199,7 @@ export default function JourneyTimeline({ client, summary, journey, audience = '
                         ))}
                     </ol>
                 </div>
+            </ScrollArea>
             </div>
 
             <p className="relative border-t border-slate-100 bg-slate-50/60 px-5 py-3 text-xs leading-relaxed text-slate-500 sm:px-8">
@@ -216,6 +213,80 @@ export default function JourneyTimeline({ client, summary, journey, audience = '
 
 // The approval is the client's: "Your approval" to them, "Client approval" to the team.
 const tagText = (m: Milestone, team: boolean) => (team && m.kind === 'approval' ? 'Client approval' : m.tag);
+
+function VerticalRoad({ milestones, team, currentIndex }: { milestones: Milestone[]; team: boolean; currentIndex: number }) {
+    return (
+        <ol className="relative px-5 pb-5 pt-5 md:hidden" aria-label="Stages">
+            {milestones.map((m, i) => {
+                const next = milestones[i + 1];
+                const newGroup = i === 0 || milestones[i - 1].group !== m.group;
+                const intoFilled = m.status === 'done' || m.status === 'current';
+                const outFilled = next ? next.status === 'done' || next.status === 'current' : false;
+                const isCurrent = i === currentIndex;
+                return (
+                    <li key={m.id}>
+                        {newGroup && (
+                            <div className="relative flex gap-2">
+                                {/* The rail carries on through the group label */}
+                                <div className="relative w-12 shrink-0">{i > 0 && <RailLine part="full" filled={intoFilled} />}</div>
+                                <p className={`pb-1 text-xs font-medium italic text-emerald-700 ${i === 0 ? '' : 'pt-2'}`}>{GROUP_LABELS[m.group]}</p>
+                            </div>
+                        )}
+                        <div className="relative flex gap-2">
+                            {/* Rail: half a line into this step, half a line out of it */}
+                            <div className="relative flex w-12 shrink-0 justify-center">
+                                {i > 0 && <RailLine part="top" filled={intoFilled} />}
+                                {next && <RailLine part="bottom" filled={outFilled} />}
+                                <span className="relative z-10 mt-2 flex h-12 items-center justify-center">
+                                    <Node milestone={m} />
+                                </span>
+                            </div>
+                            <div
+                                className={`my-1.5 min-w-0 flex-1 rounded-2xl px-3.5 py-2.5 ${isCurrent
+                                    ? m.waitingOnClient
+                                        ? 'bg-orange-50 ring-1 ring-orange-200'
+                                        : 'bg-emerald-50 ring-1 ring-emerald-200'
+                                    : ''
+                                    }`}
+                            >
+                                <div className="flex items-center justify-between gap-2">
+                                    <Tag milestone={m} team={team} />
+                                    {m.date && (
+                                        <span className={`shrink-0 text-xs font-bold tabular-nums ${m.overdue && m.status !== 'done' ? 'text-rose-600' : m.status === 'upcoming' ? 'text-slate-400' : 'text-slate-700'}`}>
+                                            {m.dateKind === 'estimate' ? '~' : ''}
+                                            {shortDate(m.date)}
+                                        </span>
+                                    )}
+                                </div>
+                                <p className={`mt-1 text-[15px] leading-snug ${m.status === 'current' ? 'font-bold text-slate-900' : m.status === 'done' ? 'font-semibold text-slate-700' : 'font-medium text-slate-500'}`}>
+                                    {m.title}
+                                </p>
+                                {isCurrent && (
+                                    <p className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-semibold text-white">
+                                        <MapPin className="h-3 w-3 text-emerald-400" />
+                                        You&rsquo;re here · {monthDay(new Date().toISOString())}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    </li>
+                );
+            })}
+        </ol>
+    );
+}
+
+function RailLine({ part, filled }: { part: 'top' | 'bottom' | 'full'; filled: boolean }) {
+    const position = part === 'top' ? 'top-0 h-8' : part === 'bottom' ? 'top-8 bottom-0' : 'inset-y-0';
+    return filled ? (
+        <span className={`absolute left-1/2 w-1.5 -translate-x-1/2 bg-emerald-500 ${position}`} />
+    ) : (
+        <span
+            className={`absolute left-1/2 w-1 -translate-x-1/2 ${position}`}
+            style={{ backgroundImage: 'repeating-linear-gradient(180deg, #cbd5e1 0 6px, transparent 6px 12px)' }}
+        />
+    );
+}
 
 function Tag({ milestone: m, team }: { milestone: Milestone; team: boolean }) {
     const style =

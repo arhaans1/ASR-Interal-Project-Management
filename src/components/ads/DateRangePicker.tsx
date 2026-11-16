@@ -126,7 +126,7 @@ export default function DateRangePicker({ value, resolved, onChange, tone = 'lig
                 >
                     <div className="flex flex-col sm:flex-row">
                         {/* Presets */}
-                        <div className="flex gap-1 overflow-x-auto border-b border-slate-100 p-2 sm:w-44 sm:flex-col sm:overflow-visible sm:border-b-0 sm:border-r sm:p-3">
+                        <div className="flex flex-wrap gap-1 border-b border-slate-100 p-2 sm:w-44 sm:flex-col sm:flex-nowrap sm:border-b-0 sm:border-r sm:p-3">
                             {PRESETS.map((p) => {
                                 const active = value.preset === p.id;
                                 return (
