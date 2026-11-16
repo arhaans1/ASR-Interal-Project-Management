@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { ArrowUpRight, CalendarClock, Check, ChevronDown, CircleDashed, Clock3, FolderOpen, Link as LinkIcon, Loader2, Sparkles, UserRound } from 'lucide-react';
 import { PortalClient, Task } from '@/types/database';
 import { funnelLongName, guideFor } from '@/lib/funnelTemplates';
@@ -34,8 +34,16 @@ export default function ProjectDashboard({ client, summary, operatorName, pendin
     const isOpen = (phase: Phase) => openPhases[phase.id] ?? phase.id === activePhase?.id;
     const togglePhase = (phase: Phase) => setOpenPhases((prev) => ({ ...prev, [phase.id]: !isOpen(phase) }));
 
+    // Phases still to do come first; finished ones drop to a "Completed" group below.
+    // Each keeps its original number.
+    const numbered = summary.phases.map((phase, i) => ({ phase, number: i + 1 }));
+    const orderedPhases = [
+        ...numbered.filter(({ phase }) => phase.status !== 'done'),
+        ...numbered.filter(({ phase }) => phase.status === 'done'),
+    ];
+    const firstDoneIndex = orderedPhases.findIndex(({ phase }) => phase.status === 'done');
+
     const allDone = summary.total > 0 && summary.done === summary.total;
-    const phasesDone = summary.phases.filter((p) => p.status === 'done').length;
 
     return (
         <div className="space-y-6">
@@ -61,7 +69,7 @@ export default function ProjectDashboard({ client, summary, operatorName, pendin
                                     : awaitingPhase
                                         ? <>We have submitted our work and are <span className="font-semibold text-amber-300">waiting for your approval</span> to continue.</>
                                     : activePhase
-                                        ? <>Now working on <span className="font-semibold text-white">{activePhase.name}</span> · phase {phasesDone + 1} of {summary.phases.length}</>
+                                        ? <>Now working on <span className="font-semibold text-white">{activePhase.name}</span> · phase {summary.phases.findIndex((p) => p.id === activePhase.id) + 1} of {summary.phases.length}</>
                                         : 'Your project is being set up.'}
                             </p>
                         </div>
@@ -168,13 +176,26 @@ export default function ProjectDashboard({ client, summary, operatorName, pendin
                             </div>
                         ) : (
                             <ol className="mt-6">
-                                {summary.phases.map((phase, index) => {
-                                    const last = index === summary.phases.length - 1;
+                                {orderedPhases.map(({ phase, number }, index) => {
+                                    const last = index === orderedPhases.length - 1;
+                                    // No rail line across the gap between the open phases and the completed group
+                                    const endsOpenGroup = firstDoneIndex === index + 1;
                                     const open = isOpen(phase);
                                     const phasePercent = Math.round((phase.done / phase.total) * 100);
+                                    // Pending tasks first, ticked ones below; each group keeps its order
+                                    const tasks = [...phase.tasks.filter((t) => !t.completed), ...phase.tasks.filter((t) => t.completed)];
 
                                     return (
-                                        <li key={phase.id} className="relative flex gap-4">
+                                        <Fragment key={phase.id}>
+                                        {index === firstDoneIndex && index > 0 && (
+                                            <li className="mb-4 flex items-center gap-3 pl-1">
+                                                <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-700">
+                                                    Completed · {orderedPhases.length - firstDoneIndex}
+                                                </span>
+                                                <span className="h-px flex-1 bg-emerald-200" />
+                                            </li>
+                                        )}
+                                        <li className="relative flex gap-4">
                                             {/* Rail */}
                                             <div className="flex flex-col items-center">
                                                 <span
@@ -187,9 +208,9 @@ export default function ProjectDashboard({ client, summary, operatorName, pendin
                                                             : 'border-2 border-slate-200 bg-white text-slate-400'
                                                         }`}
                                                 >
-                                                    {phase.status === 'done' ? <Check className="h-4 w-4" strokeWidth={3} /> : index + 1}
+                                                    {phase.status === 'done' ? <Check className="h-4 w-4" strokeWidth={3} /> : number}
                                                 </span>
-                                                {!last && (
+                                                {!last && !endsOpenGroup && (
                                                     <span className={`w-0.5 flex-1 ${phase.status === 'done' ? 'bg-emerald-300' : 'bg-slate-200'}`} />
                                                 )}
                                             </div>
@@ -252,7 +273,7 @@ export default function ProjectDashboard({ client, summary, operatorName, pendin
 
                                                 {open && (
                                                     <ul className="mt-3 space-y-1.5">
-                                                        {phase.tasks.map((task) => (
+                                                        {tasks.map((task) => (
                                                             <li key={task.id} className="flex items-start gap-2.5 rounded-xl bg-slate-50 px-3 py-2.5">
                                                                 {task.completed ? (
                                                                     <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">
@@ -276,6 +297,7 @@ export default function ProjectDashboard({ client, summary, operatorName, pendin
                                                 )}
                                             </div>
                                         </li>
+                                        </Fragment>
                                     );
                                 })}
                             </ol>
