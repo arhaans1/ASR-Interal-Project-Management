@@ -1,8 +1,9 @@
 import Image from 'next/image';
 
-// The ASR Media Pro logo. Two files, picked by the surface they sit on:
-//  - 'light': black mark on a transparent background, for white and light surfaces
-//  - 'dark':  white mark on a black circle, for dark surfaces
+// The ASR Media Pro logo. Two files:
+//  - 'dark':  white mark on a black circle. Used in every header (portal, team sidebar, operator,
+//             sign-in): the black circle stands out on the white headers.
+//  - 'light': black mark on a transparent background
 const FILES = {
     light: '/brand/asr-logo-light-theme.png',
     dark: '/brand/asr-logo-dark-theme.png',

@@ -182,7 +182,7 @@ export default function Sidebar({
         {/* Header */}
         <div className="p-6 pb-2">
           <div className="flex items-center gap-3 mb-8">
-            <BrandLogo theme="light" size={56} priority className="h-14 w-14 -ml-1" />
+            <BrandLogo theme="dark" size={56} priority className="h-14 w-14 -ml-1 rounded-full" />
             <div>
               <h1 className="font-bold text-lg text-slate-900 tracking-tight leading-tight">ASR Media Pro</h1>
               <p className="text-xs text-slate-500 font-medium">Project Manager</p>

@@ -67,7 +67,7 @@ export default function JourneyTimeline({ client, summary, journey, audience = '
     const cols = { gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` };
 
     return (
-        <section className="relative overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-200/80" aria-label="Your journey to launch">
+        <section data-compact={team || undefined} className="relative overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-200/80" aria-label="Your journey to launch">
             {/* Soft decoration */}
             <div
                 className="pointer-events-none absolute right-0 top-0 h-40 w-72 opacity-60"
@@ -81,12 +81,15 @@ export default function JourneyTimeline({ client, summary, journey, audience = '
             <div className="pointer-events-none absolute -bottom-24 right-10 h-56 w-56 rounded-full bg-emerald-100/60 blur-3xl" />
 
             {/* Header */}
-            <div className="relative flex flex-col gap-4 px-5 pt-5 sm:px-7 lg:flex-row lg:items-start lg:justify-between short:pt-4 roomy:px-8 roomy:pt-7">
+            <div className={`relative flex flex-col gap-4 px-5 sm:px-7 lg:flex-row lg:items-start lg:justify-between ${team ? 'pt-4' : 'pt-5 short:pt-4 roomy:px-8 roomy:pt-7'}`}>
                 <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400 roomy:text-[11px]">
-                        {client.funnel_type ? funnelLongName(client.funnel_type) : 'Your project'} · {client.business_name}
-                    </p>
-                    <h1 className="mt-1.5 text-base font-bold uppercase tracking-[0.08em] text-emerald-700 sm:text-[17px] roomy:mt-2 roomy:text-xl">{heading}</h1>
+                    {/* The team page's header already names the client and funnel */}
+                    {!team && (
+                        <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400 roomy:mb-2 roomy:text-[11px]">
+                            {client.funnel_type ? funnelLongName(client.funnel_type) : 'Your project'} · {client.business_name}
+                        </p>
+                    )}
+                    <h1 className="text-base font-bold uppercase tracking-[0.08em] text-emerald-700 sm:text-[17px] roomy:text-xl">{heading}</h1>
                     <p className={`mt-0.5 text-sm font-medium roomy:mt-1 roomy:text-base ${current?.waitingOnClient ? 'text-orange-600' : 'text-slate-600'}`}>{subheading}</p>
                 </div>
 
@@ -128,25 +131,25 @@ export default function JourneyTimeline({ client, summary, journey, audience = '
 
             {/* Wider screens: the road runs across, and says so when it needs a scroll */}
             <div className="hidden md:block">
-            <ScrollArea className="px-5 pb-4 pt-4 sm:px-7 short:pb-3 short:pt-2 roomy:px-8 roomy:pb-7 roomy:pt-6" hint="Swipe to see every stage" focusFraction={currentIndex >= 0 ? (currentIndex + 0.5) / n : undefined}>
+            <ScrollArea className={`px-5 sm:px-7 ${team ? 'pb-3 pt-2' : 'pb-4 pt-4 short:pb-3 short:pt-2 roomy:px-8 roomy:pb-7 roomy:pt-6'}`} hint="Swipe to see every stage" focusFraction={currentIndex >= 0 ? (currentIndex + 0.5) / n : undefined}>
                 <div className="min-w-[880px]">
                     {/* Group brackets */}
                     <div className="grid" style={cols}>
                         {groups.map((g) => (
                             <div key={`${g.group}-${g.start}`} className="px-3" style={{ gridColumn: `${g.start + 1} / span ${g.span}` }}>
-                                <p className="text-center text-xs font-medium italic text-emerald-700 roomy:text-sm">{GROUP_LABELS[g.group]}</p>
-                                <div className="mt-1 h-2 rounded-t-md border-x-2 border-t-2 border-emerald-200/80" />
+                                <p className={`text-center font-medium italic text-emerald-700 ${team ? 'text-[11px]' : 'text-xs roomy:text-sm'}`}>{GROUP_LABELS[g.group]}</p>
+                                <div className={`rounded-t-md border-x-2 border-t-2 border-emerald-200/80 ${team ? 'mt-0.5 h-1.5' : 'mt-1 h-2'}`} />
                             </div>
                         ))}
                     </div>
 
                     {/* Labels */}
-                    <ol className="mt-2 grid items-end roomy:mt-3" style={cols}>
+                    <ol className={`grid items-end ${team ? 'mt-1.5' : 'mt-2 roomy:mt-3'}`} style={cols}>
                         {milestones.map((m) => (
                             <li key={m.id} className="flex flex-col items-center px-1 text-center">
                                 <Tag milestone={m} team={team} />
                                 <span
-                                    className={`mt-1.5 line-clamp-2 text-[13px] leading-snug roomy:mt-2 roomy:text-sm ${m.status === 'current' ? 'font-bold text-slate-900' : m.status === 'done' ? 'font-semibold text-slate-700' : 'font-medium text-slate-500'}`}
+                                    className={`mt-1 line-clamp-2 text-[13px] leading-snug roomy:mt-2 roomy:text-sm ${m.status === 'current' ? 'font-bold text-slate-900' : m.status === 'done' ? 'font-semibold text-slate-700' : 'font-medium text-slate-500'}`}
                                 >
                                     {m.title}
                                 </span>
@@ -154,7 +157,8 @@ export default function JourneyTimeline({ client, summary, journey, audience = '
                         ))}
                     </ol>
 
-                    {/* You're here */}
+                    {/* You're here (the team page marks the current date instead, to save height) */}
+                    {!team && (
                     <div className="mt-2 grid h-7 roomy:mt-3 roomy:h-9" style={cols} aria-hidden>
                         {milestones.map((m, i) => (
                             <div key={m.id} className="flex justify-center">
@@ -168,9 +172,10 @@ export default function JourneyTimeline({ client, summary, journey, audience = '
                             </div>
                         ))}
                     </div>
+                    )}
 
                     {/* Track */}
-                    <ol className="relative mt-1 grid h-11 items-center roomy:mt-2 roomy:h-14" style={cols}>
+                    <ol className={`relative grid items-center ${team ? 'mt-1.5 h-10' : 'mt-1 h-11 roomy:mt-2 roomy:h-14'}`} style={cols}>
                         {milestones.map((m, i) => (
                             <li key={m.id} className="relative flex h-full items-center justify-center">
                                 {i > 0 && <Segment side="left" filled={m.status === 'done' || m.status === 'current'} half={m.status === 'current'} />}
@@ -182,13 +187,20 @@ export default function JourneyTimeline({ client, summary, journey, audience = '
 
                     {/* Dates */}
                     <ol className="mt-1 grid roomy:mt-2" style={cols}>
-                        {milestones.map((m) => (
+                        {milestones.map((m, i) => (
                             <li key={m.id} className="text-center">
                                 {m.date ? (
                                     <span
-                                        className={`text-[11px] font-bold tracking-wide tabular-nums roomy:text-xs ${m.overdue && m.status !== 'done' ? 'text-rose-600' : m.status === 'upcoming' ? 'text-slate-400' : 'text-slate-700'}`}
-                                        title={m.dateKind === 'estimate' ? 'Estimated' : m.dateKind === 'due' ? 'Due date' : 'Completed'}
+                                        className={`inline-flex items-center gap-1 text-[11px] font-bold tracking-wide tabular-nums roomy:text-xs ${team && i === currentIndex ? (m.waitingOnClient ? 'text-orange-600' : 'text-emerald-700') : m.overdue && m.status !== 'done' ? 'text-rose-600' : m.status === 'upcoming' ? 'text-slate-400' : 'text-slate-700'}`}
+                                        title={
+                                            m.dateKind === 'estimate'
+                                                ? 'Estimated from the phase\u2019s due rule. Moves as the client finishes onboarding and gives approvals.'
+                                                : m.dateKind === 'due'
+                                                    ? 'Due date'
+                                                    : 'Completed'
+                                        }
                                     >
+                                        {team && i === currentIndex && <MapPin className="h-3 w-3" />}
                                         {m.dateKind === 'estimate' ? '~' : ''}
                                         {shortDate(m.date)}
                                     </span>
@@ -202,7 +214,7 @@ export default function JourneyTimeline({ client, summary, journey, audience = '
             </ScrollArea>
             </div>
 
-            <p className="relative border-t border-slate-100 bg-slate-50/60 px-5 py-2.5 text-[11px] leading-relaxed text-slate-500 sm:px-7 short:hidden roomy:px-8 roomy:py-3 roomy:text-xs">
+            <p className={`relative border-t border-slate-100 bg-slate-50/60 px-5 py-2.5 text-[11px] leading-relaxed text-slate-500 sm:px-7 short:hidden roomy:px-8 roomy:py-3 roomy:text-xs ${team ? 'md:hidden' : ''}`}>
                 {team
                     ? 'Dates marked ~ are estimates from each phase\u2019s due rule. They move as the client finishes onboarding and gives approvals.'
                     : 'Dates marked ~ are estimates. They move with you: finishing onboarding and giving approvals sooner brings your launch closer.'}

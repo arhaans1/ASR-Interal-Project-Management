@@ -2,7 +2,14 @@
 
 /* Screen-size variants for cards that should give space back on small laptops:
    roomy = big, tall monitors; short = laptop screens with little height. */
-@custom-variant roomy (@media (min-width: 1536px) and (min-height: 900px));
+/* Not inside a [data-compact] card: the team page keeps its cards compact on every screen. */
+@custom-variant roomy {
+  @media (min-width: 1536px) and (min-height: 900px) {
+    &:not([data-compact] *) {
+      @slot;
+    }
+  }
+}
 @custom-variant short (@media (max-height: 820px));
 
 :root {

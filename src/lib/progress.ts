@@ -116,11 +116,13 @@ export function summarizeProject(categories: CategoryLike[], now: Date = new Dat
 
   // An approval can only be given once everything listed before it has been delivered.
   const readyApprovalIds = new Set<string>();
-  let everythingBeforeDone = true;
+  // Our work before it, that is: the client's own open items (e.g. onboarding) don't hold back
+  // an approval of work we have already delivered.
+  let teamWorkBeforeDone = true;
   for (const category of ordered) {
     for (const task of category.tasks) {
-      if (isApprovalTask(task) && !task.completed && everythingBeforeDone) readyApprovalIds.add(task.id);
-      if (!task.completed) everythingBeforeDone = false;
+      if (isApprovalTask(task) && !task.completed && teamWorkBeforeDone) readyApprovalIds.add(task.id);
+      if (!task.completed && !isClientTask(task)) teamWorkBeforeDone = false;
     }
   }
   const isWaitingApproval = (t: Task) => isApprovalTask(t) && !t.completed;
