@@ -336,8 +336,8 @@ function ReportBody({ report, isTeam, dimmed }: { report: AdsReport; isTeam: boo
                         </Card>
                     </div>
 
-                    {isTeam && report.ads && <TopAds ads={report.ads} resultType={type} showRoas={showRoas} currency={currency} />}
-                    {isTeam && report.campaigns && <CampaignTable campaigns={report.campaigns} resultType={type} showRoas={showRoas} currency={currency} />}
+                    {report.ads && <TopAds ads={report.ads} resultType={type} showRoas={showRoas} currency={currency} isTeam={isTeam} />}
+                    {report.campaigns && <CampaignTable campaigns={report.campaigns} resultType={type} showRoas={showRoas} currency={currency} isTeam={isTeam} />}
                 </>
             )}
         </div>

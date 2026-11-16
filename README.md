@@ -76,7 +76,7 @@ Launched clients get an **Ad Performance** tab next to **Tasks** on their card, 
   - **Match Ads Manager** (default for new links): every campaign, each counting the result it optimises for, added up, like the Results column in Ads Manager. The dashboard shows what the total is made of (e.g. 28 Purchases · 13 Webinar Sale).
 
   Each ad set only ever counts its own optimisation event, so a sale that fires both Purchase and a custom conversion is counted once. For shared ad accounts, add a campaign-name filter. **Test connection** shows the last 7 days with the breakdown.
-- **What each side sees:** both get amount spent, results, cost per result, ROAS (sales only), landing page views, cost per landing page view and unique outbound CTR, with a date range picker, comparison with the previous period, a day-by-day chart and a funnel. The team also sees CPM, top ads with their creatives, and a campaign table.
+- **What each side sees:** both get amount spent, results, cost per result, ROAS (when there is sale value), landing page views, cost per landing page view and unique outbound CTR, a date range picker, comparison with the previous period, a day-by-day chart, a funnel, top ads with their creatives, and a campaign table. Only the team sees CPM and the Ads Manager links.
 - **Privacy:** the ad account is read from the client's card on the server, never from the request, so a client only ever sees their own results. The token never reaches the browser.
 - Numbers are cached for 5 minutes (30 minutes for ranges that have ended); the refresh button fetches them again.
 

@@ -9,7 +9,7 @@ import Card from './Card';
 
 type AdSort = 'results' | 'cpr' | 'roas' | 'spend';
 
-export function TopAds({ ads, resultType, showRoas, currency }: { ads: AdRow[]; resultType: ResultType; showRoas: boolean; currency: string }) {
+export function TopAds({ ads, resultType, showRoas, currency, isTeam }: { ads: AdRow[]; resultType: ResultType; showRoas: boolean; currency: string; isTeam: boolean }) {
     const labels = resultLabels(resultType);
     const [sort, setSort] = useState<AdSort>('results');
     const [showAll, setShowAll] = useState(false);
@@ -64,7 +64,7 @@ export function TopAds({ ads, resultType, showRoas, currency }: { ads: AdRow[]; 
                 <>
                     <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                         {shown.map((ad, i) => (
-                            <AdCard key={ad.id} ad={ad} rank={i + 1} resultType={resultType} showRoas={showRoas} currency={currency} />
+                            <AdCard key={ad.id} ad={ad} rank={i + 1} resultType={resultType} showRoas={showRoas} currency={currency} isTeam={isTeam} />
                         ))}
                     </ul>
                     {sorted.length > 6 && (
@@ -82,7 +82,7 @@ export function TopAds({ ads, resultType, showRoas, currency }: { ads: AdRow[]; 
     );
 }
 
-function AdCard({ ad, rank, resultType, showRoas, currency }: { ad: AdRow; rank: number; resultType: ResultType; showRoas: boolean; currency: string }) {
+function AdCard({ ad, rank, resultType, showRoas, currency, isTeam }: { ad: AdRow; rank: number; resultType: ResultType; showRoas: boolean; currency: string; isTeam: boolean }) {
     const labels = resultLabels(resultType);
     const [broken, setBroken] = useState(false);
     const stats = [
@@ -96,11 +96,13 @@ function AdCard({ ad, rank, resultType, showRoas, currency }: { ad: AdRow; rank:
         { label: 'Unique outbound CTR', value: formatPercent(ad.uniqueOutboundCtr) },
         { label: 'Cost / LPV', value: formatMoney(ad.costPerLpv, currency) },
     ];
-    const link = ad.previewUrl || ad.managerUrl;
+    // Clients get the public preview only; Ads Manager is ours.
+    const link = ad.previewUrl || (isTeam ? ad.managerUrl : '');
+    const Media = link ? 'a' : 'div';
 
     return (
         <li className="group flex flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200 transition-shadow hover:shadow-lg">
-            <a href={link} target="_blank" rel="noopener noreferrer" className="relative block aspect-[4/3] overflow-hidden bg-slate-100">
+            <Media {...(link ? { href: link, target: '_blank', rel: 'noopener noreferrer' } : {})} className="relative block aspect-[4/3] overflow-hidden bg-slate-100">
                 {ad.thumbnail && !broken ? (
                     // Meta's image links expire, so they are shown as they come rather than optimised.
                     // eslint-disable-next-line @next/next/no-img-element
@@ -128,7 +130,7 @@ function AdCard({ ad, rank, resultType, showRoas, currency }: { ad: AdRow; rank:
                         <Play className="ml-0.5 h-3.5 w-3.5 fill-current" />
                     </span>
                 )}
-            </a>
+            </Media>
             <div className="flex flex-1 flex-col p-4">
                 <p className="line-clamp-2 text-sm font-bold leading-snug text-slate-900" title={ad.name}>{ad.name}</p>
                 <p className="mt-0.5 truncate text-xs font-medium text-slate-500" title={`${ad.campaign} › ${ad.adset}`}>{ad.campaign}</p>
@@ -146,9 +148,11 @@ function AdCard({ ad, rank, resultType, showRoas, currency }: { ad: AdRow; rank:
                             Preview <ExternalLink className="h-3 w-3" />
                         </a>
                     )}
-                    <a href={ad.managerUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-slate-500 hover:text-slate-900">
-                        Ads Manager <ExternalLink className="h-3 w-3" />
-                    </a>
+                    {isTeam && ad.managerUrl && (
+                        <a href={ad.managerUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-slate-500 hover:text-slate-900">
+                            Ads Manager <ExternalLink className="h-3 w-3" />
+                        </a>
+                    )}
                 </div>
             </div>
         </li>
@@ -159,7 +163,7 @@ function AdCard({ ad, rank, resultType, showRoas, currency }: { ad: AdRow; rank:
 
 type ColumnKey = 'name' | 'spend' | 'results' | 'costPerResult' | 'roas' | 'lpv' | 'costPerLpv' | 'uniqueOutboundCtr' | 'cpm';
 
-export function CampaignTable({ campaigns, resultType, showRoas, currency }: { campaigns: CampaignRow[]; resultType: ResultType; showRoas: boolean; currency: string }) {
+export function CampaignTable({ campaigns, resultType, showRoas, currency, isTeam }: { campaigns: CampaignRow[]; resultType: ResultType; showRoas: boolean; currency: string; isTeam: boolean }) {
     const labels = resultLabels(resultType);
     const [sortKey, setSortKey] = useState<ColumnKey>('spend');
     const [asc, setAsc] = useState(false);
@@ -172,7 +176,7 @@ export function CampaignTable({ campaigns, resultType, showRoas, currency }: { c
         { key: 'lpv', label: 'LPV', render: (c) => formatCount(c.lpv) },
         { key: 'costPerLpv', label: 'Cost / LPV', render: (c) => formatMoney(c.costPerLpv, currency) },
         { key: 'uniqueOutboundCtr', label: 'Unique outbound CTR', render: (c) => formatPercent(c.uniqueOutboundCtr) },
-        { key: 'cpm', label: 'CPM', render: (c) => formatMoney(c.cpm, currency) },
+        ...(isTeam ? [{ key: 'cpm' as ColumnKey, label: 'CPM', render: (c: CampaignRow) => formatMoney(c.cpm, currency) }] : []),
     ];
 
     const sorted = useMemo(() => {
