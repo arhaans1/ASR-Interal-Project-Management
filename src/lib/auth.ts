@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import {
     SESSION_COOKIE_NAME,
-    SESSION_MAX_AGE,
+    sessionMaxAge,
     SessionData,
     decodeSession,
     encodeSession,
@@ -21,7 +21,7 @@ export async function createSession(data: SessionData) {
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/',
-        maxAge: SESSION_MAX_AGE,
+        maxAge: sessionMaxAge(data.role),
     });
 }
 

@@ -46,6 +46,7 @@ One column in project order. The phase in hand is open at the top, later phases 
 - Passwords are stored hashed (scrypt). Older plain-text passwords are replaced with a hash the first time that person signs in. Stored passwords are never shown again; type a new one to change it.
 - The browser never talks to the database directly. The team workspace reads and writes through `/api/db`, which checks the signed-in team session and then uses the service role key on the server. `SUPABASE_SERVICE_ROLE_KEY` must be set.
 - After that version is live, run `supabase-migration-lockdown.sql`. It switches on row level security with no public policies, so the anon key inside the website can no longer read or change any table.
+- Clients stay signed in on their device: their login lasts about 400 days (the longest browsers allow) and renews itself, at most once a day, whenever they open the portal. They only sign in again if they sign out, clear their browser or use another device. Team logins last 7 days.
 - The login cookie is signed with `SESSION_SECRET`, so it cannot be edited or forged. Set `SESSION_SECRET` to a long random string in the server environment. If it is missing, `SUPABASE_SERVICE_ROLE_KEY` is used to sign instead; if both are missing, nobody can sign in.
 
 ## Client onboarding and funnel types

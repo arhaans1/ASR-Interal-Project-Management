@@ -1,7 +1,14 @@
 // Signed session tokens. Uses Web Crypto so the same code runs in API routes and in the middleware.
 
 export const SESSION_COOKIE_NAME = 'asr_session';
-export const SESSION_MAX_AGE = 60 * 60 * 24 * 7; // 7 days
+export const SESSION_MAX_AGE = 60 * 60 * 24 * 7; // 7 days: the team
+// Clients stay signed in on their device for as long as browsers allow a cookie to last
+// (about 400 days), and the middleware renews it whenever they open the portal, so in
+// practice they only sign in again if they sign out or clear their browser.
+export const CLIENT_SESSION_MAX_AGE = 60 * 60 * 24 * 400;
+export const sessionMaxAge = (role: SessionData['role']) => (role === 'client' ? CLIENT_SESSION_MAX_AGE : SESSION_MAX_AGE);
+// Renew a client's cookie at most once a day
+export const SESSION_RENEW_AFTER = 60 * 60 * 24;
 
 export interface SessionData {
     userId: string;
@@ -54,13 +61,19 @@ export async function encodeSession(data: SessionData): Promise<string> {
     if (!isSessionSecretConfigured()) {
         throw new Error('SESSION_SECRET is not set');
     }
-    const body = { ...data, exp: Math.floor(Date.now() / 1000) + SESSION_MAX_AGE };
+    const body = { ...data, exp: Math.floor(Date.now() / 1000) + sessionMaxAge(data.role) };
     const payload = toBase64Url(encoder.encode(JSON.stringify(body)));
     return `${payload}.${await sign(payload)}`;
 }
 
 // Returns the session only when the signature is ours and it has not expired.
 export async function decodeSession(token?: string | null): Promise<SessionData | null> {
+    const decoded = await decodeSessionWithExpiry(token);
+    return decoded ? decoded.session : null;
+}
+
+// The same, with when it expires (seconds since 1970), for renewing long client sessions.
+export async function decodeSessionWithExpiry(token?: string | null): Promise<{ session: SessionData; exp: number } | null> {
     if (!token || !isSessionSecretConfigured()) return null;
 
     const [payload, signature, ...rest] = token.split('.');
@@ -73,7 +86,7 @@ export async function decodeSession(token?: string | null): Promise<SessionData 
         if (typeof body.exp !== 'number' || body.exp < Date.now() / 1000) return null;
         if (!body.userId || !['admin', 'operator', 'client'].includes(body.role)) return null;
 
-        return { userId: body.userId, role: body.role, clientId: body.clientId, username: body.username };
+        return { session: { userId: body.userId, role: body.role, clientId: body.clientId, username: body.username }, exp: body.exp };
     } catch {
         return null;
     }
