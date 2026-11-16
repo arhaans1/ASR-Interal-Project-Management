@@ -60,7 +60,7 @@ export default function JourneyTimeline({ client, summary, journey, audience = '
         ? 'Your ads are live'
         : current.kind === 'stage'
             ? `${current.tag} of ${stageCount} · ${current.title}`
-            : `${current.tag} · ${current.title}`;
+            : `${tagText(current, team)} · ${current.title}`;
 
     const subheading = !current
         ? 'Every stage is complete.'
@@ -148,7 +148,7 @@ export default function JourneyTimeline({ client, summary, journey, audience = '
                     <ol className="mt-3 grid items-end" style={cols}>
                         {milestones.map((m) => (
                             <li key={m.id} className="flex flex-col items-center px-1 text-center">
-                                <Tag milestone={m} />
+                                <Tag milestone={m} team={team} />
                                 <span
                                     className={`mt-2 line-clamp-2 text-sm leading-snug ${m.status === 'current' ? 'font-bold text-slate-900' : m.status === 'done' ? 'font-semibold text-slate-700' : 'font-medium text-slate-500'}`}
                                 >
@@ -214,7 +214,10 @@ export default function JourneyTimeline({ client, summary, journey, audience = '
     );
 }
 
-function Tag({ milestone: m }: { milestone: Milestone }) {
+// The approval is the client's: "Your approval" to them, "Client approval" to the team.
+const tagText = (m: Milestone, team: boolean) => (team && m.kind === 'approval' ? 'Client approval' : m.tag);
+
+function Tag({ milestone: m, team }: { milestone: Milestone; team: boolean }) {
     const style =
         m.status === 'current'
             ? m.waitingOnClient
@@ -229,7 +232,7 @@ function Tag({ milestone: m }: { milestone: Milestone }) {
         <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ${style}`}>
             {m.kind === 'approval' && <ThumbsUp className="h-3 w-3" />}
             {m.kind === 'launch' && <Rocket className="h-3 w-3" />}
-            {m.tag}
+            {tagText(m, team)}
         </span>
     );
 }
