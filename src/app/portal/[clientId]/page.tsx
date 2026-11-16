@@ -306,13 +306,6 @@ export default function ClientPortalPage() {
                     </div>
                 )}
 
-                {view === 'onboarding' && summary.clientPending.length > 0 && (
-                    // What is still waiting on the client, at first glance
-                    <div className="mb-6">
-                        <WaitingOnYou client={client} summary={summary} pendingTaskId={pendingTaskId} onToggle={handleToggle} />
-                    </div>
-                )}
-
                 {view === 'onboarding' && (
                     <OnboardingFlow
                         client={client}
@@ -322,6 +315,7 @@ export default function ClientPortalPage() {
                         onToggle={handleToggle}
                         onOpenDashboard={() => changeView('dashboard')}
                         onPlayWalkthrough={() => setWalkthrough(isTeamPreview || !welcomeStep || welcomeStep.completed ? 'replay' : 'required')}
+                        afterHero={<WaitingOnYou client={client} summary={summary} pendingTaskId={pendingTaskId} onToggle={handleToggle} />}
                     />
                 )}
 
