@@ -24,6 +24,9 @@ export interface Phase {
   // 'submit' = the date our work goes to the client for approval; 'due' = the phase is finished
   dueKind: 'due' | 'submit';
   overdue: boolean;
+  // The rule behind the date, for estimating phases whose start point is not reached yet
+  dueAfter: DueAnchor | null;
+  dueDays: number | null;
   tasks: Task[];
 }
 
@@ -175,6 +178,8 @@ export function summarizeProject(categories: CategoryLike[], now: Date = new Dat
         dueKind,
         // Once it is with the client, a late approval is not ours to chase as overdue
         overdue: Boolean(dueDate && status !== 'done' && status !== 'awaiting' && indiaDay(dueDate) < today),
+        dueAfter: anchor,
+        dueDays: days,
         tasks: c.tasks,
       };
     });

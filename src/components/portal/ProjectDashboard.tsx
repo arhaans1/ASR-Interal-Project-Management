@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { ArrowUpRight, CalendarClock, Check, ChevronDown, CircleDashed, Clock3, FolderOpen, Link as LinkIcon, Loader2, Sparkles } from 'lucide-react';
 import { PortalClient, Task } from '@/types/database';
 import OperatorAvatar from '@/components/OperatorAvatar';
@@ -10,6 +10,8 @@ import { formatDate, isClientTask, Phase, ProjectSummary } from '@/lib/progress'
 import RichTextDisplay from '@/components/RichTextDisplay';
 import ProgressRing from './ProgressRing';
 import StepDetail from './StepDetail';
+import JourneyTimeline from './JourneyTimeline';
+import { buildJourney } from '@/lib/journey';
 
 interface ProjectDashboardProps {
     client: PortalClient;
@@ -46,10 +48,15 @@ export default function ProjectDashboard({ client, summary, operatorName, pendin
     const firstDoneIndex = orderedPhases.findIndex(({ phase }) => phase.status === 'done');
 
     const allDone = summary.total > 0 && summary.done === summary.total;
+    // The road to launch, when the project has phases to show; otherwise the summary card
+    const journey = useMemo(() => buildJourney(summary), [summary]);
 
     return (
         <div className="space-y-6">
+            {journey && <JourneyTimeline client={client} summary={summary} journey={journey} />}
+
             {/* Overview */}
+            {!journey && (
             <section className="relative overflow-hidden rounded-[28px] bg-slate-950 px-6 py-8 text-white shadow-xl sm:px-10">
                 <div className="pointer-events-none absolute -right-24 -top-32 h-80 w-80 rounded-full bg-indigo-600/40 blur-3xl" />
                 <div className="pointer-events-none absolute -bottom-40 left-1/3 h-72 w-72 rounded-full bg-emerald-500/15 blur-3xl" />
@@ -91,6 +98,7 @@ export default function ProjectDashboard({ client, summary, operatorName, pendin
                     </dl>
                 </div>
             </section>
+            )}
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
                 <div className="min-w-0 space-y-6">

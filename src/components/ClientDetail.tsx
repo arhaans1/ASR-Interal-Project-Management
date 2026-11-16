@@ -9,8 +9,10 @@ import { CategoryWithTasks } from '@/hooks/useCategories';
 import TaskSection from './TaskSection';
 import TextBox from './TextBox';
 import ConfirmModal from './ConfirmModal';
-import { Copy, Settings, Building2, Calendar, Link as LinkIcon, FileText, Trash2, Loader2, Share2, MessageSquare, StickyNote, Check, UserCog, FolderOpen, ClipboardCheck, ListTodo, BarChart3 } from 'lucide-react';
+import { Copy, Settings, Building2, Calendar, Link as LinkIcon, FileText, Trash2, Loader2, Share2, MessageSquare, StickyNote, Check, UserCog, FolderOpen, ClipboardCheck, ListTodo, BarChart3, ExternalLink } from 'lucide-react';
 import AdPerformance from '@/components/ads/AdPerformance';
+import JourneyTimeline from '@/components/portal/JourneyTimeline';
+import { buildJourney } from '@/lib/journey';
 import ChatModal from '@/components/ChatModal';
 import ActiveUsers from '@/components/ActiveUsers';
 import QuickPadModal from './QuickPadModal';
@@ -100,6 +102,8 @@ export default function ClientDetail({
 
   // What the client still owes us, straight from the board
   const summary = useMemo(() => summarizeProject(categories), [categories]);
+  // Active projects (first checkpoint to ad launch) get the same road-to-launch card as the portal
+  const journey = useMemo(() => (client.status === 'Active' ? buildJourney(summary) : null), [client.status, summary]);
 
   // Tasks | Ad Performance. Launched clients with a linked ad account open on their ads.
   const adsLinked = Boolean(client.meta_ad_account_id);
@@ -230,6 +234,18 @@ export default function ClientDetail({
                   Assets folder
                 </a>
               )}
+              {client.status !== 'Team Members' && (
+                <a
+                  href={`/portal/${client.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 font-semibold text-indigo-600 hover:text-indigo-800 underline decoration-indigo-200 underline-offset-4"
+                  title="Opens this client's portal in a new tab, as the client sees it"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Open Client Portal
+                </a>
+              )}
             </div>
             {summary.hasOnboarding && (
               <div
@@ -299,6 +315,12 @@ export default function ClientDetail({
             </button>
           </div>
         </div>
+
+        {journey && (
+          <div className="mb-8">
+            <JourneyTimeline client={client} summary={summary} journey={journey} audience="team" />
+          </div>
+        )}
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
