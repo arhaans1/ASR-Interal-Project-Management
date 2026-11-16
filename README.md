@@ -20,7 +20,7 @@ One login page, three kinds of account:
 | --- | --- | --- | --- |
 | Admin | Team Settings › Manage Team | `/` | Everything: every client card, every team member's task board, users and settings |
 | Team member | Team Settings › Manage Team | `/` | Client cards, and only their own task board under **My Tasks** |
-| Operator (a tick box on either of the above) | Team Settings › Manage Team | `/operator` | Also gets the "My clients" dashboard for the projects assigned to them, with a switcher between the two |
+| Operator (a tick box on either of the above) | Team Settings › Manage Team | `/operator` | Also gets the "My clients" workspace: a left panel of their assigned clients (like the team sidebar), an Overview with totals, and each client's road-to-launch card and pending tasks in the centre |
 | Client | The client card (username + password) | `/portal/<id>`, after signing in at `/client-login` | Their onboarding, then their project dashboard |
 
 Every client uses the same address, `/client-login`, and lands on their own portal. **Share Portal** on a client card copies that address.

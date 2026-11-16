@@ -3,10 +3,12 @@ import BrandLogo from '@/components/BrandLogo';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowUpRight, CalendarClock, Check, ChevronDown, FolderOpen, Hourglass, Loader2, LogOut, Users, Wrench } from 'lucide-react';
+import { Building2, Calendar, CalendarClock, Check, ChevronRight, ExternalLink, FolderOpen, Hourglass, LayoutGrid, Loader2, LogOut, Menu, Users, Wrench, X } from 'lucide-react';
 import { PortalCategory, PortalClient, Task } from '@/types/database';
 import { funnelLabel } from '@/lib/funnelTemplates';
-import { formatDate, isClientTask, StageKey, summarizeProject } from '@/lib/progress';
+import { formatDate, isClientTask, ProjectSummary, StageKey, summarizeProject } from '@/lib/progress';
+import { buildJourney } from '@/lib/journey';
+import JourneyTimeline from '@/components/portal/JourneyTimeline';
 import WorkspaceSwitcher from '@/components/WorkspaceSwitcher';
 
 interface ClientEntry {
@@ -32,7 +34,15 @@ export default function OperatorWorkspacePage() {
     const [data, setData] = useState<WorkspaceData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [openClientId, setOpenClientId] = useState<string | null>(null);
+    // The client open in the centre (null = Overview). Remembered for this browser tab.
+    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [menuOpen, setMenuOpen] = useState(false);
+    const mainRef = useRef<HTMLElement>(null);
+    useEffect(() => {
+        try {
+            setSelectedId(sessionStorage.getItem('operator-selected-client'));
+        } catch { }
+    }, []);
     const [pendingTaskId, setPendingTaskId] = useState<string | null>(null);
     const [notice, setNotice] = useState('');
     const savingRef = useRef(false);
@@ -160,192 +170,354 @@ export default function OperatorWorkspacePage() {
         );
     }
 
+    const selected = entries.find((e) => e.client.id === selectedId) ?? null;
+    const select = (id: string | null) => {
+        setSelectedId(id);
+        setMenuOpen(false);
+        try {
+            if (id) sessionStorage.setItem('operator-selected-client', id);
+            else sessionStorage.removeItem('operator-selected-client');
+        } catch { }
+        mainRef.current?.scrollTo({ top: 0 });
+    };
+
     return (
-        <div className="h-screen overflow-y-auto bg-[#F5F6FA]">
-            <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/85 backdrop-blur-xl">
-                <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-                    <div className="flex min-w-0 items-center gap-3">
-                        <BrandLogo theme="light" size={48} priority className="h-12 w-12" />
-                        <div className="min-w-0 leading-tight">
-                            <p className="truncate text-sm font-bold tracking-tight text-slate-900">ASR Media Pro</p>
-                            <p className="truncate text-xs font-medium text-slate-500">Operator workspace</p>
+        <div className="flex h-screen bg-[#F5F6FA]">
+            {/* Phones: a top bar opens the client list */}
+            <div className="fixed inset-x-0 top-0 z-30 flex h-14 items-center gap-3 border-b border-slate-200/80 bg-white/90 px-4 backdrop-blur-xl md:hidden">
+                <button
+                    type="button"
+                    onClick={() => setMenuOpen(true)}
+                    aria-label="Open client list"
+                    className="-ml-1 rounded-lg p-2 text-slate-600 hover:bg-slate-100"
+                >
+                    <Menu className="h-5 w-5" />
+                </button>
+                <p className="min-w-0 truncate text-sm font-bold text-slate-900">{selected ? selected.client.name : 'My clients'}</p>
+            </div>
+            {menuOpen && <div className="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-sm md:hidden" onClick={() => setMenuOpen(false)} />}
+
+            {/* Left panel: the same shape as the team workspace sidebar */}
+            <aside
+                className={`fixed inset-y-0 left-0 z-50 flex w-80 shrink-0 flex-col border-r border-slate-200/80 bg-white transition-transform duration-200 md:static md:z-20 md:translate-x-0 ${menuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}`}
+            >
+                <div className="p-6 pb-2">
+                    <div className="mb-8 flex items-center gap-3">
+                        <BrandLogo theme="light" size={56} priority className="-ml-1 h-14 w-14" />
+                        <div className="min-w-0">
+                            <h1 className="text-lg font-bold leading-tight tracking-tight text-slate-900">ASR Media Pro</h1>
+                            <p className="text-xs font-medium text-slate-500">Operator workspace</p>
                         </div>
-                    </div>
-                    <div className="hidden sm:block">
-                        <WorkspaceSwitcher current="operator" />
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1">
                         <button
-                            onClick={handleLogout}
-                            className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
+                            type="button"
+                            onClick={() => setMenuOpen(false)}
+                            aria-label="Close client list"
+                            className="ml-auto rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 md:hidden"
                         >
-                            <LogOut className="h-4 w-4" />
-                            <span className="hidden sm:inline">Sign out</span>
+                            <X className="h-5 w-5" />
                         </button>
                     </div>
+                    <div className="-mt-4 mb-3">
+                        <WorkspaceSwitcher current="operator" />
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => select(null)}
+                        className={`flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition-colors ${!selected ? 'bg-slate-900 text-white shadow-sm' : 'bg-slate-50 text-slate-900 hover:bg-slate-100'}`}
+                    >
+                        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${!selected ? 'bg-white/15 text-white' : 'bg-white text-indigo-600 ring-1 ring-slate-200'}`}>
+                            <LayoutGrid className="h-4 w-4" />
+                        </span>
+                        <span className="text-sm font-semibold">Overview</span>
+                    </button>
                 </div>
-                <div className="border-t border-slate-200/70 px-4 py-2 sm:hidden">
-                    <WorkspaceSwitcher current="operator" />
-                </div>
-            </header>
 
-            <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
-                <div className="flex flex-col gap-1">
-                    <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-                        Hello, {data.viewer.username}
-                    </h1>
-                    <p className="text-slate-500">Your assigned clients, and what is pending on each side.</p>
-                </div>
-
-                {/* Totals */}
-                <dl className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-5">
-                    {[
-                        { label: 'Clients assigned', value: totals.clients, tone: 'text-slate-900' },
-                        { label: 'In onboarding', value: totals.onboarding, tone: 'text-slate-900' },
-                        { label: 'Pending client approval', value: totals.pendingApproval, tone: totals.pendingApproval > 0 ? 'text-amber-600' : 'text-slate-900' },
-                        { label: 'Waiting on clients', value: totals.waitingOnClient, tone: totals.waitingOnClient > 0 ? 'text-amber-600' : 'text-slate-900' },
-                        { label: 'Pending on our end', value: totals.onUs, tone: totals.onUs > 0 ? 'text-indigo-600' : 'text-slate-900' },
-                    ].map((stat) => (
-                        <div key={stat.label} className="rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-sm">
-                            <dt className="text-xs font-semibold text-slate-500">{stat.label}</dt>
-                            <dd className={`mt-1 text-3xl font-bold tabular-nums ${stat.tone}`}>{stat.value}</dd>
+                <div className="flex-1 overflow-y-auto px-4 py-4">
+                    <p className="mb-1 flex items-center justify-between px-2.5 py-2 text-[11px] font-bold uppercase tracking-[0.1em] text-slate-900">
+                        <span className="flex items-center gap-2">
+                            <Users className="h-3.5 w-3.5" />
+                            My clients
+                        </span>
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold tabular-nums">{entries.length}</span>
+                    </p>
+                    {entries.length === 0 ? (
+                        <p className="px-2.5 py-3 text-xs leading-relaxed text-slate-500">No clients assigned to you yet.</p>
+                    ) : (
+                        <div className="space-y-1">
+                            {entries.map(({ client, summary }) => {
+                                const active = selected?.client.id === client.id;
+                                const stage = stageFor(client, summary);
+                                return (
+                                    <button
+                                        key={client.id}
+                                        type="button"
+                                        onClick={() => select(client.id)}
+                                        className={`group flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition-colors duration-150 ${active ? 'bg-slate-900 text-white shadow-md' : 'hover:bg-slate-50'}`}
+                                    >
+                                        <span
+                                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold ${active ? 'bg-white/15 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-white group-hover:text-slate-900'}`}
+                                        >
+                                            {client.name.trim().slice(0, 2).toUpperCase()}
+                                        </span>
+                                        <span className="min-w-0 flex-1">
+                                            <span className={`block truncate text-sm font-semibold ${active ? 'text-white' : 'text-slate-700 group-hover:text-slate-900'}`}>{client.name}</span>
+                                            <span className={`block truncate text-[11px] font-medium ${active ? 'text-slate-300' : 'text-slate-400'}`}>{stage.label}</span>
+                                        </span>
+                                        <span className="flex shrink-0 items-center gap-1.5">
+                                            {summary.clientPending.length > 0 && (
+                                                <span
+                                                    title={`${summary.clientPending.length} waiting on the client`}
+                                                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${active ? 'bg-amber-400/20 text-amber-200' : 'bg-amber-100 text-amber-700'}`}
+                                                >
+                                                    {summary.clientPending.length}
+                                                </span>
+                                            )}
+                                            <span className={`h-1.5 w-1.5 rounded-full ${stage.dot}`} />
+                                        </span>
+                                    </button>
+                                );
+                            })}
                         </div>
-                    ))}
-                </dl>
+                    )}
+                </div>
 
+                <div className="border-t border-slate-200/80 p-4">
+                    <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-slate-500 transition-all hover:bg-red-50 hover:text-red-600"
+                    >
+                        <span className="rounded-lg bg-gray-100 p-1.5">
+                            <LogOut className="h-3.5 w-3.5" />
+                        </span>
+                        <span className="text-xs font-bold uppercase tracking-wide">Sign out</span>
+                    </button>
+                </div>
+            </aside>
+
+            <main ref={mainRef} className="min-w-0 flex-1 overflow-y-auto px-4 pb-8 pt-20 md:p-6 lg:p-8">
                 {notice && (
-                    <div role="alert" className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700 ring-1 ring-red-200">
+                    <div role="alert" className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700 ring-1 ring-red-200">
                         {notice}
                     </div>
                 )}
 
-                {/* Clients */}
-                {entries.length === 0 ? (
-                    <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white/60 px-6 py-16 text-center">
-                        <Users className="mx-auto h-10 w-10 text-slate-300" />
-                        <p className="mt-4 text-base font-semibold text-slate-900">No clients assigned to you yet</p>
-                        <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">
-                            When a client is assigned to you from the client card in the team workspace, it shows up here.
-                        </p>
-                    </div>
+                {selected ? (
+                    <ClientView
+                        entry={selected}
+                        pendingTaskId={pendingTaskId}
+                        onToggle={(task, completed) => handleToggle(selected.client.id, task, completed)}
+                    />
                 ) : (
-                    <ul className="mt-6 space-y-3">
-                        {entries.map(({ client, categories, summary }) => {
-                            const open = openClientId === client.id;
-                            const stage = {
-                                label:
-                                    summary.stage.key === 'onboarding'
-                                        ? `Onboarding · ${summary.onboardingDone}/${summary.onboardingTasks.length}`
-                                        : summary.stage.key === 'in_progress' && client.status === 'Launched'
-                                            ? 'Launched'
-                                            : summary.stage.label,
-                                className: stageStyles[summary.stage.key],
-                            };
-                            // The next date this project is working towards
-                            const nextDue = summary.phases.find((p) => p.status !== 'done' && p.status !== 'awaiting' && p.dueDate);
-
-                            return (
-                                <li key={client.id} className={`rounded-2xl border bg-white transition-shadow ${open ? 'border-slate-300 shadow-lg shadow-slate-950/5' : 'border-slate-200/80 shadow-sm'}`}>
-                                    <button
-                                        type="button"
-                                        onClick={() => setOpenClientId(open ? null : client.id)}
-                                        aria-expanded={open}
-                                        className="flex w-full flex-col gap-4 px-5 py-4 text-left lg:flex-row lg:items-center"
-                                    >
-                                        <span className="min-w-0 flex-1">
-                                            <span className="flex flex-wrap items-center gap-2">
-                                                <span className="truncate text-base font-bold text-slate-900">{client.name}</span>
-                                                <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${stage.className}`}>{stage.label}</span>
-                                                {client.funnel_type && (
-                                                    <span className="rounded-full border border-slate-200 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
-                                                        {funnelLabel(client.funnel_type)}
-                                                    </span>
-                                                )}
-                                            </span>
-                                            <span className="mt-0.5 block truncate text-sm text-slate-500">
-                                                {client.business_name}
-                                                {nextDue && (
-                                                    <span className={`ml-2 inline-flex items-center gap-1 ${nextDue.overdue ? 'font-semibold text-red-600' : ''}`}>
-                                                        <CalendarClock className="h-3.5 w-3.5" />
-                                                        {nextDue.name}: {nextDue.dueKind === 'submit' ? 'submit for approval by' : nextDue.overdue ? 'was due' : 'due'} {formatDate(nextDue.dueDate)}
-                                                    </span>
-                                                )}
-                                            </span>
-                                        </span>
-
-                                        <span className="flex items-center gap-5">
-                                            <span className="w-36 shrink-0">
-                                                <span className="flex items-center justify-between text-xs font-semibold text-slate-500">
-                                                    <span>Progress</span>
-                                                    <span className="tabular-nums text-slate-900">{summary.percent}%</span>
-                                                </span>
-                                                <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-slate-100">
-                                                    <span className="block h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${summary.percent}%` }} />
-                                                </span>
-                                            </span>
-                                            <span className="shrink-0 text-center">
-                                                <span className={`block text-xl font-bold tabular-nums ${summary.clientPending.length > 0 ? 'text-amber-600' : 'text-slate-400'}`}>{summary.clientPending.length}</span>
-                                                <span className="block text-[11px] font-semibold text-slate-500">on client</span>
-                                            </span>
-                                            <span className="shrink-0 text-center">
-                                                <span className={`block text-xl font-bold tabular-nums ${summary.teamPending.length > 0 ? 'text-indigo-600' : 'text-slate-400'}`}>{summary.teamPending.length}</span>
-                                                <span className="block text-[11px] font-semibold text-slate-500">on us</span>
-                                            </span>
-                                            <ChevronDown className={`ml-auto h-5 w-5 shrink-0 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
-                                        </span>
-                                    </button>
-
-                                    {open && (
-                                        <div className="border-t border-slate-100 px-5 pb-5 pt-4">
-                                            <div className="grid gap-5 lg:grid-cols-2">
-                                                <PendingColumn
-                                                    title="Pending from the client"
-                                                    icon={<Hourglass className="h-4 w-4 text-amber-600" />}
-                                                    empty="Nothing pending from the client."
-                                                    categories={categories}
-                                                    match={(t) => isClientTask(t)}
-                                                    pendingTaskId={pendingTaskId}
-                                                    onToggle={(task, completed) => handleToggle(client.id, task, completed)}
-                                                />
-                                                <PendingColumn
-                                                    title="Pending on our end"
-                                                    icon={<Wrench className="h-4 w-4 text-indigo-600" />}
-                                                    empty="Nothing pending on our end."
-                                                    categories={categories}
-                                                    match={(t) => !isClientTask(t)}
-                                                    pendingTaskId={pendingTaskId}
-                                                    onToggle={(task, completed) => handleToggle(client.id, task, completed)}
-                                                />
-                                            </div>
-
-                                            <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
-                                                <a
-                                                    href={`/portal/${client.id}`}
-                                                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
-                                                >
-                                                    View client portal
-                                                    <ArrowUpRight className="h-4 w-4" />
-                                                </a>
-                                                {client.drive_folder_url && (
-                                                    <a
-                                                        href={client.drive_folder_url}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
-                                                    >
-                                                        <FolderOpen className="h-4 w-4 text-amber-500" />
-                                                        Drive folder
-                                                    </a>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-                                </li>
-                            );
-                        })}
-                    </ul>
+                    <Overview username={data.viewer.username} entries={entries} totals={totals} onSelect={select} />
                 )}
             </main>
+        </div>
+    );
+}
+
+type Entry = ClientEntry & { summary: ProjectSummary };
+
+function stageFor(client: PortalClient, summary: ProjectSummary) {
+    const label =
+        summary.stage.key === 'onboarding'
+            ? `Onboarding · ${summary.onboardingDone}/${summary.onboardingTasks.length}`
+            : summary.stage.key === 'in_progress' && client.status === 'Launched'
+                ? 'Launched'
+                : summary.stage.key === 'in_progress'
+                    ? `In progress · ${summary.percent}%`
+                    : summary.stage.label;
+    const dot =
+        summary.stage.key === 'onboarding'
+            ? 'bg-violet-500'
+            : summary.stage.key === 'pending_approval'
+                ? 'bg-amber-500'
+                : summary.stage.key === 'complete' || client.status === 'Launched'
+                    ? 'bg-emerald-500'
+                    : 'bg-indigo-500';
+    return { label, dot, className: stageStyles[summary.stage.key] };
+}
+
+function Overview({
+    username,
+    entries,
+    totals,
+    onSelect,
+}: {
+    username: string;
+    entries: Entry[];
+    totals: { clients: number; onboarding: number; pendingApproval: number; waitingOnClient: number; onUs: number };
+    onSelect: (id: string) => void;
+}) {
+    return (
+        <div className="mx-auto max-w-6xl">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Hello, {username}</h1>
+            <p className="mt-1 text-slate-500">Your assigned clients, and what is pending on each side. Pick a client on the left to see their tasks.</p>
+
+            <dl className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-5">
+                {[
+                    { label: 'Clients assigned', value: totals.clients, tone: 'text-slate-900' },
+                    { label: 'In onboarding', value: totals.onboarding, tone: 'text-slate-900' },
+                    { label: 'Pending client approval', value: totals.pendingApproval, tone: totals.pendingApproval > 0 ? 'text-amber-600' : 'text-slate-900' },
+                    { label: 'Waiting on clients', value: totals.waitingOnClient, tone: totals.waitingOnClient > 0 ? 'text-amber-600' : 'text-slate-900' },
+                    { label: 'Pending on our end', value: totals.onUs, tone: totals.onUs > 0 ? 'text-indigo-600' : 'text-slate-900' },
+                ].map((stat) => (
+                    <div key={stat.label} className="rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-sm">
+                        <dt className="text-xs font-semibold text-slate-500">{stat.label}</dt>
+                        <dd className={`mt-1 text-3xl font-bold tabular-nums ${stat.tone}`}>{stat.value}</dd>
+                    </div>
+                ))}
+            </dl>
+
+            {entries.length === 0 ? (
+                <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white/60 px-6 py-16 text-center">
+                    <Users className="mx-auto h-10 w-10 text-slate-300" />
+                    <p className="mt-4 text-base font-semibold text-slate-900">No clients assigned to you yet</p>
+                    <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">
+                        When a client is assigned to you from the client card in the team workspace, it shows up here.
+                    </p>
+                </div>
+            ) : (
+                <ul className="mt-6 space-y-2.5">
+                    {entries.map(({ client, summary }) => {
+                        const stage = stageFor(client, summary);
+                        const nextDue = summary.phases.find((p) => p.status !== 'done' && p.status !== 'awaiting' && p.dueDate);
+                        return (
+                            <li key={client.id}>
+                                <button
+                                    type="button"
+                                    onClick={() => onSelect(client.id)}
+                                    className="flex w-full flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white px-5 py-4 text-left shadow-sm transition-shadow hover:border-slate-300 hover:shadow-md lg:flex-row lg:items-center"
+                                >
+                                    <span className="min-w-0 flex-1">
+                                        <span className="flex flex-wrap items-center gap-2">
+                                            <span className="truncate text-base font-bold text-slate-900">{client.name}</span>
+                                            <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${stage.className}`}>{stage.label}</span>
+                                            {client.funnel_type && (
+                                                <span className="rounded-full border border-slate-200 px-2.5 py-0.5 text-xs font-semibold text-slate-600">{funnelLabel(client.funnel_type)}</span>
+                                            )}
+                                        </span>
+                                        <span className="mt-0.5 block truncate text-sm text-slate-500">
+                                            {client.business_name}
+                                            {nextDue && (
+                                                <span className={`ml-2 inline-flex items-center gap-1 ${nextDue.overdue ? 'font-semibold text-red-600' : ''}`}>
+                                                    <CalendarClock className="h-3.5 w-3.5" />
+                                                    {nextDue.name}: {nextDue.dueKind === 'submit' ? 'submit for approval by' : nextDue.overdue ? 'was due' : 'due'} {formatDate(nextDue.dueDate)}
+                                                </span>
+                                            )}
+                                        </span>
+                                    </span>
+                                    <span className="flex items-center gap-5">
+                                        <span className="w-36 shrink-0">
+                                            <span className="flex items-center justify-between text-xs font-semibold text-slate-500">
+                                                <span>Progress</span>
+                                                <span className="tabular-nums text-slate-900">{summary.percent}%</span>
+                                            </span>
+                                            <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-slate-100">
+                                                <span className="block h-full rounded-full bg-emerald-500" style={{ width: `${summary.percent}%` }} />
+                                            </span>
+                                        </span>
+                                        <span className="shrink-0 text-center">
+                                            <span className={`block text-xl font-bold tabular-nums ${summary.clientPending.length > 0 ? 'text-amber-600' : 'text-slate-400'}`}>{summary.clientPending.length}</span>
+                                            <span className="block text-[11px] font-semibold text-slate-500">on client</span>
+                                        </span>
+                                        <span className="shrink-0 text-center">
+                                            <span className={`block text-xl font-bold tabular-nums ${summary.teamPending.length > 0 ? 'text-indigo-600' : 'text-slate-400'}`}>{summary.teamPending.length}</span>
+                                            <span className="block text-[11px] font-semibold text-slate-500">on us</span>
+                                        </span>
+                                        <ChevronRight className="ml-auto h-5 w-5 shrink-0 text-slate-400" />
+                                    </span>
+                                </button>
+                            </li>
+                        );
+                    })}
+                </ul>
+            )}
+        </div>
+    );
+}
+
+function ClientView({ entry, pendingTaskId, onToggle }: { entry: Entry; pendingTaskId: string | null; onToggle: (task: Task, completed: boolean) => void }) {
+    const { client, categories, summary } = entry;
+    const stage = stageFor(client, summary);
+    const journey = client.status === 'Active' ? buildJourney(summary) : null;
+    const nextDue = summary.phases.find((p) => p.status !== 'done' && p.status !== 'awaiting' && p.dueDate);
+
+    return (
+        <div>
+            <div className="mb-6">
+                <div className="mb-1.5 flex flex-wrap items-center gap-2.5">
+                    <h1 className="text-2xl font-bold tracking-tight text-slate-900 lg:text-3xl">{client.name}</h1>
+                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${stage.className}`}>{stage.label}</span>
+                    {client.funnel_type && (
+                        <span className="rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-white">{funnelLabel(client.funnel_type)}</span>
+                    )}
+                </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-medium text-slate-500">
+                    <span className="flex items-center gap-1.5">
+                        <Building2 className="h-4 w-4" />
+                        {client.business_name}
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                        <Calendar className="h-4 w-4" />
+                        Started {new Date(client.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </span>
+                    {nextDue && (
+                        <span className={`flex items-center gap-1.5 ${nextDue.overdue ? 'font-semibold text-red-600' : ''}`}>
+                            <CalendarClock className="h-4 w-4" />
+                            {nextDue.name}: {nextDue.dueKind === 'submit' ? 'submit by' : nextDue.overdue ? 'was due' : 'due'} {formatDate(nextDue.dueDate)}
+                        </span>
+                    )}
+                    {client.drive_folder_url && (
+                        <a href={client.drive_folder_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-slate-600 underline decoration-slate-300 underline-offset-4 hover:text-slate-900">
+                            <FolderOpen className="h-4 w-4 text-amber-500" />
+                            Drive folder
+                        </a>
+                    )}
+                    {client.assets_folder_url && (
+                        <a href={client.assets_folder_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-slate-600 underline decoration-slate-300 underline-offset-4 hover:text-slate-900">
+                            <FolderOpen className="h-4 w-4 text-indigo-500" />
+                            Assets folder
+                        </a>
+                    )}
+                    <a
+                        href={`/portal/${client.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 font-semibold text-indigo-600 underline decoration-indigo-200 underline-offset-4 hover:text-indigo-800"
+                    >
+                        <ExternalLink className="h-4 w-4" />
+                        Open Client Portal
+                    </a>
+                </div>
+            </div>
+
+            {journey && (
+                <div className="mb-6">
+                    <JourneyTimeline client={client} summary={summary} journey={journey} audience="team" />
+                </div>
+            )}
+
+            <div className="grid gap-5 lg:grid-cols-2">
+                <PendingColumn
+                    title="Pending from the client"
+                    icon={<Hourglass className="h-4 w-4 text-amber-600" />}
+                    empty="Nothing pending from the client."
+                    categories={categories}
+                    match={(t) => isClientTask(t)}
+                    pendingTaskId={pendingTaskId}
+                    onToggle={onToggle}
+                />
+                <PendingColumn
+                    title="Pending on our end"
+                    icon={<Wrench className="h-4 w-4 text-indigo-600" />}
+                    empty="Nothing pending on our end."
+                    categories={categories}
+                    match={(t) => !isClientTask(t)}
+                    pendingTaskId={pendingTaskId}
+                    onToggle={onToggle}
+                />
+            </div>
         </div>
     );
 }
