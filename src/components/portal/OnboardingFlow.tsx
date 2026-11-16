@@ -100,7 +100,7 @@ export default function OnboardingFlow({
                                     onClick={onOpenDashboard}
                                     className="inline-flex items-center gap-2 rounded-xl bg-indigo-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-400"
                                 >
-                                    Open your project dashboard
+                                    Track your project delivery
                                     <ArrowRight className="h-4 w-4" />
                                 </button>
                             )}
@@ -125,7 +125,7 @@ export default function OnboardingFlow({
                             <div className="text-sm leading-relaxed text-emerald-950">
                                 <p className="font-bold">You&rsquo;re all set.</p>
                                 <p className="text-emerald-900/80">
-                                    Our team has started work. Follow every step of the build on your project dashboard.
+                                    Our team has started work. Follow every step of the build on the Delivery tab.
                                 </p>
                             </div>
                         </div>
@@ -241,7 +241,7 @@ export default function OnboardingFlow({
                             {[
                                 { title: 'You complete onboarding', text: 'Share your details, assets and access.', active: !summary.onboardingComplete, done: summary.onboardingComplete },
                                 { title: 'We start building', text: 'Research, strategy, copy, creatives and your funnel.', active: summary.onboardingComplete, done: false },
-                                { title: 'You track every step', text: 'Your dashboard opens with live progress and a timeline.', active: false, done: false },
+                                { title: 'You track every step', text: 'The Delivery tab shows live progress and a timeline.', active: false, done: false },
                             ].map((item, i) => (
                                 <li key={item.title} className="flex gap-3">
                                     <span

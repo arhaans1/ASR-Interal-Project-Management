@@ -98,10 +98,15 @@ export default function Home() {
   };
 
   const handleModalSubmit = async (values: ClientFormValues) => {
-    const { name, businessName, status, username, password, templateMode, ...extras } = values;
+    const { name, businessName, status, username, password, templateMode, ...allExtras } = values;
+    const { meta_ad_account_id, meta_result_type, meta_result_action, meta_campaign_filter, ...extras } = allExtras;
+    const metaAds = { meta_ad_account_id, meta_result_type, meta_result_action, meta_campaign_filter };
+    // The Meta Ads columns are only written when an ad account is (or was) linked, so cards
+    // keep saving even before supabase-migration-meta-ads.sql has been run.
+    const usesMetaAds = Boolean(meta_ad_account_id) || Boolean(modalMode === 'edit' && selectedClient?.meta_ad_account_id);
 
     if (modalMode === 'create') {
-      const newClient = await createClient(name, businessName, status, username, password, extras);
+      const newClient = await createClient(name, businessName, status, username, password, { ...extras, ...(usesMetaAds ? metaAds : {}) });
       if (newClient) {
         setSelectedClient(newClient);
       }
@@ -126,6 +131,7 @@ export default function Home() {
         username,
         password,
         ...(usesExtras ? extras : {}),
+        ...(usesMetaAds ? metaAds : {}),
       });
 
       if (templateMode !== 'none' && extras.funnel_type) {

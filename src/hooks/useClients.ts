@@ -13,6 +13,10 @@ export interface ClientExtras {
   assets_folder_url?: string | null;
   onboarding_video_url?: string | null;
   onboarding_form_url?: string | null;
+  meta_ad_account_id?: string | null;
+  meta_result_type?: 'purchase' | 'schedule' | null;
+  meta_result_action?: string | null;
+  meta_campaign_filter?: string | null;
 }
 
 const definedExtras = (extras: ClientExtras) =>
