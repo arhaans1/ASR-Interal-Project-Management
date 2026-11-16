@@ -20,7 +20,7 @@ One login page, three kinds of account:
 | --- | --- | --- | --- |
 | Admin | Team Settings › Manage Team | `/` | Everything: every client card, every team member's task board, users and settings |
 | Team member | Team Settings › Manage Team | `/` | Client cards, and only their own task board under **My Tasks** |
-| Operator (a tick box on either of the above) | Team Settings › Manage Team | `/operator` | Also gets the "My clients" dashboard for the projects assigned to them, with a switcher between the two |
+| Operator (a tick box on either of the above) | Team Settings › Manage Team | `/operator` | Also gets the "My clients" workspace: a left panel of their assigned clients (like the team sidebar), an Overview with totals, and each client's road-to-launch card and pending tasks in the centre |
 | Client | The client card (username + password) | `/portal/<id>`, after signing in at `/client-login` | Their onboarding, then their project dashboard |
 
 Every client uses the same address, `/client-login`, and lands on their own portal. **Share Portal** on a client card copies that address.
@@ -74,6 +74,18 @@ On phones the road becomes a vertical list of steps, and the portal's sections m
 Every funnel's launch phase includes three client tasks before the ads go live: connect Gmail, WhatsApp and Google Meet / Zoom; complete the software payment; GHL access handover and demo. `supabase-data-launch-handover-tasks.sql` adds them to cards made before (already run in production).
 
 The team client page also has an **Open Client Portal** link (next to the folders) that opens the portal in a new tab.
+
+## Updates inbox
+
+The client portal has a bell with an unread badge. It opens an Updates panel (a dropdown on desktop, a full-screen sheet on phones) filled automatically from the task board, with nothing for the team to type:
+
+- **Completed:** every task the team ticks ("Completed: Competitor research").
+- **Stage complete:** when a phase finishes ("Research & Strategy is complete 🎉, next up: Course Creation").
+- **Ready for your review:** when work is waiting for the client's approval, with a Review now button.
+- **Your ads are live 🚀:** when the launch is ticked, with a button to Results.
+- **Daily nudge at 10am IST:** lists whatever is still pending on the client's side. The badge comes back each day until they tick those items, and stops on its own when they do.
+
+Updates are worked out from task ticks and their dates (`src/lib/updates.ts`). The only thing stored is when the client last opened the inbox (`clients.updates_read_at`, `supabase-migration-updates-inbox.sql`). The team's portal preview never marks a client's updates as read.
 
 ## Ad performance (Meta Ads)
 

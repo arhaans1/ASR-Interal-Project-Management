@@ -3,7 +3,7 @@ import BrandLogo from '@/components/BrandLogo';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, BarChart3, ClipboardCheck, Eye, LayoutDashboard, LifeBuoy, Lock, LogOut, Mail } from 'lucide-react';
+import { ArrowLeft, BarChart3, Bell, BellRing, ClipboardCheck, Eye, LayoutDashboard, LifeBuoy, Lock, LogOut, Mail } from 'lucide-react';
 import { PortalCategory, PortalClient, Task } from '@/types/database';
 import { summarizeProject } from '@/lib/progress';
 import { capitalizeName } from '@/lib/names';
@@ -11,9 +11,11 @@ import OnboardingFlow from '@/components/portal/OnboardingFlow';
 import ProjectDashboard from '@/components/portal/ProjectDashboard';
 import WelcomeVideo from '@/components/portal/WelcomeVideo';
 import AdPerformance from '@/components/ads/AdPerformance';
+import UpdatesFeed from '@/components/portal/UpdatesInbox';
+import { buildUpdates, countUnread } from '@/lib/updates';
 
 // 'dashboard' is the Delivery tab: project progress and timeline. 'results' is ad performance.
-type View = 'onboarding' | 'dashboard' | 'results' | 'support';
+type View = 'onboarding' | 'dashboard' | 'results' | 'updates' | 'support';
 
 interface PortalData {
     client: PortalClient;
@@ -78,6 +80,15 @@ export default function ClientPortalPage() {
 
     const summary = useMemo(() => summarizeProject(data?.categories ?? []), [data]);
 
+    // The Updates inbox comes straight from the task board; only "last read" is stored.
+    const updates = useMemo(() => (data ? buildUpdates(data.categories, data.client) : []), [data]);
+    const [readAt, setReadAt] = useState<string | null | undefined>(undefined);
+    const effectiveReadAt = readAt === undefined ? data?.client.updates_read_at ?? null : readAt;
+    const unreadUpdates = countUnread(updates, effectiveReadAt);
+    const nudgeWaiting = updates.some((u) => u.kind === 'nudge' && (!effectiveReadAt || u.at > effectiveReadAt));
+    // What counted as read when the Updates tab was opened, so new items stay highlighted on that visit
+    const [updatesSeenBefore, setUpdatesSeenBefore] = useState<string | null>(null);
+
     const isTeamPreview = data ? data.viewer.role !== 'client' : false;
     // Clients reach the dashboard once onboarding is done. The team can always look.
     const dashboardLocked = summary.hasOnboarding && !summary.onboardingComplete && !isTeamPreview;
@@ -115,6 +126,14 @@ export default function ClientPortalPage() {
     }, [data, isTeamPreview, summary.hasOnboarding, summary.onboardingComplete, welcomeStep, seenKey]);
 
     const changeView = (next: View) => {
+        if (next === 'updates' && view !== 'updates') {
+            setUpdatesSeenBefore(effectiveReadAt);
+            // Opening Updates reads them. The team's preview leaves the client's badge alone.
+            if (unreadUpdates > 0 && data && data.viewer.role === 'client') {
+                setReadAt(new Date().toISOString());
+                fetch(`/api/portal/${clientId}/updates`, { method: 'POST' }).catch(() => { });
+            }
+        }
         setView(next);
         scrollRef.current?.scrollTo({ top: 0 });
     };
@@ -208,6 +227,7 @@ export default function ClientPortalPage() {
             locked: resultsLocked,
             lockedHint: dashboardLocked ? 'Opens once your onboarding is complete' : 'Opens once your ads are live',
         },
+        { id: 'updates', label: 'Updates', icon: nudgeWaiting ? BellRing : Bell, badge: unreadUpdates, ring: nudgeWaiting },
         { id: 'support', label: 'Help', icon: LifeBuoy },
     ];
 
@@ -312,6 +332,15 @@ export default function ClientPortalPage() {
                     <AdPerformance clientId={client.id} audience="client" />
                 )}
 
+                {view === 'updates' && (
+                    <UpdatesFeed
+                        updates={updates}
+                        seenBefore={updatesSeenBefore}
+                        isTeamPreview={isTeamPreview}
+                        onOpenView={(next) => changeView(next)}
+                    />
+                )}
+
                 {view === 'support' && (
                     <div className="mx-auto max-w-xl py-10 text-center sm:py-16">
                         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
@@ -347,6 +376,16 @@ interface Tab {
     locked?: boolean;
     lockedHint?: string;
     hidden?: boolean;
+    badge?: number; // unread count
+    ring?: boolean; // gently ring the icon (a nudge is waiting)
+}
+
+function Badge({ count, className = '' }: { count: number; className?: string }) {
+    return (
+        <span className={`flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold leading-none tabular-nums text-white ring-2 ring-white ${className}`}>
+            {count > 9 ? '9+' : count}
+        </span>
+    );
 }
 
 function TabButton({ tab, active, onClick }: { tab: Tab; active: boolean; onClick: () => void }) {
@@ -365,8 +404,9 @@ function TabButton({ tab, active, onClick }: { tab: Tab; active: boolean; onClic
                     : 'text-slate-500 hover:text-slate-900'
                 }`}
         >
-            <Icon className="h-4 w-4" />
+            <Icon className={`h-4 w-4 ${tab.ring && !active ? 'origin-top animate-[bell-ring_2.4s_ease-in-out_infinite]' : ''}`} />
             {tab.label}
+            {!!tab.badge && <Badge count={tab.badge} />}
         </button>
     );
 }
@@ -383,8 +423,9 @@ function BottomTab({ tab, active, onClick }: { tab: Tab; active: boolean; onClic
             className={`relative flex min-w-0 flex-1 flex-col items-center gap-1 px-1 pb-2 pt-2.5 text-[11px] font-semibold transition-colors ${active ? 'text-indigo-700' : tab.locked ? 'text-slate-300' : 'text-slate-500 active:text-slate-900'}`}
         >
             {active && <span className="absolute inset-x-5 top-0 h-[3px] rounded-b-full bg-indigo-600" />}
-            <span className={`flex h-8 w-12 items-center justify-center rounded-full transition-colors ${active ? 'bg-indigo-50' : ''}`}>
-                <Icon className="h-5 w-5" />
+            <span className={`relative flex h-8 w-12 items-center justify-center rounded-full transition-colors ${active ? 'bg-indigo-50' : ''}`}>
+                <Icon className={`h-5 w-5 ${tab.ring && !active ? 'origin-top animate-[bell-ring_2.4s_ease-in-out_infinite]' : ''}`} />
+                {!!tab.badge && <Badge count={tab.badge} className="absolute -top-1 right-0.5" />}
             </span>
             <span className="truncate">{tab.label}</span>
         </button>

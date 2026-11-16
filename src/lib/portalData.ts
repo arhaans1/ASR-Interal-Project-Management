@@ -20,6 +20,7 @@ export function toPortalClient(row: any): PortalClient {
         important_links: row.important_links ?? '',
         created_at: row.created_at,
         ads_linked: Boolean(row.meta_ad_account_id),
+        updates_read_at: row.updates_read_at ?? null,
     };
 }
 

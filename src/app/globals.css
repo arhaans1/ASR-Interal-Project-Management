@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Screen-size variants for cards that should give space back on small laptops:
+   roomy = big, tall monitors; short = laptop screens with little height. */
+@custom-variant roomy (@media (min-width: 1536px) and (min-height: 900px));
+@custom-variant short (@media (max-height: 820px));
+
 :root {
   /* Core Backgrounds */
   --background: #f8fafc;
@@ -226,4 +231,17 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   [class*="animate-[nudge-x"] { animation: none !important; }
+}
+
+/* The Updates bell gives a small ring when a nudge is waiting */
+@keyframes bell-ring {
+  0%, 70%, 100% { transform: rotate(0); }
+  74% { transform: rotate(14deg); }
+  80% { transform: rotate(-12deg); }
+  86% { transform: rotate(8deg); }
+  92% { transform: rotate(-4deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [class*="animate-[bell-ring"] { animation: none !important; }
 }

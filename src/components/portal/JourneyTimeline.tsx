@@ -65,12 +65,9 @@ export default function JourneyTimeline({ client, summary, journey, audience = '
                     : 'In progress';
 
     const cols = { gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` };
-    // Team page: on wide screens the card is only as wide as its content (about 150px a
-    // milestone), sitting on the left. The client portal keeps the full-width card.
-    const fitWidth = team ? { maxWidth: n * 150 + 56 } : undefined;
 
     return (
-        <section className="relative w-full overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-200/80" style={fitWidth} aria-label="Your journey to launch">
+        <section className="relative overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-200/80" aria-label="Your journey to launch">
             {/* Soft decoration */}
             <div
                 className="pointer-events-none absolute right-0 top-0 h-40 w-72 opacity-60"
@@ -84,13 +81,13 @@ export default function JourneyTimeline({ client, summary, journey, audience = '
             <div className="pointer-events-none absolute -bottom-24 right-10 h-56 w-56 rounded-full bg-emerald-100/60 blur-3xl" />
 
             {/* Header */}
-            <div className="relative flex flex-col gap-4 px-5 pt-5 sm:px-7 lg:flex-row lg:items-start lg:justify-between">
+            <div className="relative flex flex-col gap-4 px-5 pt-5 sm:px-7 lg:flex-row lg:items-start lg:justify-between short:pt-4 roomy:px-8 roomy:pt-7">
                 <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400 roomy:text-[11px]">
                         {client.funnel_type ? funnelLongName(client.funnel_type) : 'Your project'} · {client.business_name}
                     </p>
-                    <h1 className="mt-1.5 text-base font-bold uppercase tracking-[0.08em] text-emerald-700 sm:text-[17px]">{heading}</h1>
-                    <p className={`mt-0.5 text-sm font-medium ${current?.waitingOnClient ? 'text-orange-600' : 'text-slate-600'}`}>{subheading}</p>
+                    <h1 className="mt-1.5 text-base font-bold uppercase tracking-[0.08em] text-emerald-700 sm:text-[17px] roomy:mt-2 roomy:text-xl">{heading}</h1>
+                    <p className={`mt-0.5 text-sm font-medium roomy:mt-1 roomy:text-base ${current?.waitingOnClient ? 'text-orange-600' : 'text-slate-600'}`}>{subheading}</p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2.5">
@@ -131,25 +128,25 @@ export default function JourneyTimeline({ client, summary, journey, audience = '
 
             {/* Wider screens: the road runs across, and says so when it needs a scroll */}
             <div className="hidden md:block">
-            <ScrollArea className="px-5 pb-4 pt-4 sm:px-7" hint="Swipe to see every stage" focusFraction={currentIndex >= 0 ? (currentIndex + 0.5) / n : undefined}>
+            <ScrollArea className="px-5 pb-4 pt-4 sm:px-7 short:pb-3 short:pt-2 roomy:px-8 roomy:pb-7 roomy:pt-6" hint="Swipe to see every stage" focusFraction={currentIndex >= 0 ? (currentIndex + 0.5) / n : undefined}>
                 <div className="min-w-[880px]">
                     {/* Group brackets */}
                     <div className="grid" style={cols}>
                         {groups.map((g) => (
                             <div key={`${g.group}-${g.start}`} className="px-3" style={{ gridColumn: `${g.start + 1} / span ${g.span}` }}>
-                                <p className="text-center text-xs font-medium italic text-emerald-700">{GROUP_LABELS[g.group]}</p>
+                                <p className="text-center text-xs font-medium italic text-emerald-700 roomy:text-sm">{GROUP_LABELS[g.group]}</p>
                                 <div className="mt-1 h-2 rounded-t-md border-x-2 border-t-2 border-emerald-200/80" />
                             </div>
                         ))}
                     </div>
 
                     {/* Labels */}
-                    <ol className="mt-2 grid items-end" style={cols}>
+                    <ol className="mt-2 grid items-end roomy:mt-3" style={cols}>
                         {milestones.map((m) => (
                             <li key={m.id} className="flex flex-col items-center px-1 text-center">
                                 <Tag milestone={m} team={team} />
                                 <span
-                                    className={`mt-1.5 line-clamp-2 text-[13px] leading-snug ${m.status === 'current' ? 'font-bold text-slate-900' : m.status === 'done' ? 'font-semibold text-slate-700' : 'font-medium text-slate-500'}`}
+                                    className={`mt-1.5 line-clamp-2 text-[13px] leading-snug roomy:mt-2 roomy:text-sm ${m.status === 'current' ? 'font-bold text-slate-900' : m.status === 'done' ? 'font-semibold text-slate-700' : 'font-medium text-slate-500'}`}
                                 >
                                     {m.title}
                                 </span>
@@ -158,11 +155,11 @@ export default function JourneyTimeline({ client, summary, journey, audience = '
                     </ol>
 
                     {/* You're here */}
-                    <div className="mt-2 grid h-7" style={cols} aria-hidden>
+                    <div className="mt-2 grid h-7 roomy:mt-3 roomy:h-9" style={cols} aria-hidden>
                         {milestones.map((m, i) => (
                             <div key={m.id} className="flex justify-center">
                                 {i === currentIndex && (
-                                    <span className="relative flex items-center gap-1 whitespace-nowrap rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-semibold text-white shadow-md">
+                                    <span className="relative flex items-center gap-1 whitespace-nowrap rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-semibold text-white shadow-md roomy:px-3 roomy:py-1.5 roomy:text-xs">
                                         <MapPin className="h-3 w-3 text-emerald-400" />
                                         You&rsquo;re here · {monthDay(new Date().toISOString())}
                                         <span className="absolute -bottom-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 bg-slate-900" />
@@ -173,7 +170,7 @@ export default function JourneyTimeline({ client, summary, journey, audience = '
                     </div>
 
                     {/* Track */}
-                    <ol className="relative mt-1 grid h-11 items-center" style={cols}>
+                    <ol className="relative mt-1 grid h-11 items-center roomy:mt-2 roomy:h-14" style={cols}>
                         {milestones.map((m, i) => (
                             <li key={m.id} className="relative flex h-full items-center justify-center">
                                 {i > 0 && <Segment side="left" filled={m.status === 'done' || m.status === 'current'} half={m.status === 'current'} />}
@@ -184,12 +181,12 @@ export default function JourneyTimeline({ client, summary, journey, audience = '
                     </ol>
 
                     {/* Dates */}
-                    <ol className="mt-1 grid" style={cols}>
+                    <ol className="mt-1 grid roomy:mt-2" style={cols}>
                         {milestones.map((m) => (
                             <li key={m.id} className="text-center">
                                 {m.date ? (
                                     <span
-                                        className={`text-[11px] font-bold tracking-wide tabular-nums ${m.overdue && m.status !== 'done' ? 'text-rose-600' : m.status === 'upcoming' ? 'text-slate-400' : 'text-slate-700'}`}
+                                        className={`text-[11px] font-bold tracking-wide tabular-nums roomy:text-xs ${m.overdue && m.status !== 'done' ? 'text-rose-600' : m.status === 'upcoming' ? 'text-slate-400' : 'text-slate-700'}`}
                                         title={m.dateKind === 'estimate' ? 'Estimated' : m.dateKind === 'due' ? 'Due date' : 'Completed'}
                                     >
                                         {m.dateKind === 'estimate' ? '~' : ''}
@@ -205,7 +202,7 @@ export default function JourneyTimeline({ client, summary, journey, audience = '
             </ScrollArea>
             </div>
 
-            <p className="relative border-t border-slate-100 bg-slate-50/60 px-5 py-2.5 text-[11px] leading-relaxed text-slate-500 sm:px-7">
+            <p className="relative border-t border-slate-100 bg-slate-50/60 px-5 py-2.5 text-[11px] leading-relaxed text-slate-500 sm:px-7 short:hidden roomy:px-8 roomy:py-3 roomy:text-xs">
                 {team
                     ? 'Dates marked ~ are estimates from each phase\u2019s due rule. They move as the client finishes onboarding and gives approvals.'
                     : 'Dates marked ~ are estimates. They move with you: finishing onboarding and giving approvals sooner brings your launch closer.'}
@@ -303,7 +300,7 @@ function Tag({ milestone: m, team }: { milestone: Milestone; team: boolean }) {
                     ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200/70'
                     : 'bg-slate-100 text-slate-500';
     return (
-        <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-[0.12em] ${style}`}>
+        <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-[0.12em] roomy:px-2 roomy:py-1 roomy:text-[10px] ${style}`}>
             {m.kind === 'approval' && <ThumbsUp className="h-3 w-3" />}
             {m.kind === 'launch' && <Rocket className="h-3 w-3" />}
             {tagText(m, team)}
@@ -333,7 +330,7 @@ function Node({ milestone: m }: { milestone: Milestone }) {
     if (m.kind === 'launch') {
         return (
             <span
-                className={`relative z-10 flex h-10 w-10 items-center justify-center rounded-full ring-4 ${m.status === 'done' ? 'bg-emerald-500 text-white ring-emerald-100' : m.status === 'current' ? 'bg-white text-emerald-600 ring-emerald-300' : 'bg-white text-emerald-500 ring-emerald-100'} shadow-sm`}
+                className={`relative z-10 flex h-10 w-10 items-center justify-center rounded-full ring-4 roomy:h-12 roomy:w-12 ${m.status === 'done' ? 'bg-emerald-500 text-white ring-emerald-100' : m.status === 'current' ? 'bg-white text-emerald-600 ring-emerald-300' : 'bg-white text-emerald-500 ring-emerald-100'} shadow-sm`}
             >
                 {m.status === 'current' && <span className="absolute inset-0 animate-ping rounded-full bg-emerald-300/40" />}
                 <Rocket className="relative h-4 w-4" />
@@ -342,7 +339,7 @@ function Node({ milestone: m }: { milestone: Milestone }) {
     }
     if (m.status === 'done') {
         return (
-            <span className="relative z-10 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white ring-4 ring-white">
+            <span className="relative z-10 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white ring-4 ring-white roomy:h-6 roomy:w-6">
                 <Check className="h-3 w-3" strokeWidth={3} />
             </span>
         );
@@ -350,9 +347,9 @@ function Node({ milestone: m }: { milestone: Milestone }) {
     if (m.status === 'current') {
         const tone = m.waitingOnClient ? 'border-orange-500' : 'border-emerald-500';
         return (
-            <span className="relative z-10 flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100/70">
+            <span className="relative z-10 flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100/70 roomy:h-11 roomy:w-11">
                 <span className={`absolute inset-0 animate-ping rounded-full ${m.waitingOnClient ? 'bg-orange-200/50' : 'bg-emerald-200/50'}`} />
-                <span className={`relative h-6 w-6 rounded-full border-4 bg-white ${tone}`} />
+                <span className={`relative h-6 w-6 rounded-full border-4 bg-white roomy:h-7 roomy:w-7 roomy:border-[5px] ${tone}`} />
             </span>
         );
     }

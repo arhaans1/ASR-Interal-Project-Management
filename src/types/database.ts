@@ -86,6 +86,7 @@ export interface PortalClient {
   important_links: string;
   created_at: string;
   ads_linked: boolean; // a Meta ad account is linked, so the Results tab has data
+  updates_read_at: string | null; // when the client last opened their Updates inbox
 }
 
 export interface PortalCategory extends Category {
