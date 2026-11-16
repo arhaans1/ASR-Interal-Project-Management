@@ -264,15 +264,21 @@ export default function ClientPortalPage() {
                     </button>
                 </div>
 
-                {/* Tabs sit on their own row on phones */}
-                <nav className="flex gap-1 overflow-x-auto border-t border-slate-200/70 px-3 py-2 md:hidden" aria-label="Portal sections">
-                    {tabs.filter((t) => !t.hidden).map((tab) => (
-                        <TabButton key={tab.id} tab={tab} active={view === tab.id} onClick={() => changeView(tab.id)} />
-                    ))}
-                </nav>
             </header>
 
-            <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+            {/* Phones: a bottom tab bar, like a mobile app, with every section in reach */}
+            <nav
+                className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/80 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
+                aria-label="Portal sections"
+            >
+                <div className="mx-auto flex max-w-md">
+                    {tabs.filter((t) => !t.hidden).map((tab) => (
+                        <BottomTab key={tab.id} tab={tab} active={view === tab.id} onClick={() => changeView(tab.id)} />
+                    ))}
+                </div>
+            </nav>
+
+            <main className="mx-auto max-w-6xl px-4 pb-28 pt-6 sm:px-6 sm:pt-8 md:pb-8">
                 {notice && (
                     <div role="alert" className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700 ring-1 ring-red-200">
                         {notice}
@@ -361,6 +367,26 @@ function TabButton({ tab, active, onClick }: { tab: Tab; active: boolean; onClic
         >
             <Icon className="h-4 w-4" />
             {tab.label}
+        </button>
+    );
+}
+
+function BottomTab({ tab, active, onClick }: { tab: Tab; active: boolean; onClick: () => void }) {
+    const Icon = tab.locked ? Lock : tab.icon;
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            disabled={tab.locked}
+            aria-current={active ? 'page' : undefined}
+            title={tab.locked ? tab.lockedHint : undefined}
+            className={`relative flex min-w-0 flex-1 flex-col items-center gap-1 px-1 pb-2 pt-2.5 text-[11px] font-semibold transition-colors ${active ? 'text-indigo-700' : tab.locked ? 'text-slate-300' : 'text-slate-500 active:text-slate-900'}`}
+        >
+            {active && <span className="absolute inset-x-5 top-0 h-[3px] rounded-b-full bg-indigo-600" />}
+            <span className={`flex h-8 w-12 items-center justify-center rounded-full transition-colors ${active ? 'bg-indigo-50' : ''}`}>
+                <Icon className="h-5 w-5" />
+            </span>
+            <span className="truncate">{tab.label}</span>
         </button>
     );
 }

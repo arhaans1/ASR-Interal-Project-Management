@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, ExternalLink, ImageOff, Play, Trophy } from 'lucide-react';
 import { AdRow, CampaignRow, formatCount, formatMoney, formatPercent, formatRoas, ResultType, resultLabels } from '@/lib/adMetrics';
 import Card from './Card';
+import ScrollArea from '@/components/ScrollArea';
 
 // Team-only detail under the ad performance charts: which creatives and campaigns drive results.
 
@@ -206,7 +207,8 @@ export function CampaignTable({ campaigns, resultType, showRoas, currency, isTea
             {campaigns.length === 0 ? (
                 <p className="rounded-2xl bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">No campaigns ran in this period.</p>
             ) : (
-                <div className="-mx-5 overflow-x-auto sm:-mx-6">
+                <div className="-mx-5 sm:-mx-6">
+                    <ScrollArea hint="Swipe to see all columns">
                     <table className="w-full min-w-[820px] text-sm">
                         <thead>
                             <tr className="border-y border-slate-100 bg-slate-50/70 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
@@ -243,6 +245,7 @@ export function CampaignTable({ campaigns, resultType, showRoas, currency, isTea
                             ))}
                         </tbody>
                     </table>
+                    </ScrollArea>
                 </div>
             )}
         </Card>

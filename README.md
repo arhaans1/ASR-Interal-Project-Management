@@ -69,6 +69,10 @@ Dates are worked out from when things were actually ticked, so they move with th
 
 The client portal's Delivery tab, and Active client cards on the team page, open with a road-to-launch card: Onboarding → Welcome call → Stage 1, 2, 3… (one per project phase) → the client's approval → Ads go live. The line fills in as milestones are done, "You're here" marks the current one, and each milestone has a date: the actual date once done, the due date when it is set, or an estimate (marked ~) from the phase's due rule. Built in `src/lib/journey.ts` from the same phases as the task board, so it works for every funnel template.
 
+On phones the road becomes a vertical list of steps, and the portal's sections move to a bottom tab bar. Anything that still scrolls sideways (the road on narrow tablets, the campaign table) shows edge fades, arrow buttons and a one-time "Swipe to see more" hint (`src/components/ScrollArea.tsx`).
+
+Every funnel's launch phase includes three client tasks before the ads go live: connect Gmail, WhatsApp and Google Meet / Zoom; complete the software payment; GHL access handover and demo. `supabase-data-launch-handover-tasks.sql` adds them to cards made before (already run in production).
+
 The team client page also has an **Open Client Portal** link (next to the folders) that opens the portal in a new tab.
 
 ## Ad performance (Meta Ads)
