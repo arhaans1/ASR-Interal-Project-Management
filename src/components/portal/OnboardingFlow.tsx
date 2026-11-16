@@ -18,6 +18,8 @@ interface OnboardingFlowProps {
     onToggle: (task: Task, completed: boolean) => void;
     onOpenDashboard: () => void;
     onPlayWalkthrough: () => void;
+    // Shown right under the welcome card (the "Waiting on you" card)
+    afterHero?: React.ReactNode;
 }
 
 export default function OnboardingFlow({
@@ -28,6 +30,7 @@ export default function OnboardingFlow({
     onToggle,
     onOpenDashboard,
     onPlayWalkthrough,
+    afterHero,
 }: OnboardingFlowProps) {
     const steps = summary.onboardingTasks;
     const done = summary.onboardingDone;
@@ -115,6 +118,8 @@ export default function OnboardingFlow({
                     </div>
                 </div>
             </section>
+
+            {afterHero}
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
                 {/* Steps */}
