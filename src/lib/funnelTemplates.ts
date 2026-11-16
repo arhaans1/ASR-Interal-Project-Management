@@ -67,6 +67,14 @@ const CLIENT_ONBOARDING: TemplateCategory = {
   ],
 };
 
+// Before launch: the client connects their own accounts, pays for the software and takes over
+// their GoHighLevel account. Shared by every funnel type.
+const LAUNCH_HANDOVER: TemplateTask[] = [
+  clientTask('connect_accounts', 'Connect your Gmail, WhatsApp and Google Meet / Zoom'),
+  clientTask('software_payment', 'Complete the software payment'),
+  clientTask('ghl_handover', 'GHL access handover and demo'),
+];
+
 // CAM timeline: research is due 3 business days after onboarding, and the course outline
 // goes to the client for approval in that same window. Everything else is due 5 business
 // days after the client approves. Launch waits on the client's recordings, so it has no date.
@@ -129,6 +137,7 @@ const CAM_TEMPLATE: TemplateCategory[] = [
       clientTask('record_vsl', 'Record your VSL'),
       clientTask('record_course_videos', 'Record your course videos'),
       clientTask('record_video_ads', 'Record your video ads'),
+      ...LAUNCH_HANDOVER,
       asr('Set up the pixel'),
       asr('Set up the ad campaign'),
       asr('Launch ad campaigns'),
@@ -172,7 +181,7 @@ const VSL_TEMPLATE: TemplateCategory[] = [
   },
   {
     name: 'Launch',
-    tasks: [asr('Ad launch')],
+    tasks: [...LAUNCH_HANDOVER, asr('Ad launch')],
   },
 ];
 
@@ -203,7 +212,7 @@ const WEBINAR_TEMPLATE: TemplateCategory[] = [
   },
   {
     name: 'Launch',
-    tasks: [asr('Ad launch')],
+    tasks: [...LAUNCH_HANDOVER, asr('Ad launch')],
   },
 ];
 
@@ -390,6 +399,33 @@ export const STEP_GUIDES: Record<string, StepGuide> = {
     actions: [{ label: 'Open your Drive folder', source: 'drive', primary: true }],
     where: '01 Ads › Video Ads',
     doneLabel: "I've uploaded my video ads",
+  },
+  connect_accounts: {
+    eyebrow: 'Before launch',
+    summary:
+      'Connect your own Gmail, WhatsApp and Google Meet or Zoom, so emails, messages and call links go out from your accounts.',
+    bullets: [
+      'Your project manager will send you the connection steps, or set it up with you on a short call.',
+      'Keep your phone with WhatsApp handy: connecting it needs a quick scan from the phone.',
+    ],
+    doneLabel: "I've connected my accounts",
+  },
+  software_payment: {
+    eyebrow: 'Before launch',
+    summary:
+      'Pay for the software your funnel, emails and bookings run on, so everything stays live under your name after launch.',
+    bullets: ['Your project manager will share the payment details. Message them if you have not received them.'],
+    doneLabel: "I've made the software payment",
+  },
+  ghl_handover: {
+    eyebrow: 'Before launch',
+    summary:
+      'We hand over your GoHighLevel (GHL) account and walk you through it on a short demo: your funnel, contacts, calendar and messages.',
+    bullets: [
+      'Accept the GHL invite we send to your email.',
+      'Join the demo call with your project manager.',
+    ],
+    doneLabel: 'I have my GHL access and saw the demo',
   },
   record_course_videos: {
     eyebrow: 'Recording',
