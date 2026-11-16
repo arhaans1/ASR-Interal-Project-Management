@@ -65,12 +65,12 @@ export default function JourneyTimeline({ client, summary, journey, audience = '
                     : 'In progress';
 
     const cols = { gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` };
-    // On wide screens the card is only as wide as its content (about 150px a milestone),
-    // sitting on the left like the cards around it, instead of stretching across the page
-    const contentWidth = n * 150;
+    // Team page: on wide screens the card is only as wide as its content (about 150px a
+    // milestone), sitting on the left. The client portal keeps the full-width card.
+    const fitWidth = team ? { maxWidth: n * 150 + 56 } : undefined;
 
     return (
-        <section className="relative w-full overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-200/80" style={{ maxWidth: contentWidth + 56 }} aria-label="Your journey to launch">
+        <section className="relative w-full overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-200/80" style={fitWidth} aria-label="Your journey to launch">
             {/* Soft decoration */}
             <div
                 className="pointer-events-none absolute right-0 top-0 h-40 w-72 opacity-60"
