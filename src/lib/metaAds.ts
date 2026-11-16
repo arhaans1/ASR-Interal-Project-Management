@@ -19,9 +19,12 @@ import {
 // Environment:
 //   META_SYSTEM_USER_TOKEN  required. A system user token with ads_read, from Business Settings.
 //   META_APP_SECRET         optional. Needed only if the Meta app has "Require app secret" switched on.
-//   META_GRAPH_VERSION      optional. Defaults to v24.0.
+//   META_GRAPH_VERSION      optional. Defaults to v26.0.
+//
+// Meta no longer accepts the multi-object "?ids=" lookup (v26+), so objects are read through
+// the ad account's edges, or one at a time with a small concurrency limit.
 
-const GRAPH_VERSION = process.env.META_GRAPH_VERSION || 'v24.0';
+const GRAPH_VERSION = process.env.META_GRAPH_VERSION || 'v26.0';
 const GRAPH_URL = `https://graph.facebook.com/${GRAPH_VERSION}`;
 const MAX_PAGES = 10;
 
@@ -108,6 +111,20 @@ async function graphAll(path: string, params: Record<string, unknown> = {}, maxP
     return rows;
 }
 
+// Runs fn over items, a few at a time, so one report never floods Meta with requests.
+async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+    const out: R[] = new Array(items.length);
+    let next = 0;
+    const worker = async () => {
+        while (next < items.length) {
+            const i = next++;
+            out[i] = await fn(items[i]);
+        }
+    };
+    await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+    return out;
+}
+
 // ---------------------------------------------------------------- small cache
 
 const cache = new Map<string, { expires: number; value: unknown }>();
@@ -180,41 +197,84 @@ async function accountInfo(accountId: string) {
     });
 }
 
-// ---------------------------------------------------------------- insights
+// ---------------------------------------------------------------- what counts as a result
 
 export interface AdsConfig {
     accountId: string;
-    resultType: ResultType;
-    resultAction: string | null; // a custom conversion's action type, instead of the standard event
+    mode: ResultType;
+    // Sales / Appointments: ad sets optimising for the standard event count, and for these custom conversions
+    standard: boolean;
+    customConversions: string[]; // custom conversion ids
     campaignFilter: string | null;
+}
+
+// meta_result_action holds the events for Sales / Appointments, comma separated:
+// "standard" and/or "offsite_conversion.custom.<id>". Empty means the standard event only.
+export function parseResultEvents(value: unknown): { standard: boolean; customConversions: string[] } {
+    const tokens = typeof value === 'string' ? value.split(',').map((t) => t.trim()).filter(Boolean) : [];
+    if (tokens.length === 0) return { standard: true, customConversions: [] };
+    const customConversions = [
+        ...new Set(tokens.map((t) => t.match(/^(?:offsite_conversion\.custom\.|cc:)(\d+)$/)?.[1]).filter(Boolean) as string[]),
+    ];
+    return { standard: tokens.includes('standard'), customConversions };
 }
 
 export function configFromClient(row: any): AdsConfig | null {
     const accountId = normalizeAccountId(row?.meta_ad_account_id);
     if (!accountId) return null;
+    const mode: ResultType = row.meta_result_type === 'schedule' ? 'schedule' : row.meta_result_type === 'auto' ? 'auto' : 'purchase';
     return {
         accountId,
-        resultType: row.meta_result_type === 'schedule' ? 'schedule' : 'purchase',
-        resultAction: typeof row.meta_result_action === 'string' && row.meta_result_action.trim() ? row.meta_result_action.trim() : null,
+        mode,
+        ...parseResultEvents(row.meta_result_action),
         campaignFilter: typeof row.meta_campaign_filter === 'string' && row.meta_campaign_filter.trim() ? row.meta_campaign_filter.trim() : null,
     };
 }
 
-const METRIC_FIELDS = [
-    'spend',
-    'impressions',
-    'reach',
-    'cpm',
-    'inline_link_clicks',
-    'outbound_clicks',
-    'unique_outbound_clicks_ctr',
-    'actions',
-    'action_values',
-];
+// What an ad set optimises for, and the names Meta reports it under (the first one present wins).
+interface ResultEvent {
+    key: string; // std:PURCHASE, cc:123, goal:LANDING_PAGE_VIEWS
+    label: string;
+    actions: string[];
+    fuzzy?: string; // otherwise any action containing this
+}
 
-// Meta reports the same event under several names; the first one present wins.
-const PURCHASE_ACTIONS = ['purchase', 'omni_purchase', 'offsite_conversion.fb_pixel_purchase', 'onsite_web_purchase'];
-const SCHEDULE_ACTIONS = ['schedule_total', 'schedule_website', 'offsite_conversion.fb_pixel_schedule', 'omni_schedule'];
+const STANDARD_EVENTS: Record<string, { label: string; actions: string[]; fuzzy?: string }> = {
+    PURCHASE: { label: 'Purchases', actions: ['purchase', 'omni_purchase', 'offsite_conversion.fb_pixel_purchase', 'onsite_web_purchase'] },
+    SCHEDULE: { label: 'Appointments', actions: ['schedule_total', 'schedule_website', 'offsite_conversion.fb_pixel_schedule', 'omni_schedule'], fuzzy: 'schedule' },
+    LEAD: { label: 'Leads', actions: ['lead', 'offsite_conversion.fb_pixel_lead', 'onsite_conversion.lead_grouped'] },
+    COMPLETE_REGISTRATION: { label: 'Registrations', actions: ['complete_registration', 'omni_complete_registration', 'offsite_conversion.fb_pixel_complete_registration'] },
+    CONTACT: { label: 'Contacts', actions: ['contact_total', 'contact_website', 'offsite_conversion.fb_pixel_contact'] },
+    INITIATED_CHECKOUT: { label: 'Checkouts started', actions: ['initiate_checkout', 'omni_initiated_checkout', 'offsite_conversion.fb_pixel_initiate_checkout'] },
+    ADD_TO_CART: { label: 'Adds to cart', actions: ['add_to_cart', 'omni_add_to_cart', 'offsite_conversion.fb_pixel_add_to_cart'] },
+    SUBMIT_APPLICATION: { label: 'Applications', actions: ['submit_application_total', 'submit_application_website', 'offsite_conversion.fb_pixel_submit_application'] },
+    START_TRIAL: { label: 'Trials started', actions: ['start_trial_total', 'start_trial_website', 'offsite_conversion.fb_pixel_start_trial'] },
+    SUBSCRIBE: { label: 'Subscriptions', actions: ['subscribe_total', 'subscribe_website', 'offsite_conversion.fb_pixel_subscribe'] },
+};
+
+// Ad sets that optimise for something other than a pixel event
+const GOAL_EVENTS: Record<string, { label: string; actions: string[] }> = {
+    LANDING_PAGE_VIEWS: { label: 'Landing page views', actions: ['landing_page_view', 'omni_landing_page_view'] },
+    LINK_CLICKS: { label: 'Link clicks', actions: ['link_click'] },
+    LEAD_GENERATION: { label: 'Leads', actions: ['onsite_conversion.lead_grouped', 'lead'] },
+    QUALITY_LEAD: { label: 'Leads', actions: ['onsite_conversion.lead_grouped', 'lead'] },
+    CONVERSATIONS: { label: 'Conversations', actions: ['onsite_conversion.messaging_conversation_started_7d'] },
+    POST_ENGAGEMENT: { label: 'Post engagements', actions: ['post_engagement'] },
+};
+
+const customEvent = (id: string, name?: string | null): ResultEvent => ({
+    key: `cc:${id}`,
+    label: name || `Custom conversion ${id}`,
+    actions: [`offsite_conversion.custom.${id}`],
+});
+
+// The ad sets a Sales / Appointments client is reported on
+function selectedKeys(config: AdsConfig): Set<string> {
+    const keys = new Set(config.customConversions.map((id) => `cc:${id}`));
+    if (config.standard) keys.add(config.mode === 'schedule' ? 'std:SCHEDULE' : 'std:PURCHASE');
+    return keys;
+}
+
 const LPV_ACTIONS = ['landing_page_view', 'omni_landing_page_view'];
 
 type ActionList = { action_type: string; value: string }[] | undefined;
@@ -233,31 +293,119 @@ function pick(list: ActionList, types: string[]): number | null {
     return null;
 }
 
-function resultTypes(config: AdsConfig): string[] {
-    if (config.resultAction) return [config.resultAction];
-    return config.resultType === 'schedule' ? SCHEDULE_ACTIONS : PURCHASE_ACTIONS;
-}
-
-function countResults(list: ActionList, config: AdsConfig): number {
-    const exact = pick(list, resultTypes(config));
+function countEvent(list: ActionList, event: ResultEvent | null): number {
+    if (!event) return 0;
+    const exact = pick(list, event.actions);
     if (exact !== null) return exact;
-    // Appointments are sometimes reported under another "schedule" name.
-    if (!config.resultAction && config.resultType === 'schedule' && Array.isArray(list)) {
-        const any = list.find((a) => a.action_type.includes('schedule'));
+    if (event.fuzzy && Array.isArray(list)) {
+        const any = list.find((a) => a.action_type.includes(event.fuzzy!));
         if (any) return num(any.value);
     }
     return 0;
 }
 
+const eventValue = (list: ActionList, event: ResultEvent | null) => (event ? pick(list, event.actions) ?? 0 : 0);
+
+// Custom conversion names, for labels. Ones shared from elsewhere are looked up one by one.
+async function conversionNames(accountId: string, ids: string[]): Promise<Map<string, string>> {
+    const names = new Map<string, string>();
+    if (ids.length === 0) return names;
+    try {
+        for (const c of await listCustomConversions(accountId)) names.set(c.id, c.name);
+    } catch { }
+    const missing = ids.filter((id) => !names.has(id)).slice(0, 20);
+    await mapLimit(missing, 4, async (id) => {
+        try {
+            const row = await cached(`ccname:${id}`, 60 * 60 * 1000, false, () => graph(id, { fields: 'name' }));
+            if (row?.name) names.set(id, row.name);
+        } catch { }
+    });
+    return names;
+}
+
+// What each ad set optimises for. Settings rarely change, so they are kept for a few hours.
+const adsetGoals = new Map<string, { expires: number; goal: string | null; po: any }>();
+
+const ADSET_STATUSES = ['ACTIVE', 'PAUSED', 'ARCHIVED', 'CAMPAIGN_PAUSED', 'ADSET_PAUSED', 'IN_PROCESS', 'WITH_ISSUES', 'PENDING_REVIEW', 'DISAPPROVED', 'PREAPPROVED', 'PENDING_BILLING_INFO'];
+
+function rememberAdset(id: string, row: any, expires: number) {
+    if (adsetGoals.size > 5000) adsetGoals.delete(adsetGoals.keys().next().value as string);
+    adsetGoals.set(id, { expires, goal: row?.optimization_goal ?? null, po: row?.promoted_object ?? null });
+}
+
+async function eventsForAdsets(accountId: string, adsetIds: string[]): Promise<Map<string, ResultEvent | null>> {
+    const now = Date.now();
+    const expires = now + 6 * 60 * 60 * 1000;
+    let missing = adsetIds.filter((id) => (adsetGoals.get(id)?.expires ?? 0) <= now);
+
+    // Every ad set on the account in one paged request, archived ones included
+    if (missing.length > 0) {
+        const fields = 'id,optimization_goal,promoted_object';
+        let rows: any[] | null = null;
+        try {
+            rows = await graphAll(`${accountId}/adsets`, { fields, effective_status: ADSET_STATUSES, limit: 500 });
+        } catch {
+            try {
+                rows = await graphAll(`${accountId}/adsets`, { fields, limit: 500 });
+            } catch (error) {
+                console.error('Ad set settings could not be loaded:', error);
+            }
+        }
+        for (const row of rows ?? []) rememberAdset(String(row.id), row, expires);
+        missing = missing.filter((id) => (adsetGoals.get(id)?.expires ?? 0) <= now);
+    }
+
+    // Deleted ad sets are not on that list: read them one by one.
+    await mapLimit(missing.slice(0, 60), 6, async (id) => {
+        try {
+            rememberAdset(id, await graph(id, { fields: 'optimization_goal,promoted_object' }), expires);
+        } catch {
+            // That ad set shows its spend but no results until the next try.
+        }
+    });
+
+    const ccIds = [...new Set(adsetIds.map((id) => adsetGoals.get(id)?.po?.custom_conversion_id).filter(Boolean).map(String))];
+    const names = await conversionNames(accountId, ccIds);
+
+    const out = new Map<string, ResultEvent | null>();
+    for (const id of adsetIds) {
+        const info = adsetGoals.get(id);
+        let event: ResultEvent | null = null;
+        if (info?.po?.custom_conversion_id) {
+            const ccId = String(info.po.custom_conversion_id);
+            event = customEvent(ccId, names.get(ccId));
+        } else if (info?.po?.custom_event_type && STANDARD_EVENTS[info.po.custom_event_type]) {
+            event = { key: `std:${info.po.custom_event_type}`, ...STANDARD_EVENTS[info.po.custom_event_type] };
+        } else if (info?.goal && GOAL_EVENTS[info.goal]) {
+            event = { key: `goal:${info.goal}`, ...GOAL_EVENTS[info.goal] };
+        }
+        out.set(id, event);
+    }
+    return out;
+}
+
+// ---------------------------------------------------------------- insights
+
+const METRIC_FIELDS = [
+    'spend',
+    'impressions',
+    'reach',
+    'cpm',
+    'inline_link_clicks',
+    'outbound_clicks',
+    'unique_outbound_clicks_ctr',
+    'actions',
+    'action_values',
+];
+
+type BaseMetrics = Omit<AdMetrics, 'results' | 'costPerResult' | 'revenue' | 'roas'>;
+
 const ratio = (a: number, b: number) => (b > 0 ? a / b : null);
 
-function toMetrics(row: any, config: AdsConfig): AdMetrics {
+function baseMetrics(row: any): BaseMetrics {
     const spend = num(row?.spend);
     const impressions = num(row?.impressions);
-    const results = countResults(row?.actions, config);
-    const revenue = config.resultType === 'purchase' ? pick(row?.action_values, resultTypes(config)) ?? 0 : 0;
     const lpv = pick(row?.actions, LPV_ACTIONS) ?? 0;
-    const ctr = pick(row?.unique_outbound_clicks_ctr, ['outbound_click']);
     return {
         spend,
         impressions,
@@ -265,39 +413,48 @@ function toMetrics(row: any, config: AdsConfig): AdMetrics {
         cpm: row?.cpm !== undefined ? num(row.cpm) : impressions > 0 ? (spend / impressions) * 1000 : null,
         linkClicks: num(row?.inline_link_clicks),
         outboundClicks: pick(row?.outbound_clicks, ['outbound_click']) ?? 0,
-        uniqueOutboundCtr: ctr,
+        uniqueOutboundCtr: pick(row?.unique_outbound_clicks_ctr, ['outbound_click']),
         lpv,
         costPerLpv: ratio(spend, lpv),
-        results,
-        costPerResult: ratio(spend, results),
-        revenue,
-        roas: config.resultType === 'purchase' ? ratio(revenue, spend) : null,
     };
 }
 
-const emptyMetrics = (config: AdsConfig): AdMetrics => toMetrics({}, config);
+const withResults = (base: BaseMetrics, results: number, revenue: number, showRoas: boolean): AdMetrics => ({
+    ...base,
+    results,
+    costPerResult: ratio(base.spend, results),
+    revenue,
+    roas: showRoas ? ratio(revenue, base.spend) : null,
+});
+
+interface Range {
+    since: string;
+    until: string;
+}
 
 interface InsightsQuery {
-    level: 'account' | 'campaign' | 'ad';
-    selection: { since: string; until: string } | 'maximum';
+    level: 'account' | 'adset' | 'campaign' | 'ad';
+    range: Range | 'maximum';
     fields: string[];
-    daily?: boolean;
+    step?: 1 | 7; // time_increment
+    adsetIds?: string[]; // only these ad sets
     sort?: string;
     limit?: number;
     maxPages?: number;
 }
 
 function insights(config: AdsConfig, q: InsightsQuery) {
+    const filtering: { field: string; operator: string; value: unknown }[] = [];
+    if (config.campaignFilter) filtering.push({ field: 'campaign.name', operator: 'CONTAIN', value: config.campaignFilter });
+    if (q.adsetIds) filtering.push({ field: 'adset.id', operator: 'IN', value: q.adsetIds });
     return graphAll(
         `${config.accountId}/insights`,
         {
             level: q.level,
             fields: q.fields.join(','),
-            ...(q.selection === 'maximum' ? { date_preset: 'maximum' } : { time_range: { since: q.selection.since, until: q.selection.until } }),
-            ...(q.daily ? { time_increment: 1 } : {}),
-            ...(config.campaignFilter
-                ? { filtering: [{ field: 'campaign.name', operator: 'CONTAIN', value: config.campaignFilter }] }
-                : {}),
+            ...(q.range === 'maximum' ? { date_preset: 'maximum' } : { time_range: { since: q.range.since, until: q.range.until } }),
+            ...(q.step ? { time_increment: q.step } : {}),
+            ...(filtering.length ? { filtering } : {}),
             ...(q.sort ? { sort: [q.sort] } : {}),
             limit: q.limit ?? 500,
         },
@@ -305,54 +462,33 @@ function insights(config: AdsConfig, q: InsightsQuery) {
     );
 }
 
-function fillDays(rows: any[], config: AdsConfig, since: string, until: string): DailyPoint[] {
-    const byDate = new Map<string, any>(rows.map((r) => [r.date_start, r]));
-    const days: DailyPoint[] = [];
-    const last = parseISO(until);
-    for (let d = parseISO(since); d <= last; d = addDays(d, 1)) {
-        const date = toISODate(d);
-        const m = byDate.has(date) ? toMetrics(byDate.get(date), config) : emptyMetrics(config);
-        days.push({
-            date,
-            spend: m.spend,
-            results: m.results,
-            revenue: m.revenue,
-            lpv: m.lpv,
-            impressions: m.impressions,
-            outboundClicks: m.outboundClicks,
-            uniqueOutboundCtr: byDate.has(date) ? m.uniqueOutboundCtr : null,
-        });
-    }
-    return days;
-}
-
+// Creative images and preview links, one ad at a time (a few in parallel). Kept for an hour.
 async function loadThumbnails(adIds: string[]) {
     const out = new Map<string, { thumbnail: string | null; isVideo: boolean; previewUrl: string | null }>();
-    if (adIds.length === 0) return out;
-    try {
-        const ads = await graph('', { ids: adIds.join(','), fields: 'creative{id},preview_shareable_link' });
-        const creativeIds = [...new Set(Object.values<any>(ads).map((a) => a?.creative?.id).filter(Boolean))] as string[];
-        const creatives = creativeIds.length
-            ? await graph('', {
-                ids: creativeIds.join(','),
-                fields: 'thumbnail_url,image_url,object_type,video_id',
-                thumbnail_width: 600,
-                thumbnail_height: 600,
-            })
-            : {};
-        for (const id of adIds) {
-            const ad = ads?.[id];
-            const creative = ad?.creative?.id ? creatives?.[ad.creative.id] : null;
-            out.set(id, {
-                thumbnail: creative?.image_url || creative?.thumbnail_url || null,
-                isVideo: Boolean(creative?.video_id) || creative?.object_type === 'VIDEO',
-                previewUrl: ad?.preview_shareable_link || null,
+    let failures = 0;
+    let lastError: unknown = null;
+    await mapLimit(adIds, 6, async (id) => {
+        try {
+            const info = await cached(`thumb:${id}`, 60 * 60 * 1000, false, async () => {
+                const ad = await graph(id, { fields: 'creative{id},preview_shareable_link' }).catch(() => graph(id, { fields: 'creative{id}' }));
+                const creativeId = ad?.creative?.id;
+                const creative = creativeId
+                    ? await graph(String(creativeId), { fields: 'thumbnail_url,image_url,object_type,video_id', thumbnail_width: 600, thumbnail_height: 600 })
+                    : null;
+                return {
+                    thumbnail: creative?.image_url || creative?.thumbnail_url || null,
+                    isVideo: Boolean(creative?.video_id) || creative?.object_type === 'VIDEO',
+                    previewUrl: ad?.preview_shareable_link || null,
+                };
             });
+            out.set(id, info);
+        } catch (error) {
+            failures += 1;
+            lastError = error;
         }
-    } catch (error) {
-        // Thumbnails are a nice-to-have: the numbers still show without them.
-        console.error('Ad thumbnails could not be loaded:', error);
-    }
+    });
+    // Thumbnails are a nice-to-have: the numbers still show without them.
+    if (failures) console.error(`Ad thumbnails: ${failures} of ${adIds.length} could not be loaded:`, lastError);
     return out;
 }
 
@@ -370,86 +506,216 @@ export function validateSelection(preset: string | null, since: string | null, u
     return { preset: (known.includes(preset || '') ? preset : 'custom') as DateSelection['preset'], since, until };
 }
 
+const ADSET_FIELDS = ['adset_id', 'campaign_id', 'spend', 'actions', 'action_values'];
+
+// Results for a set of ad set rows: each counts the event its ad set optimises for.
+function tally(rows: any[], events: Map<string, ResultEvent | null>, include: (adsetId: string) => boolean, countValue: boolean) {
+    let results = 0;
+    let revenue = 0;
+    for (const r of rows) {
+        const id = String(r.adset_id);
+        if (!include(id)) continue;
+        const event = events.get(id) ?? null;
+        results += countEvent(r.actions, event);
+        if (countValue) revenue += eventValue(r.action_values, event);
+    }
+    return { results, revenue };
+}
+
 export async function buildReport(
     config: AdsConfig,
     selection: DateSelection,
     audience: 'team' | 'client',
-    fresh = false
+    fresh = false,
+    detail = true
 ): Promise<AdsReport> {
     const today = toISODate(new Date());
     const live = selection.preset === 'maximum' || selection.until >= today;
-    const key = `report:${audience}:${JSON.stringify(config)}:${selection.preset}:${selection.since}:${selection.until}`;
+    const key = `report:${audience}:${detail}:${JSON.stringify(config)}:${selection.preset}:${selection.since}:${selection.until}`;
 
     return cached(key, (live ? 5 : 30) * 60 * 1000, fresh, async () => {
-        const range = selection.preset === 'maximum' ? ('maximum' as const) : { since: selection.since, until: selection.until };
+        // Lifetime: find the dates first, then treat it like any other range.
+        let range: Range;
+        if (selection.preset === 'maximum') {
+            const [row] = await insights(config, { level: 'account', range: 'maximum', fields: ['spend', 'date_start', 'date_stop'] });
+            range = { since: row?.date_start || today, until: row?.date_stop || today };
+        } else {
+            range = { since: selection.since, until: selection.until };
+        }
 
-        let previousRange: { since: string; until: string } | null = null;
-        if (range !== 'maximum') {
+        let previousRange: Range | null = null;
+        if (selection.preset !== 'maximum') {
             const days = rangeLength(range.since, range.until);
             const prevUntil = addDays(parseISO(range.since), -1);
             previousRange = { since: toISODate(addDays(prevUntil, -(days - 1))), until: toISODate(prevUntil) };
         }
 
-        const team = audience === 'team';
-        const [account, totalRows, previousRows, dailyRows, campaignRows, adRows] = await Promise.all([
+        // Long ranges come back week by week, so ad set rows stay a manageable number.
+        const step: 1 | 7 = rangeLength(range.since, range.until) > 92 ? 7 : 1;
+
+        // 1. Every ad set that ran, and what each one optimises for
+        const [account, adsetRows, prevAdsetRows, adsetSeries] = await Promise.all([
             accountInfo(config.accountId),
-            insights(config, { level: 'account', selection: range, fields: [...METRIC_FIELDS, 'date_start', 'date_stop'] }),
-            previousRange ? insights(config, { level: 'account', selection: previousRange, fields: METRIC_FIELDS }) : Promise.resolve(null),
-            insights(config, { level: 'account', selection: range, fields: METRIC_FIELDS, daily: true }),
-            team
-                ? insights(config, { level: 'campaign', selection: range, fields: ['campaign_id', 'campaign_name', ...METRIC_FIELDS], sort: 'spend_descending', limit: 200, maxPages: 2 })
-                : Promise.resolve([]),
-            team
-                ? insights(config, { level: 'ad', selection: range, fields: ['ad_id', 'ad_name', 'adset_name', 'campaign_name', ...METRIC_FIELDS], sort: 'spend_descending', limit: 100, maxPages: 1 })
-                : Promise.resolve([]),
+            insights(config, { level: 'adset', range, fields: ADSET_FIELDS }),
+            previousRange ? insights(config, { level: 'adset', range: previousRange, fields: ADSET_FIELDS }) : Promise.resolve([] as any[]),
+            insights(config, { level: 'adset', range, fields: ['adset_id', 'actions', 'action_values'], step, maxPages: 40 }),
         ]);
 
-        const totalsRow = totalRows[0];
-        let since = range === 'maximum' ? totalsRow?.date_start || dailyRows[0]?.date_start || today : range.since;
-        let until = range === 'maximum' ? totalsRow?.date_stop || dailyRows[dailyRows.length - 1]?.date_start || today : range.until;
-        if (since > until) [since, until] = [until, since];
+        const allAdsets = [...new Set([...adsetRows, ...prevAdsetRows].map((r) => String(r.adset_id)))];
+        const events = await eventsForAdsets(config.accountId, allAdsets);
+
+        // Sales / Appointments: only ad sets optimising for the chosen events. Match Ads Manager: all.
+        const scoped = config.mode !== 'auto';
+        const wanted = selectedKeys(config);
+        const include = (adsetId: string) => !scoped || wanted.has(events.get(adsetId)?.key ?? '');
+        const countValue = config.mode !== 'schedule';
+
+        const nowIds = [...new Set(adsetRows.map((r) => String(r.adset_id)).filter(include))];
+        const prevIds = [...new Set(prevAdsetRows.map((r) => String(r.adset_id)).filter(include))];
+        const nothingNow = scoped && nowIds.length === 0;
+        const nothingPrev = scoped && prevIds.length === 0;
+        const scope = (ids: string[]) => (scoped ? ids : undefined);
+
+        // 2. The numbers for those ad sets
+        const [totalRows, prevRows, seriesRows, campaignRows, adRows] = await Promise.all([
+            nothingNow ? Promise.resolve([] as any[]) : insights(config, { level: 'account', range, fields: METRIC_FIELDS, adsetIds: scope(nowIds) }),
+            !previousRange || nothingPrev
+                ? Promise.resolve([] as any[])
+                : insights(config, { level: 'account', range: previousRange, fields: METRIC_FIELDS, adsetIds: scope(prevIds) }),
+            nothingNow ? Promise.resolve([] as any[]) : insights(config, { level: 'account', range, fields: METRIC_FIELDS, step, adsetIds: scope(nowIds) }),
+            detail && !nothingNow
+                ? insights(config, { level: 'campaign', range, fields: ['campaign_id', 'campaign_name', ...METRIC_FIELDS], adsetIds: scope(nowIds), sort: 'spend_descending', limit: 200, maxPages: 2 })
+                : Promise.resolve([] as any[]),
+            detail && !nothingNow
+                ? insights(config, { level: 'ad', range, fields: ['ad_id', 'ad_name', 'adset_id', 'adset_name', 'campaign_name', ...METRIC_FIELDS], adsetIds: scope(nowIds), sort: 'spend_descending', limit: 100, maxPages: 1 })
+                : Promise.resolve([] as any[]),
+        ]);
+
+        const now = tally(adsetRows, events, include, countValue);
+        const prev = tally(prevAdsetRows, events, include, countValue);
+        const showRoas = config.mode === 'purchase' || (config.mode === 'auto' && now.revenue > 0);
+
+        // What the results are made of, e.g. 28 Purchases + 13 "Webinar sale"
+        const byLabel = new Map<string, { key: string; label: string; count: number }>();
+        for (const r of adsetRows) {
+            const id = String(r.adset_id);
+            const event = events.get(id);
+            if (!include(id) || !event) continue;
+            const count = countEvent(r.actions, event);
+            if (!count) continue;
+            const entry = byLabel.get(event.label) ?? { key: event.key, label: event.label, count: 0 };
+            entry.count += count;
+            byLabel.set(event.label, entry);
+        }
+
+        // Day by day (or week by week): spend and the rest from the account, results from the ad sets
+        const resultsByDate = new Map<string, { results: number; revenue: number }>();
+        for (const r of adsetSeries) {
+            const id = String(r.adset_id);
+            if (!include(id)) continue;
+            const event = events.get(id) ?? null;
+            const entry = resultsByDate.get(r.date_start) ?? { results: 0, revenue: 0 };
+            entry.results += countEvent(r.actions, event);
+            if (countValue) entry.revenue += eventValue(r.action_values, event);
+            resultsByDate.set(r.date_start, entry);
+        }
+        const seriesByDate = new Map<string, any>(seriesRows.map((r) => [r.date_start, r]));
+        const daily: DailyPoint[] = [];
+        for (let d = parseISO(range.since); toISODate(d) <= range.until; d = addDays(d, step)) {
+            const date = toISODate(d);
+            const row = seriesByDate.get(date);
+            const base = baseMetrics(row ?? {});
+            const res = resultsByDate.get(date) ?? { results: 0, revenue: 0 };
+            daily.push({
+                date,
+                spend: base.spend,
+                results: res.results,
+                revenue: res.revenue,
+                lpv: base.lpv,
+                impressions: base.impressions,
+                outboundClicks: base.outboundClicks,
+                uniqueOutboundCtr: row ? base.uniqueOutboundCtr : null,
+            });
+        }
+
+        const campaignsWithSpend = new Set(adsetRows.filter((r) => include(String(r.adset_id)) && num(r.spend) > 0).map((r) => String(r.campaign_id)));
 
         const report: AdsReport = {
             audience,
             account,
-            resultType: config.resultType,
+            resultType: config.mode,
+            showRoas,
+            breakdown: [...byLabel.values()].sort((a, b) => b.count - a.count),
+            granularity: step === 7 ? 'week' : 'day',
             campaignFilter: config.campaignFilter,
-            range: { since, until, preset: selection.preset },
+            campaignCount: campaignsWithSpend.size,
+            range: { since: range.since, until: range.until, preset: selection.preset },
             previousRange,
-            totals: totalsRow ? toMetrics(totalsRow, config) : emptyMetrics(config),
-            previous: previousRows ? (previousRows[0] ? toMetrics(previousRows[0], config) : emptyMetrics(config)) : null,
-            daily: fillDays(dailyRows, config, since, until),
+            totals: withResults(baseMetrics(totalRows[0] ?? {}), now.results, now.revenue, showRoas),
+            previous: previousRange ? withResults(baseMetrics(prevRows[0] ?? {}), prev.results, prev.revenue, showRoas) : null,
+            daily,
             updatedAt: new Date().toISOString(),
         };
 
-        if (team) {
+        if (detail) {
+            // Campaign results are the sum of their ad sets' results.
+            const perCampaign = new Map<string, { results: number; revenue: number; labels: Set<string> }>();
+            for (const r of adsetRows) {
+                const id = String(r.adset_id);
+                if (!include(id)) continue;
+                const event = events.get(id) ?? null;
+                const entry = perCampaign.get(String(r.campaign_id)) ?? { results: 0, revenue: 0, labels: new Set<string>() };
+                entry.results += countEvent(r.actions, event);
+                if (countValue) entry.revenue += eventValue(r.action_values, event);
+                if (event) entry.labels.add(event.label);
+                perCampaign.set(String(r.campaign_id), entry);
+            }
             report.campaigns = campaignRows
-                .map((r): CampaignRow => ({ id: String(r.campaign_id), name: r.campaign_name || 'Untitled campaign', ...toMetrics(r, config) }))
+                .map((r): CampaignRow => {
+                    const c = perCampaign.get(String(r.campaign_id));
+                    const labels = c ? [...c.labels] : [];
+                    return {
+                        id: String(r.campaign_id),
+                        name: r.campaign_name || 'Untitled campaign',
+                        resultLabel: labels.length === 0 ? null : labels.length === 1 ? labels[0] : 'Mixed',
+                        ...withResults(baseMetrics(r), c?.results ?? 0, c?.revenue ?? 0, showRoas),
+                    };
+                })
                 .filter((c) => c.spend > 0 || c.impressions > 0);
 
             const spentAds = adRows.filter((r) => num(r.spend) > 0);
-            const thumbs = await loadThumbnails(spentAds.slice(0, 50).map((r) => String(r.ad_id)));
+            // Thumbnails for the ads most likely to be on screen: the top ones by results and by spend
+            const byResults = [...spentAds].sort((a, b) => countEvent(b.actions, events.get(String(b.adset_id)) ?? null) - countEvent(a.actions, events.get(String(a.adset_id)) ?? null));
+            const thumbIds = [...new Set([...byResults.slice(0, 15), ...spentAds.slice(0, 15)].map((r) => String(r.ad_id)))];
+            const thumbs = await loadThumbnails(thumbIds);
             const accountDigits = config.accountId.replace(/^act_/, '');
             report.ads = spentAds.map((r): AdRow => {
                 const id = String(r.ad_id);
                 const t = thumbs.get(id);
+                const event = events.get(String(r.adset_id)) ?? null;
                 return {
                     id,
                     name: r.ad_name || 'Untitled ad',
                     campaign: r.campaign_name || '',
                     adset: r.adset_name || '',
+                    resultLabel: event?.label ?? null,
                     thumbnail: t?.thumbnail ?? null,
                     isVideo: t?.isVideo ?? false,
                     previewUrl: t?.previewUrl ?? null,
                     managerUrl: `https://adsmanager.facebook.com/adsmanager/manage/ads?act=${accountDigits}&selected_ad_ids=${id}`,
-                    ...toMetrics(r, config),
+                    ...withResults(baseMetrics(r), countEvent(r.actions, event), countValue ? eventValue(r.action_values, event) : 0, showRoas),
                 };
             });
-        } else {
+        }
+
+        if (audience === 'client') {
             // Clients see their results, not our media-buying detail.
             report.campaignFilter = null;
-            report.totals = { ...report.totals, cpm: null, reach: 0, linkClicks: 0 };
-            if (report.previous) report.previous = { ...report.previous, cpm: null, reach: 0, linkClicks: 0 };
+            const hide = <T extends AdMetrics>(m: T): T => ({ ...m, cpm: null, reach: 0, linkClicks: 0 });
+            report.totals = hide(report.totals);
+            if (report.previous) report.previous = hide(report.previous);
+            if (report.campaigns) report.campaigns = report.campaigns.map(hide);
+            if (report.ads) report.ads = report.ads.map((ad) => ({ ...hide(ad), managerUrl: '' }));
         }
 
         return report;
@@ -460,21 +726,37 @@ export async function buildReport(
 export async function checkConnection(config: AdsConfig) {
     const until = toISODate(addDays(new Date(), -1));
     const since = toISODate(addDays(new Date(), -7));
-    const [account, totals, campaigns] = await Promise.all([
-        accountInfo(config.accountId),
-        insights(config, { level: 'account', selection: { since, until }, fields: METRIC_FIELDS }),
-        insights(config, { level: 'campaign', selection: { since, until }, fields: ['campaign_id', 'spend'], limit: 200, maxPages: 2 }),
-    ]);
-    const m = totals[0] ? toMetrics(totals[0], config) : emptyMetrics(config);
+    const report = await buildReport(config, { preset: 'custom', since, until }, 'team', true, false);
     return {
-        account,
+        account: report.account,
         since,
         until,
-        spend: m.spend,
-        results: m.results,
-        lpv: m.lpv,
-        campaigns: campaigns.filter((c) => num(c.spend) > 0).length,
+        spend: report.totals.spend,
+        results: report.totals.results,
+        lpv: report.totals.lpv,
+        campaigns: report.campaignCount,
+        breakdown: report.breakdown,
     };
+}
+
+// What the account's ad sets optimised for in the last 90 days, for the Edit window's checklist.
+export async function detectResultEvents(config: Pick<AdsConfig, 'accountId' | 'campaignFilter'>) {
+    return cached(`detect:${config.accountId}:${config.campaignFilter ?? ''}`, 10 * 60 * 1000, false, async () => {
+        const range = { since: toISODate(addDays(new Date(), -90)), until: toISODate(new Date()) };
+        const full: AdsConfig = { ...config, mode: 'auto', standard: true, customConversions: [] };
+        const rows = await insights(full, { level: 'adset', range, fields: ['adset_id', 'spend'] });
+        const events = await eventsForAdsets(config.accountId, rows.map((r) => String(r.adset_id)));
+        const byKey = new Map<string, { key: string; label: string; adsets: number; spend: number }>();
+        for (const r of rows) {
+            const event = events.get(String(r.adset_id));
+            if (!event) continue;
+            const entry = byKey.get(event.key) ?? { key: event.key, label: event.label, adsets: 0, spend: 0 };
+            entry.adsets += 1;
+            entry.spend += num(r.spend);
+            byKey.set(event.key, entry);
+        }
+        return [...byKey.values()].sort((a, b) => b.spend - a.spend);
+    });
 }
 
 // What an API route sends back when something goes wrong.

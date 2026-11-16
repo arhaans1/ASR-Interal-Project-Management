@@ -70,8 +70,13 @@ Dates are worked out from when things were actually ticked, so they move with th
 Launched clients get an **Ad Performance** tab next to **Tasks** on their card, and clients get a **Results** tab in their portal (Onboarding · Delivery · Results · Help). Both read straight from Meta's Marketing API.
 
 - **Setup, once:** set `META_SYSTEM_USER_TOKEN` in the hosting environment to a system user token with `ads_read` (Business Settings › Users › System users). If the Meta app has "Require app secret" switched on, also set `META_APP_SECRET`. Run `supabase-migration-meta-ads.sql`.
-- **Linking a client:** in the client's **Edit** window, under **Meta Ads**, pick the ad account from the list. The list is every ad account assigned to the system user, so a new client's account shows up as soon as it is assigned there (use **Refresh list**). Choose whether results are **Sales** (Purchase event) or **Appointments** (Schedule event), optionally a custom conversion to count instead, and, for shared ad accounts, a campaign-name filter. **Test connection** shows the last 7 days.
-- **What each side sees:** both get amount spent, results, cost per result, ROAS (sales only), landing page views, cost per landing page view and unique outbound CTR, with a date range picker, comparison with the previous period, a day-by-day chart and a funnel. The team also sees CPM, top ads with their creatives, and a campaign table.
+- **Linking a client:** in the client's **Edit** window, under **Meta Ads**, pick the ad account from the list. The list is every ad account assigned to the system user, so a new client's account shows up as soon as it is assigned there (use **Refresh list**). Then choose what counts as a result:
+  - **Sales**: only campaigns whose ad sets optimise for the ticked events: the standard Purchase event and/or any custom conversions. ROAS is shown.
+  - **Appointments**: the same, for the Schedule event and/or custom conversions. No ROAS.
+  - **Match Ads Manager** (default for new links): every campaign, each counting the result it optimises for, added up, like the Results column in Ads Manager. The dashboard shows what the total is made of (e.g. 28 Purchases · 13 Webinar Sale).
+
+  Each ad set only ever counts its own optimisation event, so a sale that fires both Purchase and a custom conversion is counted once. For shared ad accounts, add a campaign-name filter. **Test connection** shows the last 7 days with the breakdown.
+- **What each side sees:** both get amount spent, results, cost per result, ROAS (when there is sale value), landing page views, cost per landing page view and unique outbound CTR, a date range picker, comparison with the previous period, a day-by-day chart, a funnel, top ads with their creatives, and a campaign table. Only the team sees CPM and the Ads Manager links.
 - **Privacy:** the ad account is read from the client's card on the server, never from the request, so a client only ever sees their own results. The token never reaches the browser.
 - Numbers are cached for 5 minutes (30 minutes for ranges that have ended); the refresh button fetches them again.
 

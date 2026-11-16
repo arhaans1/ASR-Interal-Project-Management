@@ -27,7 +27,7 @@ export interface Client {
   onboarding_form_url?: string | null;
   // Meta ad performance (see supabase-migration-meta-ads.sql)
   meta_ad_account_id?: string | null;
-  meta_result_type?: 'purchase' | 'schedule' | null;
+  meta_result_type?: 'purchase' | 'schedule' | 'auto' | null;
   meta_result_action?: string | null;
   meta_campaign_filter?: string | null;
 }

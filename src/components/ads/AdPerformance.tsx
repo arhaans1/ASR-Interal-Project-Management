@@ -195,7 +195,14 @@ function Hero({
 }) {
     const type = report?.resultType ?? 'purchase';
     const defs = metricDefs(type);
-    const primary: MetricKey[] = type === 'purchase' ? ['spend', 'results', 'costPerResult', 'roas'] : ['spend', 'results', 'costPerResult', 'lpv'];
+    const showRoas = report ? report.showRoas : type === 'purchase';
+    const primary: MetricKey[] = showRoas ? ['spend', 'results', 'costPerResult', 'roas'] : ['spend', 'results', 'costPerResult', 'lpv'];
+    // e.g. "28 Purchases · 13 Webinar sale", when results are made of more than one kind
+    const breakdown =
+        report && (report.breakdown.length > 1 || (type === 'auto' && report.breakdown.length === 1))
+            ? report.breakdown.slice(0, 3).map((b) => `${formatCount(b.count)} ${b.label}`).join(' · ') + (report.breakdown.length > 3 ? ' · …' : '')
+            : null;
+    const scopeNote = type === 'auto' ? 'Results as in Ads Manager' : type === 'schedule' ? 'Appointment campaigns' : 'Sales campaigns';
     const currency = report?.account.currency ?? 'INR';
     const compareLabel = report?.previousRange
         ? selection.preset === 'today'
@@ -223,7 +230,7 @@ function Hero({
                         {report ? (
                             <>
                                 {isTeam && report.campaignFilter && <>Campaigns containing &ldquo;{report.campaignFilter}&rdquo; · </>}
-                                Results counted as {resultLabels(type).plural.toLowerCase()} · Updated {timeAgo(report.updatedAt)}
+                                {scopeNote} · Updated {timeAgo(report.updatedAt)}
                             </>
                         ) : (
                             'Fetching the latest numbers from Meta'
@@ -262,6 +269,11 @@ function Hero({
                                     <span className="text-xs font-medium text-slate-400">{formatMoney(report.totals.revenue, currency)} revenue</span>
                                 )}
                             </div>
+                            {key === 'results' && breakdown && (
+                                <p className="mt-2 line-clamp-2 text-[11px] font-medium leading-snug text-slate-400" title={report?.breakdown.map((b) => `${b.count} ${b.label}`).join(', ')}>
+                                    {breakdown}
+                                </p>
+                            )}
                         </div>
                     );
                 })}
@@ -279,14 +291,16 @@ function ReportBody({ report, isTeam, dimmed }: { report: AdsReport; isTeam: boo
     const currency = report.account.currency;
     const noDelivery = report.totals.spend === 0 && report.totals.impressions === 0;
 
+    // Landing page views sit in the headline when there is no ROAS to show.
+    const showRoas = report.showRoas;
     const secondary: MetricKey[] = useMemo(() => {
         const keys: MetricKey[] = [];
-        if (type === 'purchase') keys.push('lpv');
+        if (showRoas) keys.push('lpv');
         keys.push('costPerLpv', 'uniqueOutboundCtr');
         if (isTeam) keys.push('cpm');
-        if (type === 'schedule') keys.push('outboundClicks');
+        if (!showRoas) keys.push('outboundClicks');
         return keys;
-    }, [type, isTeam]);
+    }, [showRoas, isTeam]);
 
     const cols = secondary.length === 4 ? 'sm:grid-cols-2 xl:grid-cols-4' : 'sm:grid-cols-3';
 
@@ -311,16 +325,19 @@ function ReportBody({ report, isTeam, dimmed }: { report: AdsReport; isTeam: boo
                     </div>
 
                     <div className={`grid grid-cols-1 gap-6 ${isTeam ? '2xl:grid-cols-[minmax(0,1fr)_340px]' : 'lg:grid-cols-[minmax(0,1fr)_340px]'}`}>
-                        <Card title="Day by day" subtitle={`Amount spent and ${resultLabels(type).plural.toLowerCase()} for ${presetLabel(report.range.preset).toLowerCase()}`}>
-                            <TrendChart daily={report.daily} resultType={type} currency={currency} />
+                        <Card
+                            title={report.granularity === 'week' ? 'Week by week' : 'Day by day'}
+                            subtitle={`Amount spent and ${resultLabels(type).plural.toLowerCase()} for ${presetLabel(report.range.preset).toLowerCase()}`}
+                        >
+                            <TrendChart daily={report.daily} resultType={type} currency={currency} weekly={report.granularity === 'week'} />
                         </Card>
                         <Card title="Funnel" subtitle="From impression to result">
                             <Funnel totals={report.totals} type={type} sideBreakpoint={isTeam ? '2xl' : 'lg'} />
                         </Card>
                     </div>
 
-                    {isTeam && report.ads && <TopAds ads={report.ads} resultType={type} currency={currency} />}
-                    {isTeam && report.campaigns && <CampaignTable campaigns={report.campaigns} resultType={type} currency={currency} />}
+                    {report.ads && <TopAds ads={report.ads} resultType={type} showRoas={showRoas} currency={currency} isTeam={isTeam} />}
+                    {report.campaigns && <CampaignTable campaigns={report.campaigns} resultType={type} showRoas={showRoas} currency={currency} isTeam={isTeam} />}
                 </>
             )}
         </div>
@@ -411,7 +428,7 @@ function Funnel({ totals, type, sideBreakpoint }: { totals: AdMetrics; type: Ads
             label: labels.plural,
             value: totals.results,
             color: 'bg-emerald-500',
-            rate: { value: totals.lpv > 0 ? (totals.results / totals.lpv) * 100 : null, label: type === 'schedule' ? 'of visitors booked' : 'of visitors bought' },
+            rate: { value: totals.lpv > 0 ? (totals.results / totals.lpv) * 100 : null, label: type === 'schedule' ? 'of visitors booked' : type === 'auto' ? 'of visitors converted' : 'of visitors bought' },
         },
     ];
     // A log scale keeps the small steps visible next to impressions.

@@ -5,7 +5,7 @@ import { X, ChevronDown, FolderOpen, PlayCircle, FileText, ListChecks } from 'lu
 import { Client, ClientStatus, FunnelType, User } from '@/types/database';
 import { useWorkspace } from '@/hooks/useWorkspace';
 import { FUNNEL_TYPES, FUNNEL_TEMPLATES, templateTaskCount } from '@/lib/funnelTemplates';
-import MetaAdsSettings, { MetaAdsValue } from '@/components/ads/MetaAdsSettings';
+import MetaAdsSettings, { DEFAULT_EVENTS, eventsFromStored, eventsToStored, MetaAdsValue } from '@/components/ads/MetaAdsSettings';
 
 export interface ClientFormValues {
   name: string;
@@ -20,7 +20,7 @@ export interface ClientFormValues {
   onboarding_video_url: string | null;
   onboarding_form_url: string | null;
   meta_ad_account_id: string | null;
-  meta_result_type: 'purchase' | 'schedule' | null;
+  meta_result_type: 'purchase' | 'schedule' | 'auto' | null;
   meta_result_action: string | null;
   meta_campaign_filter: string | null;
   // What to do with the funnel's task template: nothing, add it, or swap the card's tasks for it
@@ -41,7 +41,8 @@ const inputClass =
 const labelClass = 'block text-xs font-semibold text-slate-600 mb-1.5';
 const sectionTitleClass = 'text-[11px] font-bold text-slate-400 uppercase tracking-[0.12em] mb-3';
 
-const NO_ADS: MetaAdsValue = { accountId: '', resultType: 'purchase', resultAction: '', campaignFilter: '' };
+// Newly linked accounts start on Match Ads Manager.
+const NO_ADS: MetaAdsValue = { accountId: '', resultType: 'auto', events: DEFAULT_EVENTS, campaignFilter: '' };
 
 export default function ClientModal({
   isOpen,
@@ -89,8 +90,9 @@ export default function ClientModal({
       setFormUrl(client.onboarding_form_url || '');
       setMetaAds({
         accountId: client.meta_ad_account_id || '',
-        resultType: client.meta_result_type === 'schedule' ? 'schedule' : 'purchase',
-        resultAction: client.meta_result_action || '',
+        // Accounts linked before Match Ads Manager existed were counting sales.
+        resultType: client.meta_result_type ?? (client.meta_ad_account_id ? 'purchase' : 'auto'),
+        events: eventsFromStored(client.meta_result_action),
         campaignFilter: client.meta_campaign_filter || '',
       });
     } else {
@@ -127,6 +129,10 @@ export default function ClientModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isProject && metaAds.accountId && metaAds.resultType !== 'auto' && metaAds.events.length === 0) {
+      alert('Meta Ads: tick at least one event to count, or choose Match Ads Manager.');
+      return;
+    }
     if (name.trim() && businessName.trim()) {
       // A portal username belongs to one person only, or sign-in could open the wrong project.
       // An unchanged username on an existing card is left alone.
@@ -176,7 +182,7 @@ export default function ClientModal({
         onboarding_form_url: formUrl.trim() || null,
         meta_ad_account_id: isProject && metaAds.accountId ? metaAds.accountId : null,
         meta_result_type: isProject && metaAds.accountId ? metaAds.resultType : null,
-        meta_result_action: isProject && metaAds.accountId && metaAds.resultAction ? metaAds.resultAction : null,
+        meta_result_action: isProject && metaAds.accountId ? eventsToStored(metaAds.events) : null,
         meta_campaign_filter: isProject && metaAds.accountId && metaAds.campaignFilter.trim() ? metaAds.campaignFilter.trim() : null,
         templateMode,
       });
