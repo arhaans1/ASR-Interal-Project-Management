@@ -65,11 +65,12 @@ export default function JourneyTimeline({ client, summary, journey, audience = '
                     : 'In progress';
 
     const cols = { gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` };
-    // On very wide screens the card's content stays one compact block in the middle
-    const contentWidth = n * 150;
+    // Team page: on wide screens the card is only as wide as its content (about 150px a
+    // milestone), sitting on the left. The client portal keeps the full-width card.
+    const fitWidth = team ? { maxWidth: n * 150 + 56 } : undefined;
 
     return (
-        <section className="relative overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-200/80" aria-label="Your journey to launch">
+        <section className="relative w-full overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-200/80" style={fitWidth} aria-label="Your journey to launch">
             {/* Soft decoration */}
             <div
                 className="pointer-events-none absolute right-0 top-0 h-40 w-72 opacity-60"
@@ -83,7 +84,7 @@ export default function JourneyTimeline({ client, summary, journey, audience = '
             <div className="pointer-events-none absolute -bottom-24 right-10 h-56 w-56 rounded-full bg-emerald-100/60 blur-3xl" />
 
             {/* Header */}
-            <div className="relative mx-auto flex w-full flex-col gap-4 px-5 pt-5 sm:px-7 lg:flex-row lg:items-start lg:justify-between" style={{ maxWidth: contentWidth + 56 }}>
+            <div className="relative flex flex-col gap-4 px-5 pt-5 sm:px-7 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0">
                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
                         {client.funnel_type ? funnelLongName(client.funnel_type) : 'Your project'} · {client.business_name}
@@ -131,7 +132,7 @@ export default function JourneyTimeline({ client, summary, journey, audience = '
             {/* Wider screens: the road runs across, and says so when it needs a scroll */}
             <div className="hidden md:block">
             <ScrollArea className="px-5 pb-4 pt-4 sm:px-7" hint="Swipe to see every stage" focusFraction={currentIndex >= 0 ? (currentIndex + 0.5) / n : undefined}>
-                <div className="mx-auto min-w-[880px]" style={{ maxWidth: contentWidth }}>
+                <div className="min-w-[880px]">
                     {/* Group brackets */}
                     <div className="grid" style={cols}>
                         {groups.map((g) => (
@@ -205,11 +206,9 @@ export default function JourneyTimeline({ client, summary, journey, audience = '
             </div>
 
             <p className="relative border-t border-slate-100 bg-slate-50/60 px-5 py-2.5 text-[11px] leading-relaxed text-slate-500 sm:px-7">
-                <span className="mx-auto block" style={{ maxWidth: contentWidth }}>
                 {team
                     ? 'Dates marked ~ are estimates from each phase\u2019s due rule. They move as the client finishes onboarding and gives approvals.'
                     : 'Dates marked ~ are estimates. They move with you: finishing onboarding and giving approvals sooner brings your launch closer.'}
-                </span>
             </p>
         </section>
     );
