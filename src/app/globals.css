@@ -186,3 +186,34 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* "Waiting on you": a short shake, a pause, then again, so the card draws the eye.
+   Off while the person is reading inside it, and for anyone who asks their device for less motion. */
+@keyframes attention-shake {
+  0%, 46%, 100% {
+    transform: none;
+  }
+  3%  { transform: translateX(-7px) rotate(-0.7deg); }
+  8%  { transform: translateX(7px) rotate(0.7deg); }
+  13% { transform: translateX(-6px) rotate(-0.5deg); }
+  18% { transform: translateX(6px) rotate(0.5deg); }
+  23% { transform: translateX(-4px) rotate(-0.3deg); }
+  28% { transform: translateX(4px) rotate(0.3deg); }
+  34% { transform: translateX(-2px); }
+  40% { transform: translateX(2px); }
+}
+
+.attention-shake {
+  animation: attention-shake 1.9s ease-in-out infinite;
+}
+
+.attention-shake:hover,
+.attention-shake:focus-within {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .attention-shake {
+    animation: none;
+  }
+}

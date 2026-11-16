@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, ClipboardCheck, Eye, LayoutDashboard, LifeBuoy, Lock, LogOut, Mail } from 'lucide-react';
 import { PortalCategory, PortalClient, Task } from '@/types/database';
 import { summarizeProject } from '@/lib/progress';
+import { capitalizeName } from '@/lib/names';
 import OnboardingFlow from '@/components/portal/OnboardingFlow';
 import ProjectDashboard from '@/components/portal/ProjectDashboard';
 import WelcomeVideo from '@/components/portal/WelcomeVideo';
@@ -295,7 +296,7 @@ export default function ClientPortalPage() {
                         <h1 className="mt-6 text-3xl font-bold tracking-tight text-slate-900">Need a hand?</h1>
                         <p className="mx-auto mt-3 max-w-md text-base leading-relaxed text-slate-500">
                             {operatorName
-                                ? `${operatorName} is your project manager and your first point of contact. For anything else, email our support team.`
+                                ? `${capitalizeName(operatorName)} is your project manager and your first point of contact. For anything else, email our support team.`
                                 : 'For any question, issue or feedback, email our support team.'}
                         </p>
                         <a
