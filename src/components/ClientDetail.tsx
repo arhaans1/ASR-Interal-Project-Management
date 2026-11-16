@@ -1,5 +1,6 @@
 'use client';
 
+import { capitalizeName } from '@/lib/names';
 import { useState, useEffect, useMemo } from 'react';
 import { Client } from '@/types/database';
 import { funnelLabel } from '@/lib/funnelTemplates';
@@ -192,7 +193,7 @@ export default function ClientDetail({
               {client.operator_id && (
                 <div className="flex items-center gap-1.5">
                   <UserCog className="w-4 h-4" />
-                  <span>Operator: {operatorName ?? '…'}</span>
+                  <span>Operator: {operatorName ? capitalizeName(operatorName) : '…'}</span>
                 </div>
               )}
               {client.drive_folder_url && (

@@ -1,8 +1,10 @@
 'use client';
 
 import { Fragment, useState } from 'react';
-import { ArrowUpRight, CalendarClock, Check, ChevronDown, CircleDashed, Clock3, FolderOpen, Link as LinkIcon, Loader2, Sparkles, UserRound } from 'lucide-react';
+import { ArrowUpRight, CalendarClock, Check, ChevronDown, CircleDashed, Clock3, FolderOpen, Link as LinkIcon, Loader2, Sparkles } from 'lucide-react';
 import { PortalClient, Task } from '@/types/database';
+import OperatorAvatar from '@/components/OperatorAvatar';
+import { capitalizeName } from '@/lib/names';
 import { funnelLongName, guideFor } from '@/lib/funnelTemplates';
 import { formatDate, isClientTask, Phase, ProjectSummary } from '@/lib/progress';
 import RichTextDisplay from '@/components/RichTextDisplay';
@@ -94,10 +96,13 @@ export default function ProjectDashboard({ client, summary, operatorName, pendin
                 <div className="min-w-0 space-y-6">
                     {/* Needs you */}
                     {summary.clientPending.length > 0 && (
-                        <section className="rounded-2xl border border-amber-200 bg-amber-50/60 p-5 shadow-sm" aria-labelledby="needs-you">
+                        <section
+                            className={`rounded-2xl border-2 border-orange-400 bg-orange-100/80 p-5 shadow-lg shadow-orange-300/50 ${openActionId === null ? 'attention-shake' : ''}`}
+                            aria-labelledby="needs-you"
+                        >
                             <div className="flex items-center gap-2">
-                                <Sparkles className="h-4 w-4 text-amber-600" />
-                                <h2 id="needs-you" className="text-sm font-bold text-amber-950">
+                                <Sparkles className="h-4 w-4 text-orange-600" />
+                                <h2 id="needs-you" className="text-sm font-bold text-orange-950">
                                     Waiting on you · {summary.clientPending.length}
                                 </h2>
                             </div>
@@ -106,7 +111,7 @@ export default function ProjectDashboard({ client, summary, operatorName, pendin
                                     const busy = pendingTaskId === task.id;
                                     const open = openActionId === task.id;
                                     return (
-                                        <li key={task.id} className="rounded-xl bg-white ring-1 ring-amber-200/70">
+                                        <li key={task.id} className="rounded-xl bg-white ring-1 ring-orange-300">
                                             <div className="flex items-center gap-3 px-3.5 py-3">
                                                 <button
                                                     type="button"
@@ -131,7 +136,7 @@ export default function ProjectDashboard({ client, summary, operatorName, pendin
                                                 </button>
                                             </div>
                                             {open && (
-                                                <div className="border-t border-amber-100 px-3.5 pb-4 pt-3 sm:pl-[52px]">
+                                                <div className="border-t border-orange-100 px-3.5 pb-4 pt-3 sm:pl-[52px]">
                                                     <StepDetail task={task} client={client} />
                                                     <button
                                                         type="button"
@@ -309,12 +314,10 @@ export default function ProjectDashboard({ client, summary, operatorName, pendin
                 <aside className="min-w-0 space-y-4 lg:sticky lg:top-24 lg:self-start">
                     {operatorName && (
                         <div className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-                            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
-                                <UserRound className="h-5 w-5" />
-                            </span>
+                            <OperatorAvatar name={operatorName} className="h-14 w-14" />
                             <span className="min-w-0">
                                 <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-400">Your project manager</span>
-                                <span className="block truncate text-base font-semibold text-slate-900">{operatorName}</span>
+                                <span className="block truncate text-base font-semibold text-slate-900">{capitalizeName(operatorName)}</span>
                             </span>
                         </div>
                     )}
