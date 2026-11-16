@@ -232,3 +232,16 @@ body {
 @media (prefers-reduced-motion: reduce) {
   [class*="animate-[nudge-x"] { animation: none !important; }
 }
+
+/* The Updates bell gives a small ring when a nudge is waiting */
+@keyframes bell-ring {
+  0%, 70%, 100% { transform: rotate(0); }
+  74% { transform: rotate(14deg); }
+  80% { transform: rotate(-12deg); }
+  86% { transform: rotate(8deg); }
+  92% { transform: rotate(-4deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [class*="animate-[bell-ring"] { animation: none !important; }
+}
