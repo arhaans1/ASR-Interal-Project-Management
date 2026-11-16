@@ -9,7 +9,7 @@ import Card from './Card';
 
 type AdSort = 'results' | 'cpr' | 'roas' | 'spend';
 
-export function TopAds({ ads, resultType, currency }: { ads: AdRow[]; resultType: ResultType; currency: string }) {
+export function TopAds({ ads, resultType, showRoas, currency }: { ads: AdRow[]; resultType: ResultType; showRoas: boolean; currency: string }) {
     const labels = resultLabels(resultType);
     const [sort, setSort] = useState<AdSort>('results');
     const [showAll, setShowAll] = useState(false);
@@ -17,7 +17,7 @@ export function TopAds({ ads, resultType, currency }: { ads: AdRow[]; resultType
     const options: { id: AdSort; label: string }[] = [
         { id: 'results', label: `Most ${labels.plural.toLowerCase()}` },
         { id: 'cpr', label: 'Lowest cost' },
-        ...(resultType === 'purchase' ? [{ id: 'roas' as AdSort, label: 'Highest ROAS' }] : []),
+        ...(showRoas ? [{ id: 'roas' as AdSort, label: 'Highest ROAS' }] : []),
         { id: 'spend', label: 'Most spend' },
     ];
 
@@ -64,7 +64,7 @@ export function TopAds({ ads, resultType, currency }: { ads: AdRow[]; resultType
                 <>
                     <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                         {shown.map((ad, i) => (
-                            <AdCard key={ad.id} ad={ad} rank={i + 1} resultType={resultType} currency={currency} />
+                            <AdCard key={ad.id} ad={ad} rank={i + 1} resultType={resultType} showRoas={showRoas} currency={currency} />
                         ))}
                     </ul>
                     {sorted.length > 6 && (
@@ -82,14 +82,15 @@ export function TopAds({ ads, resultType, currency }: { ads: AdRow[]; resultType
     );
 }
 
-function AdCard({ ad, rank, resultType, currency }: { ad: AdRow; rank: number; resultType: ResultType; currency: string }) {
+function AdCard({ ad, rank, resultType, showRoas, currency }: { ad: AdRow; rank: number; resultType: ResultType; showRoas: boolean; currency: string }) {
     const labels = resultLabels(resultType);
     const [broken, setBroken] = useState(false);
     const stats = [
         { label: 'Spent', value: formatMoney(ad.spend, currency) },
-        { label: labels.plural, value: formatCount(ad.results), strong: true },
+        // Match Ads Manager: each ad shows what its results are, e.g. "Purchases"
+        { label: resultType === 'auto' && ad.resultLabel ? ad.resultLabel : labels.plural, value: formatCount(ad.results), strong: true },
         { label: labels.costLabel.replace('Cost per', 'Cost /'), value: formatMoney(ad.costPerResult, currency) },
-        resultType === 'purchase'
+        showRoas
             ? { label: 'ROAS', value: formatRoas(ad.roas) }
             : { label: 'Landing page views', value: formatCount(ad.lpv) },
         { label: 'Unique outbound CTR', value: formatPercent(ad.uniqueOutboundCtr) },
@@ -158,7 +159,7 @@ function AdCard({ ad, rank, resultType, currency }: { ad: AdRow; rank: number; r
 
 type ColumnKey = 'name' | 'spend' | 'results' | 'costPerResult' | 'roas' | 'lpv' | 'costPerLpv' | 'uniqueOutboundCtr' | 'cpm';
 
-export function CampaignTable({ campaigns, resultType, currency }: { campaigns: CampaignRow[]; resultType: ResultType; currency: string }) {
+export function CampaignTable({ campaigns, resultType, showRoas, currency }: { campaigns: CampaignRow[]; resultType: ResultType; showRoas: boolean; currency: string }) {
     const labels = resultLabels(resultType);
     const [sortKey, setSortKey] = useState<ColumnKey>('spend');
     const [asc, setAsc] = useState(false);
@@ -167,7 +168,7 @@ export function CampaignTable({ campaigns, resultType, currency }: { campaigns: 
         { key: 'spend', label: 'Spent', render: (c) => formatMoney(c.spend, currency) },
         { key: 'results', label: labels.plural, render: (c) => formatCount(c.results) },
         { key: 'costPerResult', label: labels.costLabel.replace('Cost per', 'Cost /'), render: (c) => formatMoney(c.costPerResult, currency) },
-        ...(resultType === 'purchase' ? [{ key: 'roas' as ColumnKey, label: 'ROAS', render: (c: CampaignRow) => formatRoas(c.roas) }] : []),
+        ...(showRoas ? [{ key: 'roas' as ColumnKey, label: 'ROAS', render: (c: CampaignRow) => formatRoas(c.roas) }] : []),
         { key: 'lpv', label: 'LPV', render: (c) => formatCount(c.lpv) },
         { key: 'costPerLpv', label: 'Cost / LPV', render: (c) => formatMoney(c.costPerLpv, currency) },
         { key: 'uniqueOutboundCtr', label: 'Unique outbound CTR', render: (c) => formatPercent(c.uniqueOutboundCtr) },
@@ -224,6 +225,7 @@ export function CampaignTable({ campaigns, resultType, currency }: { campaigns: 
                                 <tr key={c.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/60">
                                     <td className="max-w-[260px] px-5 py-3 sm:px-6">
                                         <p className="truncate font-semibold text-slate-900" title={c.name}>{c.name}</p>
+                                        {resultType === 'auto' && c.resultLabel && <p className="truncate text-xs font-medium text-slate-500">Results: {c.resultLabel}</p>}
                                     </td>
                                     {columns.map((col) => (
                                         <td

@@ -8,6 +8,7 @@ interface TrendChartProps {
     daily: DailyPoint[];
     resultType: ResultType;
     currency: string;
+    weekly?: boolean; // points are already weeks (long ranges)
 }
 
 type LineKey = 'results' | 'lpv';
@@ -32,7 +33,7 @@ function niceMax(value: number) {
     return step * power;
 }
 
-export default function TrendChart({ daily, resultType, currency }: TrendChartProps) {
+export default function TrendChart({ daily, resultType, currency, weekly = false }: TrendChartProps) {
     const wrapRef = useRef<HTMLDivElement>(null);
     const [width, setWidth] = useState(0);
     const [hover, setHover] = useState<number | null>(null);
@@ -49,6 +50,12 @@ export default function TrendChart({ daily, resultType, currency }: TrendChartPr
 
     // Long ranges are shown week by week so the bars stay readable.
     const buckets: Bucket[] = useMemo(() => {
+        if (weekly) {
+            return daily.map((d) => {
+                const date = parseISO(d.date);
+                return { label: `Week from ${format(date, 'd MMM yyyy')}`, tick: format(date, 'd MMM yy'), spend: d.spend, results: d.results, lpv: d.lpv };
+            });
+        }
         if (daily.length <= 92) {
             return daily.map((d) => {
                 const date = parseISO(d.date);
@@ -66,7 +73,7 @@ export default function TrendChart({ daily, resultType, currency }: TrendChartPr
             weeks.set(key, b);
         }
         return [...weeks.values()];
-    }, [daily]);
+    }, [daily, weekly]);
 
     const innerW = Math.max(0, width - PAD.left - PAD.right);
     const innerH = HEIGHT - PAD.top - PAD.bottom;

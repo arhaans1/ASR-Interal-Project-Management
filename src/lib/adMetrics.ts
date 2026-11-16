@@ -2,7 +2,16 @@ import { addDays, differenceInCalendarDays, endOfMonth, format, parseISO, startO
 
 // Shared by the ad performance API and the dashboards. Safe to import in the browser.
 
-export type ResultType = 'purchase' | 'schedule';
+// purchase / schedule: only ad sets optimising for the chosen sale or appointment events.
+// auto: every ad set, each counting the event it optimises for (Ads Manager's Results column).
+export type ResultType = 'purchase' | 'schedule' | 'auto';
+
+// One kind of result in the total, e.g. "Purchases" or a custom conversion's name
+export interface ResultBreakdown {
+    key: string;
+    label: string;
+    count: number;
+}
 
 export interface AdMetrics {
     spend: number;
@@ -34,6 +43,7 @@ export interface DailyPoint {
 export interface CampaignRow extends AdMetrics {
     id: string;
     name: string;
+    resultLabel: string | null; // what its results are, e.g. "Purchases"; "Mixed" for several kinds
 }
 
 export interface AdRow extends AdMetrics {
@@ -41,6 +51,7 @@ export interface AdRow extends AdMetrics {
     name: string;
     campaign: string;
     adset: string;
+    resultLabel: string | null;
     thumbnail: string | null;
     isVideo: boolean;
     previewUrl: string | null;
@@ -51,7 +62,11 @@ export interface AdsReport {
     audience: 'team' | 'client';
     account: { id: string; name: string; currency: string; timezone: string | null };
     resultType: ResultType;
+    showRoas: boolean; // sales, or Match Ads Manager with purchase value
+    breakdown: ResultBreakdown[];
+    granularity: 'day' | 'week'; // long ranges come back week by week
     campaignFilter: string | null;
+    campaignCount: number; // campaigns with spend in this report
     range: { since: string; until: string; preset: PresetId };
     previousRange: { since: string; until: string } | null;
     totals: AdMetrics;
@@ -69,7 +84,15 @@ export type AdsErrorCode = 'not_configured' | 'not_linked' | 'no_access' | 'toke
 export const resultLabels = (type: ResultType) =>
     type === 'schedule'
         ? { plural: 'Appointments', singular: 'appointment', costLabel: 'Cost per appointment' }
-        : { plural: 'Sales', singular: 'sale', costLabel: 'Cost per sale' };
+        : type === 'auto'
+            ? { plural: 'Results', singular: 'result', costLabel: 'Cost per result' }
+            : { plural: 'Sales', singular: 'sale', costLabel: 'Cost per sale' };
+
+export const RESULT_MODES: { id: ResultType; label: string; note: string }[] = [
+    { id: 'purchase', label: 'Sales', note: 'Sales campaigns only' },
+    { id: 'schedule', label: 'Appointments', note: 'Booking campaigns only' },
+    { id: 'auto', label: 'Match Ads Manager', note: 'Every campaign' },
+];
 
 // ---------------------------------------------------------------- dates
 
@@ -211,7 +234,12 @@ export function metricDefs(type: ResultType): Record<MetricKey, MetricDef> {
         results: {
             key: 'results',
             label: labels.plural,
-            hint: type === 'schedule' ? 'Appointments booked, as reported by the Meta pixel.' : 'Purchases, as reported by the Meta pixel.',
+            hint:
+                type === 'schedule'
+                    ? 'Appointments booked from appointment campaigns, as reported by the Meta pixel.'
+                    : type === 'auto'
+                        ? 'Each campaign\u2019s own result, added up, as in the Results column in Ads Manager.'
+                        : 'Sales from sales campaigns, as reported by the Meta pixel.',
             format: (v) => formatCount(v),
             daily: (p) => p.results,
         },
