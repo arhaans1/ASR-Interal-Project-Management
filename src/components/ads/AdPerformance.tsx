@@ -62,13 +62,15 @@ export default function AdPerformance({ clientId, audience, onLinkAccount }: AdP
         setReady(true);
     }, [audience]);
 
+    // fresh: skip saved copies. background: keep the current figures on screen while it runs.
     const load = useCallback(
-        async (fresh = false) => {
+        async (fresh = false, background = false) => {
             abortRef.current?.abort();
             const controller = new AbortController();
             abortRef.current = controller;
-            if (fresh) setRefreshing(true);
+            if (background) setRefreshing(true);
             else setLoading(true);
+            let followUp = false;
 
             const params = new URLSearchParams({ preset: selection.preset });
             if (selection.preset !== 'maximum') {
@@ -88,6 +90,8 @@ export default function AdPerformance({ clientId, audience, onLinkAccount }: AdP
                 } else {
                     setReport(body as AdsReport);
                     setError(null);
+                    // A saved copy past its refresh time: show it now, fetch the latest behind it.
+                    followUp = Boolean((body as AdsReport).stale) && !fresh;
                 }
             } catch (err: any) {
                 if (err?.name === 'AbortError') return;
@@ -98,6 +102,7 @@ export default function AdPerformance({ clientId, audience, onLinkAccount }: AdP
                     setRefreshing(false);
                 }
             }
+            if (followUp && abortRef.current === controller) load(true, true);
         },
         [clientId, selection, audience]
     );
@@ -139,7 +144,10 @@ export default function AdPerformance({ clientId, audience, onLinkAccount }: AdP
                 onChange={changeSelection}
                 onRefresh={() => load(true)}
                 busy={loading || refreshing}
+                updating={refreshing}
             />
+
+            {loading && <LoadingOverlay key={`${selection.preset}-${selection.since}-${selection.until}`} />}
 
             {error && report && (
                 <div role="alert" className="flex items-start gap-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200">
@@ -184,9 +192,11 @@ function Hero({
     onChange,
     onRefresh,
     busy,
+    updating,
 }: {
     report: AdsReport | null;
     isTeam: boolean;
+    updating: boolean;
     selection: DateSelection;
     resolved: { since: string; until: string } | null;
     onChange: (s: DateSelection) => void;
@@ -230,7 +240,14 @@ function Hero({
                         {report ? (
                             <>
                                 {isTeam && report.campaignFilter && <>Campaigns containing &ldquo;{report.campaignFilter}&rdquo; · </>}
-                                {scopeNote} · Updated {timeAgo(report.updatedAt)}
+                                {scopeNote} · {updating ? (
+                                    <span className="inline-flex items-center gap-1 text-indigo-300">
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                        Updating with the latest numbers…
+                                    </span>
+                                ) : (
+                                    <>Updated {timeAgo(report.updatedAt)}</>
+                                )}
                             </>
                         ) : (
                             'Fetching the latest numbers from Meta'
@@ -466,6 +483,49 @@ function Funnel({ totals, type, sideBreakpoint }: { totals: AdMetrics; type: Ads
 }
 
 // ---------------------------------------------------------------- states
+
+const LOADING_STEPS = [
+    'Connecting to Meta…',
+    'Fetching spend and results…',
+    'Counting each campaign\u2019s results…',
+    'Loading your ad creatives…',
+    'Putting your dashboard together…',
+    'Almost there…',
+];
+
+// Centred on screen while numbers load, so it is clear something is happening. It does not
+// block the rest of the page.
+function LoadingOverlay() {
+    const [elapsed, setElapsed] = useState(0);
+    useEffect(() => {
+        const started = Date.now();
+        const id = setInterval(() => setElapsed(Date.now() - started), 120);
+        return () => clearInterval(id);
+    }, []);
+    // Eases towards 92% and finishes when the numbers arrive
+    const percent = Math.min(92, Math.round(92 * (1 - Math.exp(-elapsed / 4500))));
+    const step = LOADING_STEPS[Math.min(LOADING_STEPS.length - 1, Math.floor(elapsed / 2200))];
+
+    return (
+        <div className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-slate-900/10 backdrop-blur-[2px]" role="status" aria-live="polite">
+            <div className="animate-in w-[min(360px,calc(100vw-32px))] rounded-3xl bg-white px-7 py-7 text-center shadow-2xl ring-1 ring-slate-900/5">
+                <div className="relative mx-auto h-16 w-16">
+                    <span className="absolute inset-0 rounded-full border-4 border-indigo-100" />
+                    <span className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-indigo-600 border-r-indigo-600" />
+                    <span className="absolute inset-0 flex items-center justify-center">
+                        <BarChart3 className="h-6 w-6 text-indigo-600" />
+                    </span>
+                </div>
+                <p className="mt-5 text-base font-bold text-slate-900">Loading, please wait</p>
+                <p className="mt-1 h-5 text-sm font-medium text-slate-500">{step}</p>
+                <div className="mt-5 h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-emerald-500 transition-[width] duration-300 ease-out" style={{ width: `${percent}%` }} />
+                </div>
+                <p className="mt-2 text-xs font-semibold tabular-nums text-slate-400">{percent}%</p>
+            </div>
+        </div>
+    );
+}
 
 function Skeleton({ isTeam }: { isTeam: boolean }) {
     return (

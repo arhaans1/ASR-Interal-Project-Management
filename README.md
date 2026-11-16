@@ -65,6 +65,12 @@ Phases can carry a due date that is counted in business days (Saturdays and Sund
 
 Dates are worked out from when things were actually ticked, so they move with the client. VSL and Webinar follow the same rules: copy and script due 3 business days after onboarding, a client approval step, then ad creatives and the funnel build due 5 business days after approval.
 
+## Road to launch
+
+The client portal's Delivery tab, and Active client cards on the team page, open with a road-to-launch card: Onboarding → Welcome call → Stage 1, 2, 3… (one per project phase) → the client's approval → Ads go live. The line fills in as milestones are done, "You're here" marks the current one, and each milestone has a date: the actual date once done, the due date when it is set, or an estimate (marked ~) from the phase's due rule. Built in `src/lib/journey.ts` from the same phases as the task board, so it works for every funnel template.
+
+The team client page also has an **Open Client Portal** link (next to the folders) that opens the portal in a new tab.
+
 ## Ad performance (Meta Ads)
 
 Launched clients get an **Ad Performance** tab next to **Tasks** on their card, and clients get a **Results** tab in their portal (Onboarding · Delivery · Results · Help). Both read straight from Meta's Marketing API.
@@ -78,7 +84,7 @@ Launched clients get an **Ad Performance** tab next to **Tasks** on their card, 
   Each ad set only ever counts its own optimisation event, so a sale that fires both Purchase and a custom conversion is counted once. For shared ad accounts, add a campaign-name filter. **Test connection** shows the last 7 days with the breakdown.
 - **What each side sees:** both get amount spent, results, cost per result, ROAS (when there is sale value), landing page views, cost per landing page view and unique outbound CTR, a date range picker, comparison with the previous period, a day-by-day chart, a funnel, top ads with their creatives, and a campaign table. Only the team sees CPM and the Ads Manager links.
 - **Privacy:** the ad account is read from the client's card on the server, never from the request, so a client only ever sees their own results. The token never reaches the browser.
-- Numbers are cached for 5 minutes (30 minutes for ranges that have ended); the refresh button fetches them again.
+- Reports are saved in Supabase (`ad_report_cache`). A saved report under 5 minutes old (30 for ranges that have ended) is shown as it is; an older one is shown at once while the latest numbers load in the background. The refresh button always fetches from Meta. While numbers load, a loading card shows in the middle of the screen.
 
 ## MCP server (AI assistants)
 
@@ -98,7 +104,8 @@ Run these once each, in order, in the Supabase SQL Editor. They only add columns
 2. `supabase-migration-timelines.sql`
 3. `supabase-migration-workspace-settings.sql`
 4. `supabase-migration-meta-ads.sql` — Meta ad account fields for the Ad Performance and Results tabs
-5. `supabase-migration-lockdown.sql` — only after the app version that uses `/api/db` is deployed (see Security)
+5. `supabase-migration-ad-report-cache.sql` — saved ad reports, so dashboards open instantly
+6. `supabase-migration-lockdown.sql` — only after the app version that uses `/api/db` is deployed (see Security)
 
 ## Tech Stack
 

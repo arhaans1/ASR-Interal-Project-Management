@@ -1,4 +1,5 @@
-import { createHmac } from 'crypto';
+import { createHash, createHmac } from 'crypto';
+import { supabase } from '@/lib/supabase';
 import { addDays, parseISO } from 'date-fns';
 import {
     AdMetrics,
@@ -136,6 +137,45 @@ async function cached<T>(key: string, ttlMs: number, fresh: boolean, load: () =>
     if (cache.size > 300) cache.delete(cache.keys().next().value as string);
     cache.set(key, { expires: Date.now() + ttlMs, value });
     return value;
+}
+
+// ---------------------------------------------------------------- saved reports (Supabase)
+//
+// Reports are also kept in the ad_report_cache table, so a fresh server (or another viewer)
+// opens the last figures instantly. If the table is missing, everything still works, just slower.
+
+let savedReportsUnavailable = false;
+
+const reportKey = (key: string) => createHash('sha256').update(key).digest('hex');
+
+async function readSavedReport(key: string): Promise<{ report: AdsReport; updatedAt: number } | null> {
+    if (savedReportsUnavailable) return null;
+    try {
+        const { data, error } = await supabase.from('ad_report_cache').select('report, updated_at').eq('key', reportKey(key)).maybeSingle();
+        if (error) throw error;
+        return data ? { report: data.report as AdsReport, updatedAt: new Date(data.updated_at).getTime() } : null;
+    } catch (error: any) {
+        if (error?.code === '42P01' || error?.code === 'PGRST205') savedReportsUnavailable = true;
+        console.error('Saved ad report could not be read:', error?.message || error);
+        return null;
+    }
+}
+
+async function saveReport(key: string, report: AdsReport) {
+    if (savedReportsUnavailable) return;
+    try {
+        const { error } = await supabase
+            .from('ad_report_cache')
+            .upsert({ key: reportKey(key), report, updated_at: new Date().toISOString() });
+        if (error) throw error;
+        // Now and then, clear out reports nobody has opened for a month.
+        if (Math.random() < 0.02) {
+            await supabase.from('ad_report_cache').delete().lt('updated_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
+        }
+    } catch (error: any) {
+        if (error?.code === '42P01' || error?.code === 'PGRST205') savedReportsUnavailable = true;
+        console.error('Ad report could not be saved:', error?.message || error);
+    }
 }
 
 // ---------------------------------------------------------------- accounts
@@ -532,8 +572,25 @@ export async function buildReport(
     const today = toISODate(new Date());
     const live = selection.preset === 'maximum' || selection.until >= today;
     const key = `report:${audience}:${detail}:${JSON.stringify(config)}:${selection.preset}:${selection.since}:${selection.until}`;
+    const ttl = (live ? 5 : 30) * 60 * 1000;
 
-    return cached(key, (live ? 5 : 30) * 60 * 1000, fresh, async () => {
+    // The saved copy: fresh enough is used as it is; older is shown at once, marked stale,
+    // and the page asks for a fresh one in the background.
+    if (!fresh && (cache.get(key)?.expires ?? 0) <= Date.now()) {
+        const saved = await readSavedReport(key);
+        if (saved) {
+            const age = Date.now() - saved.updatedAt;
+            if (age < ttl) {
+                cache.set(key, { expires: saved.updatedAt + ttl, value: saved.report });
+                return saved.report;
+            }
+            return { ...saved.report, stale: true };
+        }
+    }
+
+    let computed = false;
+    const report = await cached(key, ttl, fresh, async () => {
+        computed = true;
         // Lifetime: find the dates first, then treat it like any other range.
         let range: Range;
         if (selection.preset === 'maximum') {
@@ -720,6 +777,8 @@ export async function buildReport(
 
         return report;
     });
+    if (computed) await saveReport(key, report);
+    return report;
 }
 
 // Last 7 days for the Edit window's "Test connection".

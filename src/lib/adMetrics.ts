@@ -75,6 +75,7 @@ export interface AdsReport {
     campaigns?: CampaignRow[];
     ads?: AdRow[];
     updatedAt: string;
+    stale?: boolean; // a saved copy older than its refresh time; a fresh one is on its way
 }
 
 export type AdsErrorCode = 'not_configured' | 'not_linked' | 'no_access' | 'token' | 'rate_limited' | 'meta_error' | 'bad_request';
