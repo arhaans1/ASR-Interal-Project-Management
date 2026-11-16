@@ -65,6 +65,16 @@ Phases can carry a due date that is counted in business days (Saturdays and Sund
 
 Dates are worked out from when things were actually ticked, so they move with the client. VSL and Webinar follow the same rules: copy and script due 3 business days after onboarding, a client approval step, then ad creatives and the funnel build due 5 business days after approval.
 
+## Ad performance (Meta Ads)
+
+Launched clients get an **Ad Performance** tab next to **Tasks** on their card, and clients get a **Results** tab in their portal (Onboarding · Delivery · Results · Help). Both read straight from Meta's Marketing API.
+
+- **Setup, once:** set `META_SYSTEM_USER_TOKEN` in the hosting environment to a system user token with `ads_read` (Business Settings › Users › System users). If the Meta app has "Require app secret" switched on, also set `META_APP_SECRET`. Run `supabase-migration-meta-ads.sql`.
+- **Linking a client:** in the client's **Edit** window, under **Meta Ads**, pick the ad account from the list. The list is every ad account assigned to the system user, so a new client's account shows up as soon as it is assigned there (use **Refresh list**). Choose whether results are **Sales** (Purchase event) or **Appointments** (Schedule event), optionally a custom conversion to count instead, and, for shared ad accounts, a campaign-name filter. **Test connection** shows the last 7 days.
+- **What each side sees:** both get amount spent, results, cost per result, ROAS (sales only), landing page views, cost per landing page view and unique outbound CTR, with a date range picker, comparison with the previous period, a day-by-day chart and a funnel. The team also sees CPM, top ads with their creatives, and a campaign table.
+- **Privacy:** the ad account is read from the client's card on the server, never from the request, so a client only ever sees their own results. The token never reaches the browser.
+- Numbers are cached for 5 minutes (30 minutes for ranges that have ended); the refresh button fetches them again.
+
 ## MCP server (AI assistants)
 
 `/api/mcp` is an MCP server (Streamable HTTP) so Claude, ChatGPT, Grok and other assistants can read project status, tick tasks and create new clients.
@@ -82,7 +92,8 @@ Run these once each, in order, in the Supabase SQL Editor. They only add columns
 1. `supabase-migration-client-onboarding.sql`
 2. `supabase-migration-timelines.sql`
 3. `supabase-migration-workspace-settings.sql`
-4. `supabase-migration-lockdown.sql` — only after the app version that uses `/api/db` is deployed (see Security)
+4. `supabase-migration-meta-ads.sql` — Meta ad account fields for the Ad Performance and Results tabs
+5. `supabase-migration-lockdown.sql` — only after the app version that uses `/api/db` is deployed (see Security)
 
 ## Tech Stack
 
@@ -118,6 +129,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 SESSION_SECRET=a_long_random_string
 MCP_API_KEY=another_long_random_string   # optional, turns on the MCP server
+META_SYSTEM_USER_TOKEN=system_user_token # optional, turns on ad performance (needs ads_read)
+META_APP_SECRET=app_secret               # optional, only if the Meta app requires an app secret proof
 ```
 
 ### 4. Run the development server

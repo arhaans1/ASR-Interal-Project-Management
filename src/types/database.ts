@@ -25,6 +25,11 @@ export interface Client {
   assets_folder_url?: string | null;
   onboarding_video_url?: string | null;
   onboarding_form_url?: string | null;
+  // Meta ad performance (see supabase-migration-meta-ads.sql)
+  meta_ad_account_id?: string | null;
+  meta_result_type?: 'purchase' | 'schedule' | null;
+  meta_result_action?: string | null;
+  meta_campaign_filter?: string | null;
 }
 
 export interface User {
@@ -80,6 +85,7 @@ export interface PortalClient {
   onboarding_form_url: string | null;
   important_links: string;
   created_at: string;
+  ads_linked: boolean; // a Meta ad account is linked, so the Results tab has data
 }
 
 export interface PortalCategory extends Category {

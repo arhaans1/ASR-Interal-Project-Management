@@ -8,7 +8,8 @@ import { CategoryWithTasks } from '@/hooks/useCategories';
 import TaskSection from './TaskSection';
 import TextBox from './TextBox';
 import ConfirmModal from './ConfirmModal';
-import { Copy, Settings, Building2, Calendar, Link as LinkIcon, FileText, Trash2, Loader2, Share2, MessageSquare, StickyNote, Check, UserCog, FolderOpen, ClipboardCheck } from 'lucide-react';
+import { Copy, Settings, Building2, Calendar, Link as LinkIcon, FileText, Trash2, Loader2, Share2, MessageSquare, StickyNote, Check, UserCog, FolderOpen, ClipboardCheck, ListTodo, BarChart3 } from 'lucide-react';
+import AdPerformance from '@/components/ads/AdPerformance';
 import ChatModal from '@/components/ChatModal';
 import ActiveUsers from '@/components/ActiveUsers';
 import QuickPadModal from './QuickPadModal';
@@ -98,6 +99,17 @@ export default function ClientDetail({
 
   // What the client still owes us, straight from the board
   const summary = useMemo(() => summarizeProject(categories), [categories]);
+
+  // Tasks | Ad Performance. Launched clients with a linked ad account open on their ads.
+  const adsLinked = Boolean(client.meta_ad_account_id);
+  const showAdsTab = client.status !== 'Team Members' && (adsLinked || client.status === 'Launched');
+  const [view, setView] = useState<'tasks' | 'ads'>(() => (client.status === 'Launched' && adsLinked ? 'ads' : 'tasks'));
+  useEffect(() => {
+    setView(client.status === 'Launched' && adsLinked ? 'ads' : 'tasks');
+    // Only when another client is opened, not on every edit of this one
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client.id]);
+  const activeView = showAdsTab ? view : 'tasks';
 
   useEffect(() => {
     // Poll for unread messages
@@ -290,7 +302,39 @@ export default function ClientDetail({
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Tasks Section - Takes 8 columns (2/3) */}
-          <div className="lg:col-span-8">
+          <div className="lg:col-span-8 min-w-0">
+            {showAdsTab && (
+              <div className="mb-4 inline-flex items-center gap-1 rounded-2xl bg-white p-1 shadow-sm ring-1 ring-slate-200/80" role="tablist" aria-label="Client view">
+                {([
+                  { id: 'tasks', label: 'Tasks', icon: ListTodo, note: `${summary.done}/${summary.total}` },
+                  { id: 'ads', label: 'Ad Performance', icon: BarChart3, note: adsLinked ? null : 'Not linked' },
+                ] as const).map((tab) => {
+                  const active = activeView === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      onClick={() => setView(tab.id)}
+                      className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${active ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+                    >
+                      <tab.icon className="h-4 w-4" />
+                      {tab.label}
+                      {tab.note && (
+                        <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${active ? 'bg-white/15 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                          {tab.note}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {activeView === 'ads' ? (
+              <AdPerformance key={[client.id, client.meta_ad_account_id, client.meta_result_type, client.meta_result_action, client.meta_campaign_filter].join('|')} clientId={client.id} audience="team" onLinkAccount={onUpdateStatus} />
+            ) : (
             <TaskSection
               // Cards built from a funnel template run one phase at a time
               sequential={Boolean(client.funnel_type)}
@@ -306,6 +350,7 @@ export default function ClientDetail({
               onReorderTask={onReorderTask}
               onMoveTask={onMoveTask}
             />
+            )}
           </div>
 
           {/* Right Side - Info Cards - Takes 4 columns (1/3) */}

@@ -19,6 +19,7 @@ export function toPortalClient(row: any): PortalClient {
         onboarding_form_url: row.onboarding_form_url ?? null,
         important_links: row.important_links ?? '',
         created_at: row.created_at,
+        ads_linked: Boolean(row.meta_ad_account_id),
     };
 }
 

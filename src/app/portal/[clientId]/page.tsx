@@ -3,14 +3,16 @@ import BrandLogo from '@/components/BrandLogo';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, ClipboardCheck, Eye, LayoutDashboard, LifeBuoy, Lock, LogOut, Mail } from 'lucide-react';
+import { ArrowLeft, BarChart3, ClipboardCheck, Eye, LayoutDashboard, LifeBuoy, Lock, LogOut, Mail } from 'lucide-react';
 import { PortalCategory, PortalClient, Task } from '@/types/database';
 import { summarizeProject } from '@/lib/progress';
 import OnboardingFlow from '@/components/portal/OnboardingFlow';
 import ProjectDashboard from '@/components/portal/ProjectDashboard';
 import WelcomeVideo from '@/components/portal/WelcomeVideo';
+import AdPerformance from '@/components/ads/AdPerformance';
 
-type View = 'onboarding' | 'dashboard' | 'support';
+// 'dashboard' is the Delivery tab: project progress and timeline. 'results' is ad performance.
+type View = 'onboarding' | 'dashboard' | 'results' | 'support';
 
 interface PortalData {
     client: PortalClient;
@@ -78,12 +80,16 @@ export default function ClientPortalPage() {
     const isTeamPreview = data ? data.viewer.role !== 'client' : false;
     // Clients reach the dashboard once onboarding is done. The team can always look.
     const dashboardLocked = summary.hasOnboarding && !summary.onboardingComplete && !isTeamPreview;
+    // Results open once an ad account is linked (and onboarding is done). The team can always look.
+    const adsLinked = Boolean(data?.client.ads_linked);
+    const resultsLocked = !isTeamPreview && (dashboardLocked || !adsLinked);
+    const adsLive = adsLinked && data?.client.status === 'Launched';
 
-    // Land on onboarding until it is finished, then on the dashboard.
+    // Land on onboarding until it is finished, then on delivery, or on results once the ads are live.
     useEffect(() => {
         if (!data || view) return;
-        setView(summary.hasOnboarding && !summary.onboardingComplete ? 'onboarding' : 'dashboard');
-    }, [data, view, summary.hasOnboarding, summary.onboardingComplete]);
+        setView(summary.hasOnboarding && !summary.onboardingComplete ? 'onboarding' : adsLive ? 'results' : 'dashboard');
+    }, [data, view, summary.hasOnboarding, summary.onboardingComplete, adsLive]);
 
     // A client's first visit opens with the welcome video, full screen. It counts as
     // watched once its step is ticked; cards without that step remember it in the browser.
@@ -191,9 +197,16 @@ export default function ClientPortalPage() {
 
     const { client, operatorName } = data;
 
-    const tabs: { id: View; label: string; icon: typeof LayoutDashboard; locked?: boolean; hidden?: boolean }[] = [
+    const tabs: Tab[] = [
         { id: 'onboarding', label: 'Onboarding', icon: ClipboardCheck, hidden: !summary.hasOnboarding },
-        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, locked: dashboardLocked },
+        { id: 'dashboard', label: 'Delivery', icon: LayoutDashboard, locked: dashboardLocked, lockedHint: 'Opens once your onboarding is complete' },
+        {
+            id: 'results',
+            label: 'Results',
+            icon: BarChart3,
+            locked: resultsLocked,
+            lockedHint: dashboardLocked ? 'Opens once your onboarding is complete' : 'Opens once your ads are live',
+        },
         { id: 'support', label: 'Help', icon: LifeBuoy },
     ];
 
@@ -287,6 +300,11 @@ export default function ClientPortalPage() {
                     />
                 )}
 
+                {view === 'results' && (
+                    // The team preview shows exactly what the client sees.
+                    <AdPerformance clientId={client.id} audience="client" />
+                )}
+
                 {view === 'support' && (
                     <div className="mx-auto max-w-xl py-10 text-center sm:py-16">
                         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
@@ -315,15 +333,16 @@ export default function ClientPortalPage() {
     );
 }
 
-function TabButton({
-    tab,
-    active,
-    onClick,
-}: {
-    tab: { id: View; label: string; icon: typeof LayoutDashboard; locked?: boolean };
-    active: boolean;
-    onClick: () => void;
-}) {
+interface Tab {
+    id: View;
+    label: string;
+    icon: typeof LayoutDashboard;
+    locked?: boolean;
+    lockedHint?: string;
+    hidden?: boolean;
+}
+
+function TabButton({ tab, active, onClick }: { tab: Tab; active: boolean; onClick: () => void }) {
     const Icon = tab.locked ? Lock : tab.icon;
     return (
         <button
@@ -331,7 +350,7 @@ function TabButton({
             onClick={onClick}
             disabled={tab.locked}
             aria-current={active ? 'page' : undefined}
-            title={tab.locked ? 'Opens once your onboarding is complete' : undefined}
+            title={tab.locked ? tab.lockedHint : undefined}
             className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-all ${active
                 ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-900/5'
                 : tab.locked
