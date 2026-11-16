@@ -12,6 +12,7 @@ import ProjectDashboard from '@/components/portal/ProjectDashboard';
 import WelcomeVideo from '@/components/portal/WelcomeVideo';
 import AdPerformance from '@/components/ads/AdPerformance';
 import UpdatesFeed from '@/components/portal/UpdatesInbox';
+import WaitingOnYou from '@/components/portal/WaitingOnYou';
 import { buildUpdates, countUnread } from '@/lib/updates';
 
 // 'dashboard' is the Delivery tab: project progress and timeline. 'results' is ad performance.
@@ -262,7 +263,7 @@ export default function ClientPortalPage() {
             <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/85 backdrop-blur-xl">
                 <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
                     <div className="flex min-w-0 items-center gap-3">
-                        <BrandLogo theme="light" size={48} priority className="h-12 w-12" />
+                        <BrandLogo theme="dark" size={48} priority className="h-12 w-12 rounded-full" />
                         <div className="min-w-0 leading-tight">
                             <p className="truncate text-sm font-bold tracking-tight text-slate-900">ASR Media Pro</p>
                             <p className="truncate text-xs font-medium text-slate-500">{client.business_name}</p>
@@ -302,6 +303,13 @@ export default function ClientPortalPage() {
                 {notice && (
                     <div role="alert" className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700 ring-1 ring-red-200">
                         {notice}
+                    </div>
+                )}
+
+                {view === 'onboarding' && summary.clientPending.length > 0 && (
+                    // What is still waiting on the client, at first glance
+                    <div className="mb-6">
+                        <WaitingOnYou client={client} summary={summary} pendingTaskId={pendingTaskId} onToggle={handleToggle} />
                     </div>
                 )}
 

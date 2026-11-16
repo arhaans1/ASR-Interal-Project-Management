@@ -203,7 +203,7 @@ export default function OperatorWorkspacePage() {
             >
                 <div className="p-6 pb-2">
                     <div className="mb-8 flex items-center gap-3">
-                        <BrandLogo theme="light" size={56} priority className="-ml-1 h-14 w-14" />
+                        <BrandLogo theme="dark" size={56} priority className="-ml-1 h-14 w-14 rounded-full" />
                         <div className="min-w-0">
                             <h1 className="text-lg font-bold leading-tight tracking-tight text-slate-900">ASR Media Pro</h1>
                             <p className="text-xs font-medium text-slate-500">Operator workspace</p>

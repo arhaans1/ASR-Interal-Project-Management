@@ -55,7 +55,7 @@ export default function LoginForm({ variant = 'team' }: { variant?: 'team' | 'cl
 
             <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-8 md:p-10 animate-in">
                 <div className="flex flex-col items-center mb-8">
-                    <BrandLogo theme="light" size={128} priority className="mb-2 h-32 w-32" />
+                    <BrandLogo theme="dark" size={128} priority className="mb-2 h-32 w-32 rounded-full" />
                     <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
                         {variant === 'client' ? 'Client Portal' : 'ASR Media Pro'}
                     </h1>

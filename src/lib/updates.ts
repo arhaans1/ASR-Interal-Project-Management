@@ -57,23 +57,25 @@ export function buildUpdates(
     // When each task first became something the client could act on, for nudges
     const actionableSince = new Map<string, string>();
     let previousPhasesDoneAt: string = client.created_at;
-    let everythingBeforeDoneAt: string | null = client.created_at;
+    // When everything our team had to deliver before a point was done; null while some of it is open.
+    // The client's own open items don't count: they never hold back an approval of delivered work.
+    let teamWorkDoneAt: string | null = client.created_at;
 
     ordered.forEach((phase, index) => {
         const phaseDone = phase.tasks.every((t) => t.completed);
         const next = ordered.slice(index + 1).find((p) => p.tasks.some((t) => !t.completed)) ?? ordered[index + 1];
 
         for (const task of [...phase.tasks].sort((a, b) => a.order_index - b.order_index)) {
-            // Approvals become actionable once everything listed before them is done
+            // Approvals become actionable once our work listed before them is done
             if (isApprovalTask(task)) {
-                if (everythingBeforeDoneAt) {
-                    actionableSince.set(task.id, everythingBeforeDoneAt);
+                if (teamWorkDoneAt) {
+                    actionableSince.set(task.id, teamWorkDoneAt);
                     items.push({
                         id: `review-${task.id}`,
                         kind: 'review',
                         title: 'Ready for your review',
                         body: `${task.name}. Please take a look and approve it so we can move on.`,
-                        at: everythingBeforeDoneAt,
+                        at: teamWorkDoneAt,
                         action: task.completed ? undefined : { label: 'Review now', view: 'dashboard' },
                     });
                 }
@@ -104,8 +106,10 @@ export function buildUpdates(
                 }
             }
 
-            if (!task.completed) everythingBeforeDoneAt = null;
-            else if (everythingBeforeDoneAt) everythingBeforeDoneAt = latest([everythingBeforeDoneAt, task.completed_at]) ?? everythingBeforeDoneAt;
+            if (!isClientTask(task)) {
+                if (!task.completed) teamWorkDoneAt = null;
+                else if (teamWorkDoneAt) teamWorkDoneAt = latest([teamWorkDoneAt, task.completed_at]) ?? teamWorkDoneAt;
+            }
         }
 
         // A finished stage
@@ -144,7 +148,6 @@ export function buildUpdates(
     const nudgeAt = lastNudgeTime(now);
     const pending: Task[] = summary.clientPending.filter((t) => (actionableSince.get(t.id) ?? client.created_at) < nudgeAt);
     if (pending.length > 0) {
-        const onboardingOpen = pending.some(isOnboardingTask);
         items.push({
             id: `nudge-${nudgeAt.slice(0, 10)}`,
             kind: 'nudge',
@@ -152,7 +155,6 @@ export function buildUpdates(
             body: `Your project moves as soon as ${pending.length === 1 ? 'this is' : 'these are'} done. It only takes a few minutes.`,
             items: pending.length === 1 ? undefined : pending.map((t) => t.name),
             at: nudgeAt,
-            action: { label: 'Do it now', view: onboardingOpen ? 'onboarding' : 'dashboard' },
         });
     }
 
