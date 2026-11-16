@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Screen-size variants for cards that should give space back on small laptops:
+   roomy = big, tall monitors; short = laptop screens with little height. */
+@custom-variant roomy (@media (min-width: 1536px) and (min-height: 900px));
+@custom-variant short (@media (max-height: 820px));
+
 :root {
   /* Core Backgrounds */
   --background: #f8fafc;
