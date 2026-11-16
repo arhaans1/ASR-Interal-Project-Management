@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ArrowRight, ArrowUpRight, PlayCircle, Check, ChevronDown, FolderOpen, Loader2, Lock, PartyPopper, UserRound } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, PlayCircle, Check, ChevronDown, FolderOpen, Loader2, Lock, PartyPopper } from 'lucide-react';
 import { PortalClient, Task } from '@/types/database';
+import OperatorAvatar from '@/components/OperatorAvatar';
+import { capitalizeName } from '@/lib/names';
 import { funnelLongName, guideFor } from '@/lib/funnelTemplates';
 import { formatDate, ProjectSummary } from '@/lib/progress';
 import ProgressRing from './ProgressRing';
@@ -263,12 +265,10 @@ export default function OnboardingFlow({
 
                     {operatorName && (
                         <div className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-                            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
-                                <UserRound className="h-5 w-5" />
-                            </span>
+                            <OperatorAvatar name={operatorName} className="h-14 w-14" />
                             <span className="min-w-0">
                                 <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-400">Your project manager</span>
-                                <span className="block truncate text-base font-semibold text-slate-900">{operatorName}</span>
+                                <span className="block truncate text-base font-semibold text-slate-900">{capitalizeName(operatorName)}</span>
                             </span>
                         </div>
                     )}

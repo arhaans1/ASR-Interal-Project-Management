@@ -76,8 +76,12 @@ export default function Sidebar({
   // Cards whose status matches no section at all
   const uncategorizedClients = clients.filter(c => !knownSections.has(c.status));
 
-  const ClientItem = ({ client }: { client: Client }) => (
+  // These two are plain render functions, not components. A component declared inside this one
+  // gets a new identity on every render, so React would throw away and rebuild the whole list each
+  // time (on every click, every unread-count change), and some browsers then jump the list to the top.
+  const renderClientItem = (client: Client) => (
     <button
+      key={client.id}
       onClick={() => onSelectClient(client)}
       onMouseEnter={() => prefetchCategories([client.id])}
       onFocus={() => prefetchCategories([client.id])}
@@ -113,7 +117,7 @@ export default function Sidebar({
     </button>
   );
 
-  const SectionHeader = ({ title, count, isExpanded, onClick, icon: Icon }: any) => (
+  const renderSectionHeader = ({ title, count, isExpanded, onClick, icon: Icon }: any) => (
     <button
       onClick={onClick}
       aria-expanded={isExpanded}
@@ -234,15 +238,15 @@ export default function Sidebar({
             const expanded = Boolean(expandedSections[section.name]);
             return (
               <div key={section.name}>
-                <SectionHeader
-                  title={section.name}
-                  count={sectionClients.length}
-                  isExpanded={expanded}
-                  onClick={() => toggleSection(section.name)}
-                  icon={SECTION_ICONS[section.name] ?? Folder}
-                />
+                {renderSectionHeader({
+                  title: section.name,
+                  count: sectionClients.length,
+                  isExpanded: expanded,
+                  onClick: () => toggleSection(section.name),
+                  icon: SECTION_ICONS[section.name] ?? Folder,
+                })}
                 <div className={`space-y-1 transition-all duration-300 origin-top ${expanded ? 'opacity-100 mb-4' : 'opacity-0 max-h-0 overflow-hidden'}`}>
-                  {sectionClients.map(client => <ClientItem key={client.id} client={client} />)}
+                  {sectionClients.map(renderClientItem)}
                 </div>
               </div>
             );
@@ -256,7 +260,7 @@ export default function Sidebar({
                 <span>Needs Attention</span>
               </div>
               <div className="space-y-1 mt-1">
-                {uncategorizedClients.map(client => <ClientItem key={client.id} client={client} />)}
+                {uncategorizedClients.map(renderClientItem)}
               </div>
             </div>
           )}

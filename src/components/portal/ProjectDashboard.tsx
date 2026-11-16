@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { ArrowUpRight, CalendarClock, Check, ChevronDown, CircleDashed, Clock3, FolderOpen, Link as LinkIcon, Loader2, Sparkles, UserRound } from 'lucide-react';
+import { Fragment, useState } from 'react';
+import { ArrowUpRight, CalendarClock, Check, ChevronDown, CircleDashed, Clock3, FolderOpen, Link as LinkIcon, Loader2, Sparkles } from 'lucide-react';
 import { PortalClient, Task } from '@/types/database';
+import OperatorAvatar from '@/components/OperatorAvatar';
+import { capitalizeName } from '@/lib/names';
 import { funnelLongName, guideFor } from '@/lib/funnelTemplates';
 import { formatDate, isClientTask, Phase, ProjectSummary } from '@/lib/progress';
 import RichTextDisplay from '@/components/RichTextDisplay';
@@ -34,8 +36,16 @@ export default function ProjectDashboard({ client, summary, operatorName, pendin
     const isOpen = (phase: Phase) => openPhases[phase.id] ?? phase.id === activePhase?.id;
     const togglePhase = (phase: Phase) => setOpenPhases((prev) => ({ ...prev, [phase.id]: !isOpen(phase) }));
 
+    // Phases still to do come first; finished ones drop to a "Completed" group below.
+    // Each keeps its original number.
+    const numbered = summary.phases.map((phase, i) => ({ phase, number: i + 1 }));
+    const orderedPhases = [
+        ...numbered.filter(({ phase }) => phase.status !== 'done'),
+        ...numbered.filter(({ phase }) => phase.status === 'done'),
+    ];
+    const firstDoneIndex = orderedPhases.findIndex(({ phase }) => phase.status === 'done');
+
     const allDone = summary.total > 0 && summary.done === summary.total;
-    const phasesDone = summary.phases.filter((p) => p.status === 'done').length;
 
     return (
         <div className="space-y-6">
@@ -61,7 +71,7 @@ export default function ProjectDashboard({ client, summary, operatorName, pendin
                                     : awaitingPhase
                                         ? <>We have submitted our work and are <span className="font-semibold text-amber-300">waiting for your approval</span> to continue.</>
                                     : activePhase
-                                        ? <>Now working on <span className="font-semibold text-white">{activePhase.name}</span> · phase {phasesDone + 1} of {summary.phases.length}</>
+                                        ? <>Now working on <span className="font-semibold text-white">{activePhase.name}</span> · phase {summary.phases.findIndex((p) => p.id === activePhase.id) + 1} of {summary.phases.length}</>
                                         : 'Your project is being set up.'}
                             </p>
                         </div>
@@ -86,10 +96,13 @@ export default function ProjectDashboard({ client, summary, operatorName, pendin
                 <div className="min-w-0 space-y-6">
                     {/* Needs you */}
                     {summary.clientPending.length > 0 && (
-                        <section className="rounded-2xl border border-amber-200 bg-amber-50/60 p-5 shadow-sm" aria-labelledby="needs-you">
+                        <section
+                            className={`rounded-2xl border-2 border-orange-400 bg-orange-100/80 p-5 shadow-lg shadow-orange-300/50 ${openActionId === null ? 'attention-shake' : ''}`}
+                            aria-labelledby="needs-you"
+                        >
                             <div className="flex items-center gap-2">
-                                <Sparkles className="h-4 w-4 text-amber-600" />
-                                <h2 id="needs-you" className="text-sm font-bold text-amber-950">
+                                <Sparkles className="h-4 w-4 text-orange-600" />
+                                <h2 id="needs-you" className="text-sm font-bold text-orange-950">
                                     Waiting on you · {summary.clientPending.length}
                                 </h2>
                             </div>
@@ -98,7 +111,7 @@ export default function ProjectDashboard({ client, summary, operatorName, pendin
                                     const busy = pendingTaskId === task.id;
                                     const open = openActionId === task.id;
                                     return (
-                                        <li key={task.id} className="rounded-xl bg-white ring-1 ring-amber-200/70">
+                                        <li key={task.id} className="rounded-xl bg-white ring-1 ring-orange-300">
                                             <div className="flex items-center gap-3 px-3.5 py-3">
                                                 <button
                                                     type="button"
@@ -123,7 +136,7 @@ export default function ProjectDashboard({ client, summary, operatorName, pendin
                                                 </button>
                                             </div>
                                             {open && (
-                                                <div className="border-t border-amber-100 px-3.5 pb-4 pt-3 sm:pl-[52px]">
+                                                <div className="border-t border-orange-100 px-3.5 pb-4 pt-3 sm:pl-[52px]">
                                                     <StepDetail task={task} client={client} />
                                                     <button
                                                         type="button"
@@ -168,13 +181,26 @@ export default function ProjectDashboard({ client, summary, operatorName, pendin
                             </div>
                         ) : (
                             <ol className="mt-6">
-                                {summary.phases.map((phase, index) => {
-                                    const last = index === summary.phases.length - 1;
+                                {orderedPhases.map(({ phase, number }, index) => {
+                                    const last = index === orderedPhases.length - 1;
+                                    // No rail line across the gap between the open phases and the completed group
+                                    const endsOpenGroup = firstDoneIndex === index + 1;
                                     const open = isOpen(phase);
                                     const phasePercent = Math.round((phase.done / phase.total) * 100);
+                                    // Pending tasks first, ticked ones below; each group keeps its order
+                                    const tasks = [...phase.tasks.filter((t) => !t.completed), ...phase.tasks.filter((t) => t.completed)];
 
                                     return (
-                                        <li key={phase.id} className="relative flex gap-4">
+                                        <Fragment key={phase.id}>
+                                        {index === firstDoneIndex && index > 0 && (
+                                            <li className="mb-4 flex items-center gap-3 pl-1">
+                                                <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-700">
+                                                    Completed · {orderedPhases.length - firstDoneIndex}
+                                                </span>
+                                                <span className="h-px flex-1 bg-emerald-200" />
+                                            </li>
+                                        )}
+                                        <li className="relative flex gap-4">
                                             {/* Rail */}
                                             <div className="flex flex-col items-center">
                                                 <span
@@ -187,9 +213,9 @@ export default function ProjectDashboard({ client, summary, operatorName, pendin
                                                             : 'border-2 border-slate-200 bg-white text-slate-400'
                                                         }`}
                                                 >
-                                                    {phase.status === 'done' ? <Check className="h-4 w-4" strokeWidth={3} /> : index + 1}
+                                                    {phase.status === 'done' ? <Check className="h-4 w-4" strokeWidth={3} /> : number}
                                                 </span>
-                                                {!last && (
+                                                {!last && !endsOpenGroup && (
                                                     <span className={`w-0.5 flex-1 ${phase.status === 'done' ? 'bg-emerald-300' : 'bg-slate-200'}`} />
                                                 )}
                                             </div>
@@ -252,7 +278,7 @@ export default function ProjectDashboard({ client, summary, operatorName, pendin
 
                                                 {open && (
                                                     <ul className="mt-3 space-y-1.5">
-                                                        {phase.tasks.map((task) => (
+                                                        {tasks.map((task) => (
                                                             <li key={task.id} className="flex items-start gap-2.5 rounded-xl bg-slate-50 px-3 py-2.5">
                                                                 {task.completed ? (
                                                                     <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">
@@ -276,6 +302,7 @@ export default function ProjectDashboard({ client, summary, operatorName, pendin
                                                 )}
                                             </div>
                                         </li>
+                                        </Fragment>
                                     );
                                 })}
                             </ol>
@@ -287,12 +314,10 @@ export default function ProjectDashboard({ client, summary, operatorName, pendin
                 <aside className="min-w-0 space-y-4 lg:sticky lg:top-24 lg:self-start">
                     {operatorName && (
                         <div className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-                            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
-                                <UserRound className="h-5 w-5" />
-                            </span>
+                            <OperatorAvatar name={operatorName} className="h-14 w-14" />
                             <span className="min-w-0">
                                 <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-400">Your project manager</span>
-                                <span className="block truncate text-base font-semibold text-slate-900">{operatorName}</span>
+                                <span className="block truncate text-base font-semibold text-slate-900">{capitalizeName(operatorName)}</span>
                             </span>
                         </div>
                     )}
