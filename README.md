@@ -74,6 +74,8 @@ On phones the road becomes a vertical list of steps, and the portal's sections m
 
 Every funnel's launch phase includes three client tasks before the ads go live: connect Gmail, WhatsApp and Google Meet / Zoom; complete the software payment; GHL access handover and demo. `supabase-data-launch-handover-tasks.sql` adds them to cards made before (already run in production).
 
+The launch phase also has an ASR task, **Install Microsoft Clarity and connect it to the landing page** (after "Set up the pixel" on CAM, before "Ad launch" on VSL and Webinar). `supabase-data-clarity-task.sql` adds it to cards made before (already run in production).
+
 The team client page also has an **Open Client Portal** link (next to the folders) that opens the portal in a new tab.
 
 ## Updates inbox
@@ -96,7 +98,7 @@ Launched clients get an **Ad Performance** tab next to **Tasks** on their card, 
 - **Linking a client:** in the client's **Edit** window, under **Meta Ads**, pick the ad account from the list. The list is every ad account assigned to the system user, so a new client's account shows up as soon as it is assigned there (use **Refresh list**). Then choose what counts as a result:
   - **Sales**: only campaigns whose ad sets optimise for the ticked events: the standard Purchase event and/or any custom conversions. ROAS is shown.
   - **Appointments**: the same, for the Schedule event and/or custom conversions. No ROAS.
-  - **Match Ads Manager** (default for new links): every campaign, each counting the result it optimises for, added up, like the Results column in Ads Manager. The dashboard shows what the total is made of (e.g. 28 Purchases · 13 Webinar Sale).
+  - **Match Ads Manager** (default for new links): every campaign, each counting the result it optimises for, added up, like the Results column in Ads Manager. The dashboard shows what the total is made of (e.g. 28 Purchases · 13 Webinar Sale). Meta reports some events (Schedule, Contact, Submit application, Start trial, Subscribe) under `conversions` rather than `actions`; every insights query asks for both and merges them.
 
   Each ad set only ever counts its own optimisation event, so a sale that fires both Purchase and a custom conversion is counted once. For shared ad accounts, add a campaign-name filter. **Test connection** shows the last 7 days with the breakdown.
 - **What each side sees:** both get amount spent, results, cost per result, ROAS (when there is sale value), landing page views, cost per landing page view and unique outbound CTR, a date range picker, comparison with the previous period, a day-by-day chart, a funnel, top ads with their creatives, and a campaign table. Only the team sees CPM and the Ads Manager links.
