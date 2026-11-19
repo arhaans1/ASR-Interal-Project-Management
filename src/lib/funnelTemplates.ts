@@ -75,6 +75,10 @@ const LAUNCH_HANDOVER: TemplateTask[] = [
   clientTask('ghl_handover', 'GHL access handover and demo'),
 ];
 
+// Our side, before ads go live: Microsoft Clarity on the landing page, for heatmaps and session
+// recordings. Shared by every funnel type.
+const CLARITY_SETUP: TemplateTask = { name: 'Install Microsoft Clarity and connect it to the landing page', owner: 'team', task_key: 'clarity_setup' };
+
 // CAM timeline: research is due 3 business days after onboarding, and the course outline
 // goes to the client for approval in that same window. Everything else is due 5 business
 // days after the client approves. Launch waits on the client's recordings, so it has no date.
@@ -139,6 +143,7 @@ const CAM_TEMPLATE: TemplateCategory[] = [
       clientTask('record_video_ads', 'Record your video ads'),
       ...LAUNCH_HANDOVER,
       asr('Set up the pixel'),
+      CLARITY_SETUP,
       asr('Set up the ad campaign'),
       asr('Launch ad campaigns'),
     ],
@@ -181,7 +186,7 @@ const VSL_TEMPLATE: TemplateCategory[] = [
   },
   {
     name: 'Launch',
-    tasks: [...LAUNCH_HANDOVER, asr('Ad launch')],
+    tasks: [...LAUNCH_HANDOVER, CLARITY_SETUP, asr('Ad launch')],
   },
 ];
 
@@ -212,7 +217,7 @@ const WEBINAR_TEMPLATE: TemplateCategory[] = [
   },
   {
     name: 'Launch',
-    tasks: [...LAUNCH_HANDOVER, asr('Ad launch')],
+    tasks: [...LAUNCH_HANDOVER, CLARITY_SETUP, asr('Ad launch')],
   },
 ];
 

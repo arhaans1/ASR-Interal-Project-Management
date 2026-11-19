@@ -281,15 +281,15 @@ interface ResultEvent {
 
 const STANDARD_EVENTS: Record<string, { label: string; actions: string[]; fuzzy?: string }> = {
     PURCHASE: { label: 'Purchases', actions: ['purchase', 'omni_purchase', 'offsite_conversion.fb_pixel_purchase', 'onsite_web_purchase'] },
-    SCHEDULE: { label: 'Appointments', actions: ['schedule_total', 'schedule_website', 'offsite_conversion.fb_pixel_schedule', 'omni_schedule'], fuzzy: 'schedule' },
+    SCHEDULE: { label: 'Appointments', actions: ['schedule_website', 'schedule_total', 'offsite_conversion.fb_pixel_schedule', 'omni_schedule'], fuzzy: 'schedule' },
     LEAD: { label: 'Leads', actions: ['lead', 'offsite_conversion.fb_pixel_lead', 'onsite_conversion.lead_grouped'] },
     COMPLETE_REGISTRATION: { label: 'Registrations', actions: ['complete_registration', 'omni_complete_registration', 'offsite_conversion.fb_pixel_complete_registration'] },
-    CONTACT: { label: 'Contacts', actions: ['contact_total', 'contact_website', 'offsite_conversion.fb_pixel_contact'] },
+    CONTACT: { label: 'Contacts', actions: ['contact_website', 'contact_total', 'offsite_conversion.fb_pixel_contact'] },
     INITIATED_CHECKOUT: { label: 'Checkouts started', actions: ['initiate_checkout', 'omni_initiated_checkout', 'offsite_conversion.fb_pixel_initiate_checkout'] },
     ADD_TO_CART: { label: 'Adds to cart', actions: ['add_to_cart', 'omni_add_to_cart', 'offsite_conversion.fb_pixel_add_to_cart'] },
-    SUBMIT_APPLICATION: { label: 'Applications', actions: ['submit_application_total', 'submit_application_website', 'offsite_conversion.fb_pixel_submit_application'] },
-    START_TRIAL: { label: 'Trials started', actions: ['start_trial_total', 'start_trial_website', 'offsite_conversion.fb_pixel_start_trial'] },
-    SUBSCRIBE: { label: 'Subscriptions', actions: ['subscribe_total', 'subscribe_website', 'offsite_conversion.fb_pixel_subscribe'] },
+    SUBMIT_APPLICATION: { label: 'Applications', actions: ['submit_application_website', 'submit_application_total', 'offsite_conversion.fb_pixel_submit_application'] },
+    START_TRIAL: { label: 'Trials started', actions: ['start_trial_website', 'start_trial_total', 'offsite_conversion.fb_pixel_start_trial'] },
+    SUBSCRIBE: { label: 'Subscriptions', actions: ['subscribe_website', 'subscribe_total', 'offsite_conversion.fb_pixel_subscribe'] },
 };
 
 // Ad sets that optimise for something other than a pixel event
@@ -483,15 +483,41 @@ interface InsightsQuery {
     maxPages?: number;
 }
 
-function insights(config: AdsConfig, q: InsightsQuery) {
+// Meta reports some standard events (Schedule, Contact, Submit application, Start trial, Subscribe…)
+// under `conversions` / `conversion_values` instead of `actions` / `action_values`. Whenever actions
+// are asked for, conversions come too and are folded in, so every result count sees both.
+function withConversionFields(fields: string[]): string[] {
+    const out = [...fields];
+    if (fields.includes('actions') && !fields.includes('conversions')) out.push('conversions');
+    if (fields.includes('action_values') && !fields.includes('conversion_values')) out.push('conversion_values');
+    return out;
+}
+
+export function mergeActionLists(actions: ActionList, extra: ActionList): ActionList {
+    if (!Array.isArray(extra) || extra.length === 0) return actions;
+    const base = Array.isArray(actions) ? actions : [];
+    const seen = new Set(base.map((a) => a.action_type));
+    return [...base, ...extra.filter((a) => a && !seen.has(a.action_type))];
+}
+
+type ActionRow = { actions?: ActionList; action_values?: ActionList; conversions?: ActionList; conversion_values?: ActionList };
+
+function foldConversions<T extends ActionRow | null>(row: T): T {
+    if (!row || typeof row !== 'object') return row;
+    if (row.conversions) row.actions = mergeActionLists(row.actions, row.conversions);
+    if (row.conversion_values) row.action_values = mergeActionLists(row.action_values, row.conversion_values);
+    return row;
+}
+
+async function insights(config: AdsConfig, q: InsightsQuery) {
     const filtering: { field: string; operator: string; value: unknown }[] = [];
     if (config.campaignFilter) filtering.push({ field: 'campaign.name', operator: 'CONTAIN', value: config.campaignFilter });
     if (q.adsetIds) filtering.push({ field: 'adset.id', operator: 'IN', value: q.adsetIds });
-    return graphAll(
+    const rows = await graphAll(
         `${config.accountId}/insights`,
         {
             level: q.level,
-            fields: q.fields.join(','),
+            fields: withConversionFields(q.fields).join(','),
             ...(q.range === 'maximum' ? { date_preset: 'maximum' } : { time_range: { since: q.range.since, until: q.range.until } }),
             ...(q.step ? { time_increment: q.step } : {}),
             ...(filtering.length ? { filtering } : {}),
@@ -500,6 +526,7 @@ function insights(config: AdsConfig, q: InsightsQuery) {
         },
         q.maxPages ?? MAX_PAGES
     );
+    return rows.map(foldConversions);
 }
 
 // Creative images and preview links, one ad at a time (a few in parallel). Kept for an hour.
